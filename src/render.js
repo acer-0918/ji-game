@@ -90,6 +90,7 @@ export function renderEquipSlots(id) {
 
 export function renderMap() {
   const p = G.player;
+  const devMode = !!G.devMode;
   $('map-name').textContent = `${p.classIcon || '🧙'} ${p.name}`;
   $('map-hp').textContent = p.hp;
   $('map-maxhp').textContent = p.maxHp;
@@ -114,12 +115,18 @@ export function renderMap() {
     let cls = 'map-node';
     if (node.type === 'boss') cls += ' boss-node';
     if (node.type === 'shop') cls += ' shop-node';
-    if (node.done) cls += ' done';
-    else if (i === G.nodeIdx) cls += ' available';
+    if (!devMode && node.done) cls += ' done';
+    else if (devMode || i === G.nodeIdx) cls += ' available';
     div.className = cls;
     div.dataset.nodeIndex = String(i);
 
-    const hint = node.done ? '✓ 已完成' : i === G.nodeIdx ? '点击进入' : '🔒 未解锁';
+    const hint = devMode
+      ? '开发者模式：点击进入'
+      : node.done
+        ? '✓ 已完成'
+        : i === G.nodeIdx
+          ? '点击进入'
+          : '🔒 未解锁';
     const enemyTip = node.enemy ? ` · ${node.enemy.emoji}${node.enemy.name}` : '';
     div.innerHTML = `
       <div class="node-icon">${node.icon}</div>
