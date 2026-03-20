@@ -11,7 +11,10 @@
     <div class="title">来Ji</div>
     <div class="subtitle">三连 Boss 测试版 · Repo 协作版</div>
     <div class="center">
-      <button class="btn" id="btn-start">开始游戏</button>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button class="btn" id="btn-start">开始游戏</button>
+        <button class="btn btn-red" id="btn-hard-start">困难模式 (MDP)</button>
+      </div>
       <p style="color:#333;font-size:.78em;margin-top:20px;">当前职业：刺客</p>
       <div style="color:#444;font-size:.75em;margin-top:24px;max-width:470px;margin-left:auto;margin-right:auto;line-height:1.85;text-align:left;padding:12px;border:1px solid #1a1a2a;">
         <strong style="color:#666;">测试规则</strong><br>
@@ -21,7 +24,9 @@
         未被防御或抵消的每一次攻击都会单独造成一次伤害。<br>
         若攻击等级不高于防御等级，则该次多段攻击的每一下都会被防御。<br><br>
         <strong style="color:#666;">测试目标</strong><br>
-        商店后连续挑战：贾诩 → 古夫大帝 → 故障机器人。每场战斗可用 SL 重新开始。
+        商店后连续挑战：贾诩 → 古夫大帝 → 故障机器人。每场战斗可用 SL 重新开始。<br><br>
+        <strong style="color:#c0392b;">困难模式 (MDP)</strong><br>
+        三位 Boss 各自拥有通过价值迭代预计算的马尔可夫最优策略 Π(s)，根据双方当前 Ji 状态动态决策，无随机权重。
       </div>
     </div>
   </div>
@@ -96,7 +101,9 @@
     <div class="battle-log" id="battle-log"></div>
 
     <div class="round-bar">
-      <span>第 <span id="round-num">1</span> 回合 · <span id="round-phase">选择行动</span></span>
+      <span>第 <span id="round-num">1</span> 回合 · <span id="round-phase">选择行动</span>
+        <span id="hard-badge" style="display:none;color:#e53;font-size:.72em;border:1px solid #e53;padding:1px 6px;margin-left:8px;vertical-align:middle;">HARD·MDP</span>
+      </span>
       <div style="display:flex;gap:8px;">
         <button class="btn-surrender" id="btn-restart-battle">↺ SL</button>
         <button class="btn-surrender" id="btn-ask-surrender">🏳 投降</button>

@@ -1,4 +1,5 @@
 import { aiDecide } from './ai.js';
+import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
 import { ABILITY_DEFS, SHOP_ITEMS } from './data.js';
 import {
   calcDamage,
@@ -88,12 +89,14 @@ function closeSurrender() {
 
 function doSurrender() {
   closeOverlay('ov-surrender');
-  startGame();
+  restartRun();
 }
 
 function startGame() {
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
+  clearMDPPolicies();
   initGame();
+  updateHardBadge(false);
   showScreen('map');
   renderMap();
   setTimeout(() => {
@@ -101,6 +104,35 @@ function startGame() {
       enterNode(0);
     }
   }, 0);
+}
+
+function startHardGame() {
+  document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
+  const btn = $('btn-hard-start');
+  if (btn) { btn.disabled = true; btn.textContent = '计算中...'; }
+  // Synchronous computation — typically <150 ms
+  initMDPPolicies();
+  if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
+  initGame();
+  G.hardMode = true;
+  updateHardBadge(true);
+  showScreen('map');
+  renderMap();
+  setTimeout(() => {
+    if (G.nodeIdx === 0 && G.nodes[0] && G.nodes[0].type === 'shop') {
+      enterNode(0);
+    }
+  }, 0);
+}
+
+function updateHardBadge(show) {
+  const badge = $('hard-badge');
+  if (badge) badge.style.display = show ? '' : 'none';
+}
+
+function restartRun() {
+  if (G.hardMode) startHardGame();
+  else startGame();
 }
 
 function enterNode(index) {
@@ -157,6 +189,10 @@ function startBattle(node, keepSnapshot=false) {
   } else if (G.enemy.id === 'faultRobot') {
     addLog('log-ab', '🤖 故障机器人会随机生成 5 类充能球；当五类都已出现后，再次启动会直接消灭玩家。');
   }
+  if (G.hardMode) {
+    addLog('log-ab', '⚡ 困难模式：此 Boss 使用马尔可夫最优策略（MDP），根据你当前的 Ji 状态动态决策。');
+  }
+  updateHardBadge(G.hardMode);
 
   $('round-num').textContent = '1';
   refreshActionLabels();
@@ -353,6 +389,7 @@ function closeBattleOverlay() {
 
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
+  $('btn-hard-start')?.addEventListener('click', startHardGame);
   $('btn-open-abtree').addEventListener('click', openAbilityTree);
   $('btn-abtree-close').addEventListener('click', closeAbilityTree);
   $('btn-leave-shop').addEventListener('click', leaveShop);
@@ -362,8 +399,8 @@ function bindStaticEvents() {
   $('btn-restart-battle').addEventListener('click', restartBattle);
   $('btn-battle-continue').addEventListener('click', closeBattleOverlay);
   $('btn-confirm').addEventListener('click', confirmAction);
-  $('btn-restart-run-from-gameover').addEventListener('click', startGame);
-  $('btn-restart-run-from-victory').addEventListener('click', startGame);
+  $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
+  $('btn-restart-run-from-victory').addEventListener('click', restartRun);
 
   document.querySelectorAll('.main-btn[data-main]').forEach((btn) => {
     btn.addEventListener('click', () => mainSelect(btn.dataset.main));

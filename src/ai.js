@@ -2,6 +2,7 @@ import { G } from './state.js';
 import { allOrbsGenerated, orbCount, orbUniqueCount, ensureFaultRobotState } from './state.js';
 import { getActionData, getMaxAffordableAttack } from './logic.js';
 import { randomChoice } from './utils.js';
+import { mdpDecide } from './mdp.js';
 
 function addWeight(bucket, key, weight) {
   if (weight > 0) bucket[key] = (bucket[key] || 0) + weight;
@@ -165,6 +166,10 @@ function aiBasic(enemy) {
 
 export function aiDecide(enemy) {
   if (!enemy) return 'ji';
+  // Hard mode: use precomputed MDP policy for boss enemies
+  const mdpAction = mdpDecide(enemy);
+  if (mdpAction !== null) return mdpAction;
+  // Normal mode: fall back to hand-crafted heuristic AI
   if (enemy.id === 'jiaxu') return aiJiaxu(enemy);
   if (enemy.id === 'gufu') return aiGufu(enemy);
   if (enemy.id === 'faultRobot') return aiFaultRobot(enemy);

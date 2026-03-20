@@ -15,6 +15,7 @@ export function initGame() {
     battle: {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null},
     ui: {mainSel:null, actionKey:null},
     battleEntrySnapshot: null,
+    hardMode: false,
   };
 }
 
