@@ -20,7 +20,7 @@ import {
   renderShop,
   resetRoundUI,
 } from './render.js';
-import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
+import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot, allOrbsGenerated } from './state.js';
 import { clone } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -286,21 +286,23 @@ function doResolve() {
   pResult.logs.forEach((text) => addLog('log-ab', text));
   eResult.logs.forEach((text) => addLog('log-ab', text));
 
-  if (eResult.instantKill === 'player') {
+  const result = calcDamage(pResult.action, eResult.action);
+  p.hp = Math.max(0, p.hp - result.pdmg);
+  e.hp = Math.max(0, e.hp - result.edmg);
+  if (result.pdmg > 0) {
+    G.roomFlags.playerDamagedInBattle = true;
+    if (G.abilities.popcorn) G.battle.popcornPending = true;
+  }
+  result.msgs.forEach((msg) => addLog(result.edmg > 0 || result.pdmg > 0 ? 'log-dmg' : 'log-blk', msg));
+  result.triggers.forEach((trigger) => addLog('log-ab', `✨ ${trigger}`));
+  if (result.pdmg > 0) addLog('log-dmg', `玩家受到 ${result.pdmg} 点伤害！`);
+  if (result.edmg > 0) addLog('log-dmg', `敌方受到 ${result.edmg} 点伤害！`);
+
+  // 过载机制：在双方行动结算后立即检查；每场战斗仅触发一次。
+  if (e && e.id === 'faultRobot' && !e.overloadTriggered && allOrbsGenerated(e)) {
+    e.overloadTriggered = true;
     p.hp = 0;
-    addLog('log-dmg', '玩家被过载终焉直接消灭！');
-  } else {
-    const result = calcDamage(pResult.action, eResult.action);
-    p.hp = Math.max(0, p.hp - result.pdmg);
-    e.hp = Math.max(0, e.hp - result.edmg);
-    if (result.pdmg > 0) {
-      G.roomFlags.playerDamagedInBattle = true;
-      if (G.abilities.popcorn) G.battle.popcornPending = true;
-    }
-    result.msgs.forEach((msg) => addLog(result.edmg > 0 || result.pdmg > 0 ? 'log-dmg' : 'log-blk', msg));
-    result.triggers.forEach((trigger) => addLog('log-ab', `✨ ${trigger}`));
-    if (result.pdmg > 0) addLog('log-dmg', `玩家受到 ${result.pdmg} 点伤害！`);
-    if (result.edmg > 0) addLog('log-dmg', `敌方受到 ${result.edmg} 点伤害！`);
+    addLog('log-dmg', '☠️ 过载终焉发动！玩家被直接消灭。');
   }
 
   G.battle.lastPlayerAction = G.battle.pAction;
@@ -371,7 +373,7 @@ function endBattle(win) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>🩹 无伤通过战斗，<strong style="color:#8bd48b">生命上限 +1</strong>。`;
     }
     if (node.finalBoss) {
-      body.innerHTML = '胜利……？';
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！`;
     } else if (!body.innerHTML) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>继续前进，后面还有更强的敌人。`;
     }

@@ -42,6 +42,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
 export function ensureFaultRobotState(enemy) {
   if (!enemy || enemy.id !== 'faultRobot') return;
   enemy.orbs = enemy.orbs || {plasma:0, frost:0, lightning:0, dark:0, glass:0};
+  enemy.overloadTriggered = !!enemy.overloadTriggered;
   ORB_KEYS.forEach(k => {
     enemy.orbs[k] = enemy.orbs[k] || 0;
   });

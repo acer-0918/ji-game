@@ -7,10 +7,12 @@ function addWeight(bucket, key, weight) {
   if (weight > 0) bucket[key] = (bucket[key] || 0) + weight;
 }
 
-function pickWeightedAction(weights, side='enemy', fallback='ji') {
+function pickWeightedAction(weights, side='enemy', fallback='ji', blockedActions=[]) {
   const actor = side === 'player' ? G.player : G.enemy;
+  const blocked = new Set(blockedActions);
   const pool = [];
   Object.entries(weights).forEach(([key, weight]) => {
+    if (blocked.has(key)) return;
     const action = getActionData(key, side, actor);
     if (!action || action.cost > actor.ji || weight <= 0) return;
     for (let i = 0; i < Math.round(weight); i++) pool.push(key);
@@ -19,6 +21,7 @@ function pickWeightedAction(weights, side='enemy', fallback='ji') {
 
   const candidateOrder = [fallback, 'ji', 'defense_0', 'attack_1', 'defense_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7', 'defense_2', 'orb_random'];
   for (const key of candidateOrder) {
+    if (blocked.has(key)) continue;
     const action = getActionData(key, side, actor);
     if (action && action.cost <= actor.ji) return key;
   }
@@ -26,6 +29,8 @@ function pickWeightedAction(weights, side='enemy', fallback='ji') {
 }
 
 function buildAiContext(enemy) {
+  const playerClass = G.player.classKey || 'assassin';
+  const playerLightningOrbs = G.player.lightningOrbs || 0;
   return {
     round: G.battle.round,
     eJi: enemy.ji,
@@ -43,18 +48,43 @@ function buildAiContext(enemy) {
     playerLowHp: G.player.hp <= 2,
     lastPlayerAction: G.battle.lastPlayerAction,
     lastEnemyAction: G.battle.lastEnemyAction,
+    playerClass,
+    playerLightningOrbs,
+    playerIsGeneralClass: playerClass === 'assassin' || playerClass === 'tank',
+    playerIsMage: playerClass === 'mage',
+    mageCanRelease: playerClass === 'mage' && playerLightningOrbs >= 5,
   };
+}
+
+function applyGeneralClassDefenseDiscipline(ctx, weights) {
+  if (!ctx.playerIsGeneralClass) return;
+  if (ctx.pJi < 6) {
+    weights.defense_1 = 0;
+    weights.defense_2 = 0;
+    return;
+  }
+  if (ctx.pJi < 7) {
+    weights.defense_2 = 0;
+  }
+}
+
+function getBlockedActions(ctx) {
+  if (!ctx.playerIsGeneralClass) return [];
+  if (ctx.pJi < 6) return ['defense_1', 'defense_2'];
+  if (ctx.pJi < 7) return ['defense_2'];
+  return [];
 }
 
 function aiJiaxu(enemy) {
   const ctx = buildAiContext(enemy);
+  const blockedActions = getBlockedActions(ctx);
   const w = {};
 
   if (ctx.eJi === 0) {
     addWeight(w, 'ji', ctx.playerHighThreat ? 3 : 5);
     addWeight(w, 'defense_0', ctx.playerHighThreat ? 4 : 2);
     addWeight(w, 'attack_1', ctx.playerLikelyCharge ? 3 : 1);
-    return pickWeightedAction(w, 'enemy', ctx.playerLikelyCharge ? 'attack_1' : 'defense_0');
+    return pickWeightedAction(w, 'enemy', ctx.playerLikelyCharge ? 'attack_1' : 'defense_0', blockedActions);
   }
 
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
@@ -64,6 +94,8 @@ function aiJiaxu(enemy) {
   addWeight(w, 'defense_0', ctx.pMaxAtk >= 3 ? 2 : 1);
   if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
   if (ctx.eJi >= 2 && (ctx.playerUltraThreat || (ctx.enemyLowHp && ctx.pMaxAtk >= 5))) addWeight(w, 'defense_2', 2);
+  if (ctx.playerIsMage && ctx.mageCanRelease && ctx.eJi >= 1) addWeight(w, 'defense_1', 4);
+  applyGeneralClassDefenseDiscipline(ctx, w);
 
   if (ctx.eJi <= 2) addWeight(w, 'ji', ctx.playerLikelyCharge ? 2 : 4);
   else if (ctx.eJi <= 4 && !ctx.playerHighThreat) addWeight(w, 'ji', 2);
@@ -75,11 +107,12 @@ function aiJiaxu(enemy) {
   if (ctx.eJi >= 6) addWeight(w, 'attack_6', ctx.playerLowHp ? 4 : 2);
   if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.playerLowHp ? 5 : 2);
 
-  return pickWeightedAction(w, 'enemy', ctx.playerLikelyCharge ? 'attack_2' : 'attack_3');
+  return pickWeightedAction(w, 'enemy', ctx.playerLikelyCharge ? 'attack_2' : 'attack_3', blockedActions);
 }
 
 function aiGufu(enemy) {
   const ctx = buildAiContext(enemy);
+  const blockedActions = getBlockedActions(ctx);
   const grow = enemy.chargeValue || 1;
   const w = {};
   const safeToScale = ctx.pMaxAtk <= 4 && !ctx.enemyLowHp;
@@ -88,7 +121,7 @@ function aiGufu(enemy) {
     addWeight(w, 'ji', safeToScale ? 6 : 3);
     addWeight(w, 'defense_0', ctx.playerHighThreat ? 4 : 2);
     addWeight(w, 'attack_1', ctx.playerLikelyCharge ? 2 : 1);
-    return pickWeightedAction(w, 'enemy', safeToScale ? 'ji' : 'defense_0');
+    return pickWeightedAction(w, 'enemy', safeToScale ? 'ji' : 'defense_0', blockedActions);
   }
 
   if (safeToScale) addWeight(w, 'ji', grow <= 3 ? 7 : 4);
@@ -105,11 +138,21 @@ function aiGufu(enemy) {
   if (ctx.eJi >= 6) addWeight(w, 'attack_6', 2 + (grow >= 5 ? 2 : 0));
   if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.playerLowHp ? 5 : 3);
 
-  return pickWeightedAction(w, 'enemy', grow <= 3 ? 'ji' : 'attack_4');
+  const gufuCanHighAttack = ctx.eJi >= 6;
+  if (gufuCanHighAttack) {
+    addWeight(w, 'attack_6', 4);
+    if (ctx.eJi >= 7) addWeight(w, 'attack_7', 4);
+  } else if (ctx.playerIsMage && ctx.mageCanRelease && ctx.eJi >= 1) {
+    addWeight(w, 'defense_1', 5);
+  }
+  applyGeneralClassDefenseDiscipline(ctx, w);
+
+  return pickWeightedAction(w, 'enemy', grow <= 3 ? 'ji' : 'attack_4', blockedActions);
 }
 
 function aiFaultRobot(enemy) {
   const ctx = buildAiContext(enemy);
+  const blockedActions = getBlockedActions(ctx);
   ensureFaultRobotState(enemy);
   const unique = orbUniqueCount(enemy);
   const w = {};
@@ -118,7 +161,7 @@ function aiFaultRobot(enemy) {
   if (allOrbsGenerated(enemy)) {
     addWeight(w, 'orb_random', 25);
     if (ctx.pMaxAtk >= 6) addWeight(w, 'defense_1', 2);
-    return pickWeightedAction(w, 'enemy', 'orb_random');
+    return pickWeightedAction(w, 'enemy', 'orb_random', blockedActions);
   }
 
   addWeight(w, 'orb_random', safeToOrb ? 8 : 3);
@@ -127,8 +170,14 @@ function aiFaultRobot(enemy) {
   if (ctx.eJi === 0 && !safeToOrb) addWeight(w, 'defense_0', 3);
 
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 4);
+  if (ctx.playerLikelyAttack) {
+    addWeight(w, 'defense_0', 3);
+    addWeight(w, 'attack_1', 3);
+  }
   if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
   if (ctx.eJi >= 2 && (ctx.playerUltraThreat || (ctx.enemyLowHp && ctx.pMaxAtk >= 5))) addWeight(w, 'defense_2', 2);
+  if (ctx.playerIsMage && ctx.mageCanRelease && ctx.eJi >= 1) addWeight(w, 'defense_1', 4);
+  applyGeneralClassDefenseDiscipline(ctx, w);
 
   if (ctx.eJi <= 2) addWeight(w, 'ji', safeToOrb ? 2 : 4);
   else if (!ctx.playerHighThreat && orbCount(enemy, 'plasma') > 0) addWeight(w, 'ji', 2 + orbCount(enemy, 'plasma'));
@@ -140,27 +189,30 @@ function aiFaultRobot(enemy) {
   if (ctx.eJi >= 6) addWeight(w, 'attack_6', 2 + orbCount(enemy, 'dark'));
   if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.playerLowHp ? 5 : 2 + orbCount(enemy, 'dark'));
 
-  return pickWeightedAction(w, 'enemy', unique < 3 ? 'orb_random' : 'attack_4');
+  return pickWeightedAction(w, 'enemy', unique < 3 ? 'orb_random' : 'attack_4', blockedActions);
 }
 
 function aiBasic(enemy) {
   const ctx = buildAiContext(enemy);
+  const blockedActions = getBlockedActions(ctx);
   const w = {};
   if (ctx.eJi === 0) {
     addWeight(w, 'ji', 5);
     addWeight(w, 'defense_0', ctx.playerHighThreat ? 4 : 2);
     addWeight(w, 'attack_1', ctx.playerLikelyCharge ? 2 : 1);
-    return pickWeightedAction(w, 'enemy', 'ji');
+    return pickWeightedAction(w, 'enemy', 'ji', blockedActions);
   }
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
   if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
   if (ctx.eJi >= 2 && ctx.playerUltraThreat) addWeight(w, 'defense_2', 2);
+  if (ctx.playerIsMage && ctx.mageCanRelease && ctx.eJi >= 1) addWeight(w, 'defense_1', 4);
+  applyGeneralClassDefenseDiscipline(ctx, w);
   if (ctx.eJi <= 2) addWeight(w, 'ji', 3);
   if (ctx.eJi >= 2) addWeight(w, 'attack_2', 3);
   if (ctx.eJi >= 3) addWeight(w, 'attack_3', 2);
   if (ctx.eJi >= 4) addWeight(w, 'attack_4', 2);
   if (ctx.eJi >= 5) addWeight(w, 'attack_5', 2);
-  return pickWeightedAction(w, 'enemy', 'attack_2');
+  return pickWeightedAction(w, 'enemy', 'attack_2', blockedActions);
 }
 
 export function aiDecide(enemy) {

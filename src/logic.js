@@ -148,9 +148,9 @@ export function resolveAction(side, key) {
   } else if (base.type === 'fault_orb') {
     ensureFaultRobotState(actor);
     if (allOrbsGenerated(actor)) {
-      instantKill = side === 'enemy' ? 'player' : 'enemy';
-      action = {type:'doom', cost:0, name:'过载终焉', emoji:'☠️', hits:0, damage:0};
-      logs.push('☠️ 五类充能球已全部出现！故障机器人启动过载终焉，直接消灭玩家。');
+      action = {type:'orb_buff', cost:0, name:'过载临界', emoji:'☠️', hits:0, damage:0};
+      if (actor.overloadTriggered) logs.push('☠️ 过载终焉已发动过，本局战斗中不会再次触发。');
+      else logs.push('☠️ 五类充能球已全部出现！过载终焉将于本回合结算后发动。');
     } else {
       const orbKey = randomChoice(ORB_KEYS);
       actor.orbs[orbKey] = (actor.orbs[orbKey] || 0) + 1;
@@ -158,11 +158,12 @@ export function resolveAction(side, key) {
       const meta = ORB_META[orbKey];
       logs.push(`${meta.icon} 故障机器人生成了【${meta.name}】（当前 ${count} 个）。`);
       if (orbKey === 'plasma') {
-        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji。`);
-        action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
+        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji，视为蓄力。`);
+        action = getActionData('ji', side, actor);
+        actor.ji += action.gain;
       } else if (orbKey === 'frost') {
-        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}。`);
-        action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
+        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}，视为【防御3】。`);
+        action = getActionData('defense_0', side, actor);
       } else if (orbKey === 'lightning') {
         logs.push(`⚔ 之后它的攻击等级额外 +${orbCount(actor, 'lightning')}。`);
         action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
