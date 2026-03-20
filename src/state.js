@@ -37,6 +37,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
     equippedGear: null,
     battleEntrySnapshot: null,
     hardMode: false,
+    devMode: false,
   };
 }
 

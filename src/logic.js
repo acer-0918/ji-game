@@ -258,8 +258,8 @@ function baseResolveHitCompare(ctx) {
   if (pAtk && !eAtk) {
     const enemyDef = ea.def || 0;
     if ((pa.atk || 0) > enemyDef) {
-      ctx.playerHits = pHits;
-      ctx.msgs.push(`玩家攻击等级 ${pa.atk} 突破敌方防御 ${enemyDef}，命中 ${ctx.playerHits} 次。`);
+      ctx.playerHits = 1;
+      ctx.msgs.push(`玩家攻击等级 ${pa.atk} 突破敌方防御 ${enemyDef}，命中。`);
     } else {
       ctx.msgs.push(`玩家攻击等级 ${pa.atk} 未高于敌方防御 ${enemyDef}，本次未命中。`);
     }
@@ -269,8 +269,8 @@ function baseResolveHitCompare(ctx) {
   if (!pAtk && eAtk) {
     const playerDef = pa.def || 0;
     if ((ea.atk || 0) > playerDef) {
-      ctx.enemyHits = eHits;
-      ctx.msgs.push(`敌方攻击等级 ${ea.atk} 突破玩家防御 ${playerDef}，命中 ${ctx.enemyHits} 次。`);
+      ctx.enemyHits = 1;
+      ctx.msgs.push(`敌方攻击等级 ${ea.atk} 突破玩家防御 ${playerDef}，命中。`);
     } else {
       ctx.msgs.push(`敌方攻击等级 ${ea.atk} 未高于玩家防御 ${playerDef}，本次未命中。`);
     }
@@ -280,10 +280,10 @@ function baseResolveHitCompare(ctx) {
   const pPower = (pa.atk || 0) * pHits;
   const ePower = (ea.atk || 0) * eHits;
   if (pPower > ePower) {
-    ctx.playerHits = pHits;
+    ctx.playerHits = 1;
     ctx.msgs.push(`双方互攻：玩家总攻击 ${pPower} 高于敌方 ${ePower}，玩家命中。`);
   } else if (ePower > pPower) {
-    ctx.enemyHits = eHits;
+    ctx.enemyHits = 1;
     ctx.msgs.push(`双方互攻：敌方总攻击 ${ePower} 高于玩家 ${pPower}，敌方命中。`);
   } else {
     ctx.msgs.push(`双方互攻：总攻击相同（${pPower}），双方均未命中。`);

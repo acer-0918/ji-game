@@ -26,6 +26,49 @@ import { clone } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
+const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
+const DEV_FRAGMENTS = 999999999;
+let developerModeEnabled = false;
+
+try {
+  developerModeEnabled = window.localStorage.getItem(DEV_MODE_LS_KEY) === '1';
+} catch (_) {
+  developerModeEnabled = false;
+}
+
+function persistDeveloperMode() {
+  try {
+    window.localStorage.setItem(DEV_MODE_LS_KEY, developerModeEnabled ? '1' : '0');
+  } catch (_) {
+    // ignore storage failures
+  }
+}
+
+function keepDeveloperResources() {
+  if (!G.devMode || !G.player) return;
+  G.player.fragments = DEV_FRAGMENTS;
+}
+
+function refreshDeveloperModeButton() {
+  const btn = $('btn-toggle-devmode');
+  if (!btn) return;
+  btn.textContent = `开发者模式：${developerModeEnabled ? '开启' : '关闭'}`;
+}
+
+function applyDeveloperModeToGameState() {
+  G.devMode = developerModeEnabled;
+  keepDeveloperResources();
+}
+
+function toggleDeveloperMode() {
+  developerModeEnabled = !developerModeEnabled;
+  persistDeveloperMode();
+  applyDeveloperModeToGameState();
+  refreshDeveloperModeButton();
+  if ($('screen-map').classList.contains('active')) renderMap();
+  if ($('ov-shop').classList.contains('show')) renderShop();
+  if (G.enemy) refreshBars();
+}
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
@@ -70,24 +113,26 @@ function closeAbilityTree() {
 
 function unlockAbility(key) {
   const ab = getAbilityDefsForClass(G.player.classKey).find((item) => item.key === key);
-  if (!ab || G.abilities[key] || G.player.fragments < ab.cost) return;
-  G.player.fragments -= ab.cost;
+  if (!ab || G.abilities[key] || (!G.devMode && G.player.fragments < ab.cost)) return;
+  if (!G.devMode) G.player.fragments -= ab.cost;
   G.abilities[key] = true;
   if (key === 'mango') {
     G.player.maxHp += 5;
     G.player.hp += 5;
   }
+  keepDeveloperResources();
   renderAbilityTree();
   renderMap();
 }
 
 function buyShopItem(key) {
   const item = SHOP_ITEMS.find((entry) => entry.key === key);
-  if (!item || G.shop[key] || G.player.fragments < item.cost) return;
+  if (!item || G.shop[key] || (!G.devMode && G.player.fragments < item.cost)) return;
   if (item.slot === 'gear' && G.equippedGear && G.equippedGear !== key) return;
-  G.player.fragments -= item.cost;
+  if (!G.devMode) G.player.fragments -= item.cost;
   G.shop[key] = true;
   if (item.slot === 'gear') G.equippedGear = key;
+  keepDeveloperResources();
   renderShop();
   renderMap();
   if (G.enemy) refreshBars();
@@ -108,6 +153,11 @@ function unequipGear() {
 }
 
 function leaveShop() {
+  if (G.devMode) {
+    closeOverlay('ov-shop');
+    renderMap();
+    return;
+  }
   resetRoomJi();
   G.nodes[G.nodeIdx].done = true;
   G.nodeIdx += 1;
@@ -133,6 +183,7 @@ function startGame() {
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
   clearMDPPolicies();
   initGame(selectedClassKey);
+  applyDeveloperModeToGameState();
   updateHardBadge(false);
   showScreen('map');
   renderMap();
@@ -152,6 +203,7 @@ async function startHardGame() {
     if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
   }
   initGame(selectedClassKey);
+  applyDeveloperModeToGameState();
   G.hardMode = true;
   updateHardBadge(true);
   showScreen('map');
@@ -175,7 +227,8 @@ function restartRun() {
 
 function enterNode(index) {
   const node = G.nodes[index];
-  if (!node || node.done || index !== G.nodeIdx) return;
+  if (!node) return;
+  if (!G.devMode && (node.done || index !== G.nodeIdx)) return;
   resetRoomJi();
   if (node.type === 'shop') {
     renderShop();
@@ -479,7 +532,10 @@ function closeBattleOverlay() {
   renderMap();
 }
 
-function openSettings() { openOverlay('ov-settings'); }
+function openSettings() {
+  refreshDeveloperModeButton();
+  openOverlay('ov-settings');
+}
 function closeSettings() { closeOverlay('ov-settings'); }
 function confirmBackToMenu() {
   document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
@@ -508,6 +564,7 @@ function bindStaticEvents() {
   $('btn-to-menu-map')?.addEventListener('click', openSettings);
   $('btn-to-menu-battle')?.addEventListener('click', openSettings);
   $('btn-settings-close')?.addEventListener('click', closeSettings);
+  $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 
@@ -561,6 +618,8 @@ function bindStaticEvents() {
 function bootstrap() {
   bindStaticEvents();
   initGame();
+  applyDeveloperModeToGameState();
+  refreshDeveloperModeButton();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
