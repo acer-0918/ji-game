@@ -22,6 +22,59 @@ const MAX_ITER    = 400;   // value-iteration cap
 const CONV_THRESH = 1e-5;  // convergence threshold
 const TEMP        = 1.3;   // softmax temperature (higher = more random)
 
+// ─── localStorage V-table cache ───────────────────────────────────────────────
+// Cache key encodes every parameter that affects the result.
+// Bump MDP_CACHE_VER whenever the MDP logic or constants change.
+const MDP_CACHE_VER = 'v1';
+
+function _cacheKey(label, classKey) {
+  return `mdp_${MDP_CACHE_VER}_${label}_${classKey}_ji${MAX_JI}_lo${MAX_LO}_g${GAMMA}_i${MAX_ITER}`;
+}
+
+function _saveV(key, V) {
+  try {
+    const bytes = new Uint8Array(V.buffer);
+    let bin = '';
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    localStorage.setItem(key, btoa(bin));
+  } catch (_) { /* storage full or unavailable */ }
+}
+
+function _loadV(key, expectedLen) {
+  try {
+    const b64 = localStorage.getItem(key);
+    if (!b64) return null;
+    const bin = atob(b64);
+    if (bin.length !== expectedLen * 8) return null;   // length mismatch → stale
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Float64Array(bytes.buffer);
+  } catch (_) { return null; }
+}
+
+/**
+ * Load V table for a boss: pre-generated file → localStorage → null (triggers compute).
+ * Pre-generated files live in src/mdp/{label}_{suffix}.js as ES modules.
+ * localStorage is used for custom classes not covered by pre-generated files.
+ */
+async function _loadVForBoss(moduleLabel, cacheLabel, classKey, expectedLen) {
+  // 1. Pre-generated static file (instant, covers all built-in classes)
+  const suffix = classKey === 'mage' ? 'mage' : 'standard';
+  try {
+    const mod = await import(`./mdp/${moduleLabel}_${suffix}.js`);
+    const arr = mod.default;
+    if (Array.isArray(arr) && arr.length === expectedLen) {
+      return new Float64Array(arr);
+    }
+  } catch (_) { /* file not found — custom class */ }
+
+  // 2. localStorage cache (for custom classes computed previously)
+  const cached = _loadV(_cacheKey(cacheLabel, classKey), expectedLen);
+  if (cached) return cached;
+
+  return null; // caller will compute on-the-fly and save to localStorage
+}
+
 // Proxy action object for mage_release (0 Ji cost, atk 5, type attack)
 const MAGE_RELEASE_ACT = { type: 'attack', cost: 0, atk: 5, damage: 1 };
 
@@ -198,7 +251,7 @@ function sampleSoftmax(qMap, temperature) {
 // State: (bj, pj, plo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyStandard(bossJiRate, pm) {
+async function computePolicyStandard(bossJiRate, pm, moduleLabel, cacheLabel, classKey) {
   const N  = MAX_JI + 1;
   const NP = pm.ploSize;
   const NS = N * N * NP;
@@ -227,7 +280,11 @@ function computePolicyStandard(bossJiRate, pm) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  let V = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
+  if (!V) {
+    V = valueIteration(NS, bellman);
+    _saveV(_cacheKey(cacheLabel, classKey), V);
+  }
 
   function decide(bj0, pj0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -258,7 +315,7 @@ function computePolicyStandard(bossJiRate, pm) {
 // State: (bj, pj, cv, plo)  —  cv = chargeValue, grows by 1 each time boss charges
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyGufu(pm) {
+async function computePolicyGufu(pm, moduleLabel, cacheLabel, classKey) {
   const N     = MAX_JI + 1;
   const MAX_CV = 7;
   const NC    = MAX_CV + 1;   // cv indices 0..7 (cv=0 is unused sentinel)
@@ -302,7 +359,10 @@ function computePolicyGufu(pm) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  const key = _cacheKey(cacheLabel, classKey);
+  const cached = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
+  const V = cached ?? valueIteration(NS, bellman);
+  if (!cached) _saveV(key, V);
 
   function decide(bj0, pj0, cv0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -344,7 +404,7 @@ function computePolicyGufu(pm) {
 // Handled separately from regular BASE_ACTIONS loop to model uo transitions.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyFaultRobot(pm) {
+async function computePolicyFaultRobot(pm, moduleLabel, cacheLabel, classKey) {
   const N  = MAX_JI + 1;
   const NO = 6;   // uo: 0..5
   const NP = pm.ploSize;
@@ -399,7 +459,10 @@ function computePolicyFaultRobot(pm) {
     return bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  const key = _cacheKey(cacheLabel, classKey);
+  const cached = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
+  const V = cached ?? valueIteration(NS, bellman);
+  if (!cached) _saveV(key, V);
 
   function decide(bj0, pj0, uo0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -439,15 +502,16 @@ let _classKey  = null;
  * Pass classKey so the correct player behaviour model is used.
  * Call once at hard-mode game start.
  */
-export function initMDPPolicies(classKey = 'assassin') {
+export async function initMDPPolicies(classKey = 'assassin') {
   _classKey = classKey;
   const pm = classKey === 'mage' ? makeMageModel() : makeStdModel();
   console.time('[MDP] compute');
-  _policies = {
-    jiaxu:      computePolicyStandard(3, pm),
-    gufu:       computePolicyGufu(pm),
-    faultRobot: computePolicyFaultRobot(pm),
-  };
+  const [jiaxu, gufu, faultRobot] = await Promise.all([
+    computePolicyStandard(3, pm, 'jiaxu', 'jiaxu', classKey),
+    computePolicyGufu(pm, 'gufu', 'gufu', classKey),
+    computePolicyFaultRobot(pm, 'faultrobot', 'faultrobot', classKey),
+  ]);
+  _policies = { jiaxu, gufu, faultRobot };
   console.timeEnd('[MDP] compute');
 }
 
