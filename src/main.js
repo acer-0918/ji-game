@@ -234,8 +234,9 @@ function startBattle(node, keepSnapshot=false) {
 }
 
 function mainSelect(category) {
-  const panelMap = {def:'sp-def', a1:'sp-a1', a2:'sp-a2', a3:'sp-a3', sp:'sp-special'};
-  const btnMap = {ji:'mb-ji', def:'mb-def', a1:'mb-a1', a2:'mb-a2', a3:'mb-a3', sp:'mb-sp'};
+  // 'atk' is the combined attack card; a1/a2/a3 kept for legacy compatibility
+  const panelMap = {def:'sp-def', atk:'sp-atk', a1:'sp-atk', a2:'sp-atk', a3:'sp-atk', sp:'sp-special'};
+  const btnMap   = {ji:'mb-ji', def:'mb-def', atk:'mb-atk', a1:'mb-atk', a2:'mb-atk', a3:'mb-atk', sp:'mb-sp'};
 
   if (category === 'ji') {
     G.ui.mainSel = 'ji';
@@ -439,6 +440,17 @@ function closeBattleOverlay() {
   renderMap();
 }
 
+function openBackToMenu() { openOverlay('ov-to-menu'); }
+function cancelBackToMenu() { closeOverlay('ov-to-menu'); }
+function confirmBackToMenu() {
+  document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
+  document.querySelectorAll('.class-btn').forEach((b) => b.classList.remove('sel'));
+  selectedClassKey = null;
+  $('btn-start').disabled = true;
+  const hb = $('btn-hard-start'); if (hb) hb.disabled = true;
+  showScreen('menu');
+}
+
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
   $('btn-hard-start')?.addEventListener('click', startHardGame);
@@ -453,6 +465,13 @@ function bindStaticEvents() {
   $('btn-confirm').addEventListener('click', confirmAction);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
   $('btn-restart-run-from-victory').addEventListener('click', restartRun);
+  // Back to menu
+  $('btn-to-menu-map')?.addEventListener('click', openBackToMenu);
+  $('btn-to-menu-battle')?.addEventListener('click', openBackToMenu);
+  $('btn-confirm-to-menu')?.addEventListener('click', confirmBackToMenu);
+  $('btn-cancel-to-menu')?.addEventListener('click', cancelBackToMenu);
+  $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
+  $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 
   document.querySelectorAll('.main-btn[data-main]').forEach((btn) => {
     btn.addEventListener('click', () => mainSelect(btn.dataset.main));

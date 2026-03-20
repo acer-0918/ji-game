@@ -7,232 +7,329 @@
   <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
-  <div id="screen-menu" class="screen active">
-    <div class="title">来Ji</div>
-    <div class="subtitle">beta</div>
-    <div class="center">
-      <div id="class-pick" class="class-pick">
-        <button class="class-btn" data-class="assassin">🗡️ 刺客<br><small>3血 / 回费3</small></button>
-        <button class="class-btn" data-class="tank">🛡️ 坦克<br><small>10血 / 回费1</small></button>
-        <button class="class-btn" data-class="mage">🔮 法师<br><small>3血 / 回费2</small></button>
+
+<!-- ══════════════ 主菜单 ══════════════ -->
+<div id="screen-menu" class="screen active">
+  <div class="menu-wrap">
+    <div class="title">来<span class="title-ji">Ji</span></div>
+    <div class="subtitle">✦ beta ✦</div>
+    <div class="class-section-label">选择职业</div>
+    <div class="class-pick">
+      <button class="class-btn" data-class="assassin">
+        <div class="class-emoji">🗡️</div>
+        <div class="class-name">刺客</div>
+        <div class="class-stats">❤ 3 · +3Ji/回</div>
+        <div class="class-trait">高输出 · 速攻流</div>
+      </button>
+      <button class="class-btn" data-class="tank">
+        <div class="class-emoji">🛡️</div>
+        <div class="class-name">坦克</div>
+        <div class="class-stats">❤ 10 · +1Ji/回</div>
+        <div class="class-trait">高血量 · 稳健流</div>
+      </button>
+      <button class="class-btn" data-class="mage">
+        <div class="class-emoji">🔮</div>
+        <div class="class-name">法师</div>
+        <div class="class-stats">❤ 3 · +2Ji/回</div>
+        <div class="class-trait">闪电球 · 技能流</div>
+      </button>
+    </div>
+    <div class="menu-btns">
+      <button class="btn" id="btn-start" disabled>▶ 开始游戏</button>
+      <button class="btn btn-hard" id="btn-hard-start" disabled>⚔ 困难模式 (MDP)</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ 地图 ══════════════ -->
+<div id="screen-map" class="screen">
+  <div class="map-topbar">
+    <button class="btn-ghost" id="btn-to-menu-map">← 主菜单</button>
+    <div class="map-title-text">⚔ 试炼路径</div>
+    <button class="frag-badge" id="btn-open-abtree">✨ <span id="map-frags">0</span> 碎片 · 能力树</button>
+  </div>
+
+  <div class="player-hud">
+    <div class="hud-name" id="map-name">🗡️ 刺客</div>
+    <div class="hud-stats">
+      <div class="hud-stat">
+        <span class="hud-icon">❤</span>
+        <div class="bar-track wide"><div class="bar-fill hp-fill" id="map-hp-bar" style="width:100%"></div></div>
+        <span class="hud-val"><span id="map-hp">5</span>/<span id="map-maxhp">5</span></span>
       </div>
-      <div style="display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;">
-        <button class="btn" id="btn-start" disabled>开始游戏</button>
-        <button class="btn btn-red" id="btn-hard-start" disabled>困难模式 (MDP)</button>
+      <div class="hud-stat">
+        <span class="hud-icon ji-icon">⚡</span>
+        <span class="hud-val ji-val"><span id="map-ji">0</span> Ji</span>
+        <span class="hud-rate">+<span id="map-rate">3</span>/回</span>
       </div>
     </div>
   </div>
 
-  <div id="screen-map" class="screen">
-    <div class="map-title">试炼路径</div>
-    <div class="map-header">
-      <div class="map-header-left">
-        <span id="map-name" style="color:#9a7fe0;font-weight:bold;">🗡️ 刺客</span>
-        <span>❤ <span id="map-hp">5</span>/<span id="map-maxhp">5</span></span>
-        <span style="color:#7f5af0;">⚡ <span id="map-ji">0</span></span>
-        <span style="color:#c9a227;">⟳ +<span id="map-rate">3</span>Ji</span>
-      </div>
-      <div class="map-header-right">
-        <button class="frag-badge" id="btn-open-abtree" title="查看能力树">
-          ✨ <span id="map-frags">0</span> 碎片 · 能力树
-        </button>
-      </div>
+  <div class="map-info-row">
+    <div class="info-panel">
+      <div class="panel-title">当前能力</div>
+      <div class="tag-wrap" id="map-passive-tags"></div>
     </div>
-
-    <div class="meta-row">
-      <div class="info-panel">
-        <div class="panel-title">当前能力</div>
-        <div class="tag-wrap" id="map-passive-tags"></div>
-      </div>
-      <div class="info-panel">
-        <div class="panel-title">装备栏</div>
-        <div class="equip-slots" id="map-equip-slots"></div>
-      </div>
+    <div class="info-panel">
+      <div class="panel-title">装备栏</div>
+      <div class="equip-slots" id="map-equip-slots"></div>
     </div>
-
-    <div class="nodes-wrap" id="nodes-wrap"></div>
   </div>
 
-  <div id="screen-battle" class="screen">
-    <div class="fighter-row enemy">
-      <div class="fighter-emoji" id="b-enemy-emoji">👹</div>
-      <div class="fighter-name" id="b-enemy-name">敌人</div>
-      <div class="bars">
-        <div class="bar-group">
-          <div class="bar-lbl">HP</div>
-          <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
-          <div class="bar-val" id="b-enemy-hp-val">3/3</div>
+  <div class="nodes-wrap" id="nodes-wrap"></div>
+</div>
+
+<!-- ══════════════ 战斗 ══════════════ -->
+<div id="screen-battle" class="screen">
+
+  <!-- 顶栏 -->
+  <div class="battle-topbar">
+    <div class="round-info">
+      回合 <strong id="round-num">1</strong>
+      <span class="round-phase-badge" id="round-phase">选择行动</span>
+      <span id="hard-badge" class="hard-badge" style="display:none">HARD·MDP</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn-ghost" id="btn-restart-battle">↺ 读档</button>
+      <button class="btn-ghost danger" id="btn-ask-surrender">🏳 投降</button>
+      <button class="btn-ghost" id="btn-to-menu-battle">← 主菜单</button>
+    </div>
+  </div>
+
+  <!-- 战场：敌我对战区 -->
+  <div class="battlefield">
+    <!-- 敌方 -->
+    <div class="combatant enemy-side">
+      <div class="combatant-avatar">
+        <div class="avatar-emoji" id="b-enemy-emoji">👹</div>
+      </div>
+      <div class="combatant-info">
+        <div class="combatant-name enemy-name" id="b-enemy-name">敌人</div>
+        <div class="combatant-bars">
+          <div class="bar-row">
+            <span class="bar-lbl hp-lbl">HP</span>
+            <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
+            <span class="bar-val" id="b-enemy-hp-val">10/10</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-lbl ji-lbl">Ji</span>
+            <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
+            <span class="bar-val" id="b-enemy-ji-val">0</span>
+          </div>
         </div>
-        <div class="bar-group" style="max-width:120px;">
-          <div class="bar-lbl">Ji</div>
-          <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
-          <div class="bar-val" id="b-enemy-ji-val">0</div>
+        <div class="tag-wrap compact" id="enemy-state-tags"></div>
+      </div>
+    </div>
+
+    <!-- VS 出牌区 -->
+    <div class="vs-area">
+      <div class="vs-slot">
+        <div class="vs-label enemy-lbl">敌方</div>
+        <div class="action-card facedown" id="enemy-card">
+          <div class="ac-emoji">🂠</div>
+          <div class="ac-name">???</div>
+          <div class="ac-sub"></div>
+        </div>
+      </div>
+      <div class="vs-divider">VS</div>
+      <div class="vs-slot">
+        <div class="vs-label player-lbl">我方</div>
+        <div class="action-card" id="player-card">
+          <div class="ac-emoji" id="pc-emoji">　</div>
+          <div class="ac-name" id="pc-main">—</div>
+          <div class="ac-sub" id="pc-sub"></div>
         </div>
       </div>
     </div>
 
-    <div class="reveal-area">
-      <div class="action-slot">
-        <div class="slot-label enemy-lbl">敌方行动</div>
-        <div class="card facedown" id="enemy-card">
-          <div class="card-emoji" style="color:#1e1e30">🂠</div>
-          <div class="card-main" style="color:#333">???</div>
+    <!-- 我方 -->
+    <div class="combatant player-side">
+      <div class="combatant-avatar">
+        <div class="avatar-emoji" id="b-player-emoji">🗡️</div>
+      </div>
+      <div class="combatant-info">
+        <div class="combatant-name player-name" id="b-player-name">刺客</div>
+        <div class="combatant-bars">
+          <div class="bar-row">
+            <span class="bar-lbl hp-lbl">HP</span>
+            <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
+            <span class="bar-val" id="b-player-hp-val">5/5</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-lbl ji-lbl">Ji</span>
+            <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
+            <span class="bar-val" id="b-player-ji-val">0</span>
+          </div>
         </div>
+        <div class="tag-wrap compact" id="battle-passive-tags"></div>
       </div>
-      <div class="vs">VS</div>
-      <div class="action-slot">
-        <div class="slot-label player-lbl">我方行动</div>
-        <div class="card" id="player-card">
-          <div class="card-emoji" id="pc-emoji">　</div>
-          <div class="card-main" id="pc-main">—</div>
-          <div class="card-sub" id="pc-sub"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="battle-log" id="battle-log"></div>
-
-    <div class="round-bar">
-      <span>第 <span id="round-num">1</span> 回合 · <span id="round-phase">选择行动</span>
-        <span id="hard-badge" style="display:none;color:#e53;font-size:.72em;border:1px solid #e53;padding:1px 6px;margin-left:8px;vertical-align:middle;">HARD·MDP</span>
-      </span>
-      <div style="display:flex;gap:8px;">
-        <button class="btn-surrender" id="btn-restart-battle">↺ SL</button>
-        <button class="btn-surrender" id="btn-ask-surrender">自刎归天</button>
-      </div>
-    </div>
-
-    <div class="fighter-row player-row">
-      <div class="fighter-emoji">🗡️</div>
-      <div class="fighter-name" id="b-player-name">刺客</div>
-      <div class="bars">
-        <div class="bar-group">
-          <div class="bar-lbl">HP</div>
-          <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
-          <div class="bar-val" id="b-player-hp-val">5/5</div>
-        </div>
-        <div class="bar-group" style="max-width:120px;">
-          <div class="bar-lbl">Ji</div>
-          <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
-          <div class="bar-val" id="b-player-ji-val">0</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="battle-meta-row">
-      <div class="info-panel">
-        <div class="panel-title" style="color:#a66;">敌方特性 / 状态</div>
-        <div class="tag-wrap" id="enemy-state-tags"></div>
-      </div>
-      <div class="info-panel">
-        <div class="panel-title">当前能力</div>
-        <div class="tag-wrap" id="battle-passive-tags"></div>
-      </div>
-      <div class="info-panel">
-        <div class="panel-title">装备栏</div>
-        <div class="equip-slots" id="battle-equip-slots"></div>
-      </div>
-    </div>
-
-    <div class="action-area" id="action-area">
-      <div class="main-row">
-        <button class="main-btn" id="mb-ji" data-main="ji">⚡ 蓄力<br><small id="ji-rate-hint" style="color:#444">+3Ji</small></button>
-        <button class="main-btn" id="mb-def" data-main="def">🛡 防御 ▾<br><small style="color:#444">0~2Ji</small></button>
-        <button class="main-btn" id="mb-a1" data-main="a1">⚔ 一档 ▾<br><small style="color:#444">1~3Ji</small></button>
-        <button class="main-btn" id="mb-a2" data-main="a2">⚔⚔ 二档 ▾<br><small style="color:#444">4~6Ji</small></button>
-        <button class="main-btn" id="mb-a3" data-main="a3">⚔⚔⚔ 三档 ▾<br><small style="color:#444">7Ji</small></button>
-        <button class="main-btn" id="mb-sp" data-main="sp">✨ 特殊 ▾<br><small style="color:#444">职业技能</small></button>
-      </div>
-      <div class="sub-panel" id="sp-def">
-        <button class="sub-btn" id="sb-d0" data-action="defense_0">🛡 防 (0Ji) | 防御3</button>
-        <button class="sub-btn" id="sb-d1" data-action="defense_1">🛡🛡 超防 (1Ji) | 防御6</button>
-        <button class="sub-btn" id="sb-d2" data-action="defense_2">🛡🛡🛡 无敌防 (2Ji) | 防御7</button>
-      </div>
-      <div class="sub-panel" id="sp-a1">
-        <button class="sub-btn" id="sb-a1" data-action="attack_1">⚔ 攻击1 (1Ji) | 等级1</button>
-        <button class="sub-btn" id="sb-a2" data-action="attack_2">⚔ 攻击2 (2Ji) | 等级2</button>
-        <button class="sub-btn" id="sb-a3" data-action="attack_3">⚔ 攻击3 (3Ji) | 等级3</button>
-      </div>
-      <div class="sub-panel" id="sp-a2">
-        <button class="sub-btn" id="sb-a4" data-action="attack_4">⚔⚔ 攻击4 (4Ji) | 等级4</button>
-        <button class="sub-btn" id="sb-a5" data-action="attack_5">⚔⚔ 攻击5 (5Ji) | 等级5</button>
-        <button class="sub-btn" id="sb-a6" data-action="attack_6">⚔⚔ 攻击6 (6Ji) | 等级6</button>
-      </div>
-      <div class="sub-panel" id="sp-a3">
-        <button class="sub-btn" id="sb-a7" data-action="attack_7">⚔⚔⚔ 攻击7 (7Ji) | 等级7</button>
-      </div>
-      <div class="sub-panel" id="sp-special">
-        <button class="sub-btn" id="sb-sp1" data-action="mage_release">⚡⚡ 一重释放 (5闪电球) | 等级5</button>
-      </div>
-      <div class="confirm-row">
-        <div class="sel-preview">已选: <em id="sel-preview-text">未选择</em></div>
-        <button class="btn-confirm" id="btn-confirm" disabled>确认出牌</button>
-      </div>
+      <div class="equip-slots compact" id="battle-equip-slots"></div>
     </div>
   </div>
 
-  <div id="screen-gameover" class="screen">
-    <div class="center" style="padding:50px 0;">
-      <div class="big-result red">GAME OVER</div>
-      <p style="color:#666;margin-bottom:30px;">你的旅途在此画上了句点...</p>
-      <button class="btn btn-red" id="btn-restart-run-from-gameover">再来一局</button>
+  <!-- 战斗日志 -->
+  <div class="battle-log" id="battle-log"></div>
+
+  <!-- ══ 行动区 ══ -->
+  <div class="action-area" id="action-area">
+
+    <!-- Ji 能量显示条 -->
+    <div class="ji-display">
+      <span class="ji-display-icon">⚡</span>
+      <span class="ji-display-label">Ji 能量</span>
+      <div class="ji-pips" id="ji-pips"></div>
+      <span class="ji-display-val" id="ji-display-num">0</span>
+      <span class="ji-display-rate" id="ji-display-rate">+3/回</span>
+    </div>
+
+    <!-- 4 个主行动卡牌 -->
+    <div class="action-cards-row">
+      <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
+        <div class="acb-icon">⚡</div>
+        <div class="acb-name">蓄力</div>
+        <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
+      </button>
+      <button class="action-card-btn def-card" id="mb-def" data-main="def">
+        <div class="acb-icon">🛡</div>
+        <div class="acb-name">防御 ▾</div>
+        <div class="acb-hint">0~2 Ji</div>
+      </button>
+      <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
+        <div class="acb-icon">⚔</div>
+        <div class="acb-name">攻击 ▾</div>
+        <div class="acb-hint">1~7 Ji</div>
+      </button>
+      <button class="action-card-btn sp-card" id="mb-sp" data-main="sp">
+        <div class="acb-icon">✨</div>
+        <div class="acb-name">特殊 ▾</div>
+        <div class="acb-hint" id="sp-hint">职业技能</div>
+      </button>
+    </div>
+
+    <!-- 隐藏的旧按钮（保持 JS 兼容） -->
+    <div style="display:none">
+      <button id="mb-a1" data-main="a1"></button>
+      <button id="mb-a2" data-main="a2"></button>
+      <button id="mb-a3" data-main="a3"></button>
+    </div>
+
+    <!-- 子面板 -->
+    <div class="sub-panel" id="sp-def">
+      <button class="sub-btn" id="sb-d0" data-action="defense_0">🛡 防御 (0Ji) | 防3</button>
+      <button class="sub-btn" id="sb-d1" data-action="defense_1">🛡🛡 超防 (1Ji) | 防6</button>
+      <button class="sub-btn" id="sb-d2" data-action="defense_2">🛡🛡🛡 无敌防 (2Ji) | 防7</button>
+    </div>
+    <!-- 合并攻击子面板 -->
+    <div class="sub-panel" id="sp-atk">
+      <button class="sub-btn" id="sb-a1" data-action="attack_1">⚔ 攻击1 (1Ji)</button>
+      <button class="sub-btn" id="sb-a2" data-action="attack_2">⚔ 攻击2 (2Ji)</button>
+      <button class="sub-btn" id="sb-a3" data-action="attack_3">⚔ 攻击3 (3Ji)</button>
+      <button class="sub-btn atk-mid" id="sb-a4" data-action="attack_4">⚔⚔ 攻击4 (4Ji)</button>
+      <button class="sub-btn atk-mid" id="sb-a5" data-action="attack_5">⚔⚔ 攻击5 (5Ji)</button>
+      <button class="sub-btn atk-mid" id="sb-a6" data-action="attack_6">⚔⚔ 攻击6 (6Ji)</button>
+      <button class="sub-btn atk-hi" id="sb-a7" data-action="attack_7">⚔⚔⚔ 攻击7 (7Ji)</button>
+    </div>
+    <!-- 旧子面板（隐藏备用） -->
+    <div style="display:none">
+      <div id="sp-a1"><button id="sp-a1-placeholder"></button></div>
+      <div id="sp-a2"><button id="sp-a2-placeholder"></button></div>
+      <div id="sp-a3"><button id="sp-a3-placeholder"></button></div>
+    </div>
+    <div class="sub-panel" id="sp-special">
+      <button class="sub-btn sp-btn" id="sb-sp1" data-action="mage_release">⚡⚡ 一重释放 (5闪电球) | 等级5</button>
+    </div>
+
+    <!-- 确认行 -->
+    <div class="confirm-row">
+      <div class="sel-preview">已选：<em id="sel-preview-text">未选择</em></div>
+      <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓</button>
     </div>
   </div>
+</div>
 
-  <div id="screen-victory" class="screen">
-    <div class="center" style="padding:50px 0;">
-      <div class="big-result green">胜 利 ！</div>
-      <p style="color:#666;margin-bottom:30px;">你完成了商店开局的三连 Boss 测试挑战！</p>
-      <button class="btn btn-green" id="btn-restart-run-from-victory">再来一局</button>
+<!-- ══════════════ 结算屏 ══════════════ -->
+<div id="screen-gameover" class="screen result-screen">
+  <div class="result-wrap">
+    <div class="result-icon">💀</div>
+    <div class="big-result red">GAME OVER</div>
+    <p class="result-sub">旅途在此画上了句点……</p>
+    <div class="result-btns">
+      <button class="btn btn-red" id="btn-restart-run-from-gameover">↺ 再来一局</button>
+      <button class="btn btn-outline" id="btn-menu-from-gameover">← 主菜单</button>
     </div>
   </div>
+</div>
 
-  <div class="overlay" id="ov-battle">
-    <div class="overlay-box" id="ov-battle-box">
-      <div class="overlay-title" id="ov-battle-title">胜利！</div>
-      <div class="overlay-body" id="ov-battle-body"></div>
-      <button class="btn" id="btn-battle-continue">继续</button>
+<div id="screen-victory" class="screen result-screen">
+  <div class="result-wrap">
+    <div class="result-icon">🏆</div>
+    <div class="big-result green">胜 利 ！</div>
+    <p class="result-sub">你完成了三连 Boss 试炼！</p>
+    <div class="result-btns">
+      <button class="btn btn-green" id="btn-restart-run-from-victory">↺ 再来一局</button>
+      <button class="btn btn-outline" id="btn-menu-from-victory">← 主菜单</button>
     </div>
   </div>
+</div>
 
-  <div class="overlay" id="ov-shop">
-    <div class="overlay-box gold">
-      <div class="overlay-title">🛒 商店</div>
-      <div class="overlay-body" style="margin-bottom:14px;">
-        当前碎片：<strong id="shop-frags" style="color:#c9a227">0</strong> ✨
-      </div>
-      <div id="shop-items"></div>
-      <div style="margin-top:14px;">
-        <button class="btn btn-sm" id="btn-leave-shop">离开商店</button>
-      </div>
+<!-- ══════════════ 遮罩层 ══════════════ -->
+<div class="overlay" id="ov-battle">
+  <div class="overlay-box" id="ov-battle-box">
+    <div class="overlay-title" id="ov-battle-title">战斗胜利！</div>
+    <div class="overlay-body" id="ov-battle-body"></div>
+    <button class="btn" id="btn-battle-continue">继续前进 →</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-shop">
+  <div class="overlay-box gold">
+    <div class="overlay-title">🛒 商店</div>
+    <div class="overlay-body" style="margin-bottom:14px">
+      当前碎片：<strong id="shop-frags" style="color:var(--gold);font-size:1.1em">0</strong> ✨
+    </div>
+    <div id="shop-items"></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-outline" id="btn-leave-shop">离开商店</button>
     </div>
   </div>
+</div>
 
-  <div class="overlay" id="ov-surrender">
-    <div class="overlay-box red">
-      <div class="overlay-title">自刎归天</div>
-      <div class="overlay-body">确定要放弃这一局并重新开始吗？<br>本局所有进度将会丢失。</div>
-      <div class="overlay-btns">
-        <button class="btn btn-red" id="btn-confirm-surrender">确认自刎归天</button>
-        <button class="btn" id="btn-cancel-surrender">再想想</button>
-      </div>
+<div class="overlay" id="ov-surrender">
+  <div class="overlay-box red">
+    <div class="overlay-title">🏳 投降确认</div>
+    <div class="overlay-body">确定放弃本局并重新开始吗？<br>本局所有进度将会丢失。</div>
+    <div class="overlay-btns">
+      <button class="btn btn-red" id="btn-confirm-surrender">确认投降</button>
+      <button class="btn btn-outline" id="btn-cancel-surrender">再想想</button>
     </div>
   </div>
+</div>
 
-  <div class="overlay" id="ov-abtree">
-    <div class="overlay-box gold" style="max-width:520px;width:92%;">
-      <div class="overlay-title" id="abtree-title">✨ 能力树</div>
-      <div class="overlay-body" style="margin-bottom:14px;">
-        当前碎片：<strong id="abtree-frags" style="color:#c9a227">0</strong> ✨
-        <span style="font-size:.78em;color:#555;margin-left:8px;">（每个节点消耗 1 碎片）</span>
-      </div>
-      <div id="abtree-nodes"></div>
-      <div style="margin-top:14px;">
-        <button class="btn btn-sm" id="btn-abtree-close">关闭</button>
-      </div>
+<div class="overlay" id="ov-to-menu">
+  <div class="overlay-box">
+    <div class="overlay-title">← 返回主菜单</div>
+    <div class="overlay-body">确定要返回主菜单吗？<br>当前局的所有进度将会丢失。</div>
+    <div class="overlay-btns">
+      <button class="btn btn-red" id="btn-confirm-to-menu">确认返回</button>
+      <button class="btn btn-outline" id="btn-cancel-to-menu">继续游戏</button>
     </div>
   </div>
+</div>
 
-  <script type="module" src="./src/main.js"></script>
+<div class="overlay" id="ov-abtree">
+  <div class="overlay-box gold" style="max-width:520px;width:92%">
+    <div class="overlay-title" id="abtree-title">✨ 能力树</div>
+    <div class="overlay-body" style="margin-bottom:14px">
+      当前碎片：<strong id="abtree-frags" style="color:var(--gold)">0</strong> ✨
+      <span style="font-size:.78em;color:var(--text-lt);margin-left:8px">（每节点消耗 1 碎片）</span>
+    </div>
+    <div id="abtree-nodes"></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-outline" id="btn-abtree-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -214,18 +214,18 @@ export function refreshActionLabels() {
 
   const specialMain = $('mb-sp');
   const specialPanel = $('sp-special');
+  const spHint = $('sp-hint');
   if (G.player.classKey === 'mage') {
-    specialMain.style.display = '';
-    specialPanel.style.display = '';
+    if (specialMain) specialMain.style.display = '';
+    if (specialPanel) specialPanel.style.display = '';
     const release = getActionData('mage_release', 'player');
-    const mainHint = specialMain.querySelector('small');
-    if (mainHint) mainHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
-    $('sb-sp1').textContent = `${release.emoji} ${release.name} (${release.orbCost}闪电球) | 等级${release.atk} | 持有${G.player.lightningOrbs || 0}`;
+    if (spHint) spHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
+    const sp1 = $('sb-sp1');
+    if (sp1) sp1.textContent = `${release.emoji} ${release.name} (${release.orbCost}闪电球) | 等级${release.atk} | 持有${G.player.lightningOrbs || 0}`;
   } else {
-    specialMain.style.display = 'none';
-    specialPanel.style.display = 'none';
-    const mainHint = specialMain.querySelector('small');
-    if (mainHint) mainHint.textContent = '职业技能';
+    if (specialMain) specialMain.style.display = 'none';
+    if (specialPanel) specialPanel.style.display = 'none';
+    if (spHint) spHint.textContent = '职业技能';
   }
 }
 
@@ -270,8 +270,12 @@ export function updateSubButtons() {
     if (btn) btn.disabled = G.player.ji < action.cost;
   });
 
-  $('mb-a2').disabled = !hasAffordable(['attack_4', 'attack_5', 'attack_6']);
-  $('mb-a3').disabled = !hasAffordable(['attack_7']);
+  // Disable the combined attack card if no attacks affordable
+  const atkCard = $('mb-atk');
+  if (atkCard) atkCard.disabled = !hasAffordable(['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7']);
+  // Legacy buttons (hidden but keep JS happy)
+  const a2 = $('mb-a2'); if (a2) a2.disabled = !hasAffordable(['attack_4', 'attack_5', 'attack_6']);
+  const a3 = $('mb-a3'); if (a3) a3.disabled = !hasAffordable(['attack_7']);
 
   const specialMain = $('mb-sp');
   const specialBtn = $('sb-sp1');
@@ -296,6 +300,13 @@ export function refreshBars() {
   const hideJi = isJiHiddenBattle();
   setJiDisplay('b-player-ji-bar', 'b-player-ji-val', p.ji, MAX_JI_DISPLAY, hideJi);
   setJiDisplay('b-enemy-ji-bar', 'b-enemy-ji-val', e.ji, MAX_JI_DISPLAY, hideJi);
+  // Ji pip display in action area
+  updateJiPips(hideJi ? 0 : p.ji);
+  const rateEl = $('ji-display-rate');
+  if (rateEl) rateEl.textContent = `+${getPlayerJiRate()}/回`;
+  // Player avatar emoji
+  const avatarEl = $('b-player-emoji');
+  if (avatarEl) avatarEl.textContent = p.classIcon || '🗡️';
   updateSubButtons();
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
@@ -304,20 +315,35 @@ export function refreshBars() {
 
 export function resetRoundUI() {
   const ec = $('enemy-card');
-  ec.className = 'card facedown';
-  ec.innerHTML = '<div class="card-emoji" style="color:#1e1e30">🂠</div><div class="card-main" style="color:#333">???</div>';
-  $('player-card').className = 'card';
+  ec.className = 'action-card facedown';
+  ec.innerHTML = '<div class="ac-emoji">🂠</div><div class="ac-name">???</div><div class="ac-sub"></div>';
+  $('player-card').className = 'action-card';
   $('pc-emoji').textContent = '　';
   $('pc-main').textContent = '—';
   $('pc-sub').textContent = '';
   document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
-  document.querySelectorAll('.main-btn').forEach((btn) => btn.classList.remove('sel'));
+  document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
   document.querySelectorAll('.sub-btn').forEach((btn) => btn.classList.remove('sel'));
   $('sel-preview-text').textContent = '未选择';
   $('btn-confirm').disabled = true;
   $('action-area').style.pointerEvents = 'auto';
   $('round-phase').textContent = '选择行动';
   G.ui = {mainSel:null, actionKey:null};
+}
+
+function updateJiPips(value) {
+  const container = $('ji-pips');
+  const numEl = $('ji-display-num');
+  if (!container) return;
+  const MAX_PIPS = 12;
+  const shown = Math.min(value, MAX_PIPS);
+  container.innerHTML = '';
+  for (let i = 0; i < Math.min(MAX_PIPS, Math.max(shown + 2, 7)); i++) {
+    const pip = document.createElement('div');
+    pip.className = 'ji-pip' + (i < shown ? ' active' : '');
+    container.appendChild(pip);
+  }
+  if (numEl) numEl.textContent = value;
 }
 
 export function addLog(cls, text) {
