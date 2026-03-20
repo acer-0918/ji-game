@@ -199,17 +199,28 @@ export function renderShop() {
   });
 }
 
+function setSubCardLabel(btn, costText, nameText, hintText) {
+  // Update the child elements of a sub-card without destroying its structure
+  if (!btn) return;
+  const costEl = btn.querySelector('.sub-card-cost');
+  const nameEl = btn.querySelector('.sub-card-name');
+  const hintEl = btn.querySelector('.sub-card-hint');
+  if (costEl && costText !== undefined) costEl.textContent = costText;
+  if (nameEl && nameText !== undefined) nameEl.textContent = nameText;
+  if (hintEl && hintText !== undefined) hintEl.textContent = hintText;
+}
+
 export function refreshActionLabels() {
   $('ji-rate-hint').textContent = `+${getPlayerJiRate()}Ji`;
   ['defense_0', 'defense_1', 'defense_2'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
     const btn = $(['sb-d0', 'sb-d1', 'sb-d2'][idx]);
-    btn.textContent = `${action.emoji} ${action.name} (${action.cost}Ji) | 防御${action.def}`;
+    setSubCardLabel(btn, `${action.cost}`, action.name, `防御${action.def}`);
   });
   ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
     const btn = $(`sb-a${idx + 1}`);
-    if (btn) btn.textContent = `${action.emoji} ${action.name} (${action.cost}Ji) | 等级${action.atk}`;
+    setSubCardLabel(btn, `${action.cost}`, action.name, `等级${action.atk}`);
   });
 
   const specialMain = $('mb-sp');
@@ -221,7 +232,7 @@ export function refreshActionLabels() {
     const release = getActionData('mage_release', 'player');
     if (spHint) spHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
     const sp1 = $('sb-sp1');
-    if (sp1) sp1.textContent = `${release.emoji} ${release.name} (${release.orbCost}闪电球) | 等级${release.atk} | 持有${G.player.lightningOrbs || 0}`;
+    setSubCardLabel(sp1, `${release.orbCost}⚡`, release.name, `等级${release.atk}·持有${G.player.lightningOrbs || 0}`);
   } else {
     if (specialMain) specialMain.style.display = 'none';
     if (specialPanel) specialPanel.style.display = 'none';
@@ -237,14 +248,14 @@ function setJiDisplay(barId, valId, value, max, hidden) {
     bar.style.opacity = '0.16';
     bar.style.filter = 'grayscale(1)';
     val.textContent = '??';
-    val.style.color = '#777';
+    val.style.color = 'var(--text-lt)';
     return;
   }
   bar.style.width = `${Math.min((value / max) * 100, 100)}%`;
   bar.style.opacity = '1';
   bar.style.filter = 'none';
   val.textContent = String(value);
-  val.style.color = '#aaa';
+  val.style.color = 'var(--text-mid)';
 }
 
 function setBar(barId, valId, cur, max) {
@@ -315,9 +326,9 @@ export function refreshBars() {
 
 export function resetRoundUI() {
   const ec = $('enemy-card');
-  ec.className = 'action-card facedown';
+  ec.className = 'reveal-card facedown';
   ec.innerHTML = '<div class="ac-emoji">🂠</div><div class="ac-name">???</div><div class="ac-sub"></div>';
-  $('player-card').className = 'action-card';
+  $('player-card').className = 'reveal-card';
   $('pc-emoji').textContent = '　';
   $('pc-main').textContent = '—';
   $('pc-sub').textContent = '';

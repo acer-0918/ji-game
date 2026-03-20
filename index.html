@@ -98,74 +98,96 @@
 
   <!-- 战场：敌我对战区 -->
   <div class="battlefield">
-    <!-- 敌方 -->
-    <div class="combatant enemy-side">
-      <div class="combatant-avatar">
-        <div class="avatar-emoji" id="b-enemy-emoji">👹</div>
-      </div>
-      <div class="combatant-info">
-        <div class="combatant-name enemy-name" id="b-enemy-name">敌人</div>
-        <div class="combatant-bars">
-          <div class="bar-row">
-            <span class="bar-lbl hp-lbl">HP</span>
-            <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
-            <span class="bar-val" id="b-enemy-hp-val">10/10</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-lbl ji-lbl">Ji</span>
-            <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
-            <span class="bar-val" id="b-enemy-ji-val">0</span>
-          </div>
-        </div>
-        <div class="tag-wrap compact" id="enemy-state-tags"></div>
-      </div>
-    </div>
 
-    <!-- VS 出牌区 -->
-    <div class="vs-area">
-      <div class="vs-slot">
-        <div class="vs-label enemy-lbl">敌方</div>
-        <div class="action-card facedown" id="enemy-card">
-          <div class="ac-emoji">🂠</div>
-          <div class="ac-name">???</div>
-          <div class="ac-sub"></div>
+    <!-- 我方数值（左） -->
+    <div class="combatant-side player-side">
+      <div class="combatant-bars">
+        <div class="bar-row">
+          <span class="bar-lbl hp-lbl">❤</span>
+          <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
+          <span class="bar-val" id="b-player-hp-val">5/5</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl ji-lbl">⚡</span>
+          <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
+          <span class="bar-val" id="b-player-ji-val">0</span>
         </div>
       </div>
-      <div class="vs-divider">VS</div>
-      <div class="vs-slot">
-        <div class="vs-label player-lbl">我方</div>
-        <div class="action-card" id="player-card">
-          <div class="ac-emoji" id="pc-emoji">　</div>
-          <div class="ac-name" id="pc-main">—</div>
-          <div class="ac-sub" id="pc-sub"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 我方 -->
-    <div class="combatant player-side">
-      <div class="combatant-avatar">
-        <div class="avatar-emoji" id="b-player-emoji">🗡️</div>
-      </div>
-      <div class="combatant-info">
-        <div class="combatant-name player-name" id="b-player-name">刺客</div>
-        <div class="combatant-bars">
-          <div class="bar-row">
-            <span class="bar-lbl hp-lbl">HP</span>
-            <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
-            <span class="bar-val" id="b-player-hp-val">5/5</span>
-          </div>
-          <div class="bar-row">
-            <span class="bar-lbl ji-lbl">Ji</span>
-            <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
-            <span class="bar-val" id="b-player-ji-val">0</span>
-          </div>
-        </div>
-        <div class="tag-wrap compact" id="battle-passive-tags"></div>
-      </div>
+      <div class="tag-wrap compact" id="battle-passive-tags"></div>
       <div class="equip-slots compact" id="battle-equip-slots"></div>
     </div>
-  </div>
+
+    <!-- 中央：立绘 + 出牌区 -->
+    <div class="vs-center">
+      <div class="stage-row">
+
+        <!-- 玩家立绘 -->
+        <!-- 立绘接口：将 portrait-img 的 src 指向图片路径，并给 portrait-frame 加 has-art 类即可替换 emoji -->
+        <!-- 示例：<img class="portrait-img" id="b-player-portrait-img" src="assets/player_mage.png" alt="法师"> + class="portrait-frame has-art" -->
+        <div class="stage-portrait">
+          <div class="portrait-frame" id="b-player-portrait">
+            <img class="portrait-img" id="b-player-portrait-img" src="" alt="">
+            <div class="portrait-emoji" id="b-player-emoji">🗡️</div>
+          </div>
+          <div class="combatant-name player-name" id="b-player-name">刺客</div>
+        </div>
+
+        <!-- 出牌区 -->
+        <div class="played-area">
+          <div class="played-slot">
+            <div class="played-label enemy-lbl">敌方出牌</div>
+            <!-- 卡面接口：reveal-card 内可替换 ac-emoji 的内容为 <img class="card-art-img" src="..."> -->
+            <div class="reveal-card facedown" id="enemy-card">
+              <div class="ac-emoji">🂠</div>
+              <div class="ac-name">???</div>
+              <div class="ac-sub"></div>
+            </div>
+          </div>
+          <div class="vs-text">VS</div>
+          <div class="played-slot">
+            <div class="played-label player-lbl">我方出牌</div>
+            <div class="reveal-card" id="player-card">
+              <div class="ac-emoji" id="pc-emoji">　</div>
+              <div class="ac-name" id="pc-main">—</div>
+              <div class="ac-sub" id="pc-sub"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 敌方立绘 -->
+        <!-- 立绘接口：同上，替换 b-enemy-portrait-img 的 src，加 has-art 类 -->
+        <div class="stage-portrait">
+          <div class="portrait-frame enemy-frame" id="b-enemy-portrait">
+            <img class="portrait-img" id="b-enemy-portrait-img" src="" alt="">
+            <div class="portrait-emoji" id="b-enemy-emoji">👹</div>
+          </div>
+          <div class="combatant-name enemy-name" id="b-enemy-name">敌人</div>
+        </div>
+
+      </div><!-- /stage-row -->
+    </div>
+
+    <!-- 敌方数值（右） -->
+    <div class="combatant-side enemy-side">
+      <div class="enemy-intent" id="enemy-intent-area" style="visibility:hidden">
+        <span>准备行动...</span>
+      </div>
+      <div class="combatant-bars">
+        <div class="bar-row">
+          <span class="bar-lbl hp-lbl">❤</span>
+          <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
+          <span class="bar-val" id="b-enemy-hp-val">10/10</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-lbl ji-lbl">⚡</span>
+          <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
+          <span class="bar-val" id="b-enemy-ji-val">0</span>
+        </div>
+      </div>
+      <div class="tag-wrap compact" id="enemy-state-tags"></div>
+    </div>
+
+  </div><!-- /battlefield -->
 
   <!-- 战斗日志 -->
   <div class="battle-log" id="battle-log"></div>
@@ -174,69 +196,129 @@
   <div class="action-area" id="action-area">
 
     <!-- Ji 能量显示条 -->
-    <div class="ji-display">
-      <span class="ji-display-icon">⚡</span>
-      <span class="ji-display-label">Ji 能量</span>
+    <div class="ji-energy-bar">
+      <span class="ji-energy-label">⚡ Ji</span>
       <div class="ji-pips" id="ji-pips"></div>
-      <span class="ji-display-val" id="ji-display-num">0</span>
-      <span class="ji-display-rate" id="ji-display-rate">+3/回</span>
+      <span class="ji-energy-num" id="ji-display-num">0</span>
+      <span class="ji-energy-rate" id="ji-display-rate">+3/回</span>
     </div>
 
-    <!-- 4 个主行动卡牌 -->
-    <div class="action-cards-row">
-      <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
-        <div class="acb-icon">⚡</div>
-        <div class="acb-name">蓄力</div>
-        <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
+    <!-- 子面板（防御） -->
+    <div class="sub-panel" id="sp-def">
+      <button class="sub-card" id="sb-d0" data-action="defense_0">
+        <div class="sub-card-cost">0</div>
+        <!-- 卡面接口：给 sub-card 加 has-art 类，并在 sub-card-img 上设 src 即可替换 emoji -->
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡</div>
+        <div class="sub-card-name">防御</div>
+        <div class="sub-card-hint">防御3</div>
       </button>
-      <button class="action-card-btn def-card" id="mb-def" data-main="def">
-        <div class="acb-icon">🛡</div>
-        <div class="acb-name">防御 ▾</div>
-        <div class="acb-hint">0~2 Ji</div>
+      <button class="sub-card" id="sb-d1" data-action="defense_1">
+        <div class="sub-card-cost">1</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡🛡</div>
+        <div class="sub-card-name">超防</div>
+        <div class="sub-card-hint">防御6</div>
       </button>
-      <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
-        <div class="acb-icon">⚔</div>
-        <div class="acb-name">攻击 ▾</div>
-        <div class="acb-hint">1~7 Ji</div>
-      </button>
-      <button class="action-card-btn sp-card" id="mb-sp" data-main="sp">
-        <div class="acb-icon">✨</div>
-        <div class="acb-name">特殊 ▾</div>
-        <div class="acb-hint" id="sp-hint">职业技能</div>
+      <button class="sub-card" id="sb-d2" data-action="defense_2">
+        <div class="sub-card-cost">2</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡🛡🛡</div>
+        <div class="sub-card-name">无敌防</div>
+        <div class="sub-card-hint">防御7</div>
       </button>
     </div>
 
-    <!-- 隐藏的旧按钮（保持 JS 兼容） -->
+    <!-- 子面板（攻击） -->
+    <div class="sub-panel" id="sp-atk">
+      <button class="sub-card atk1" id="sb-a1" data-action="attack_1">
+        <div class="sub-card-cost">1</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
+        <div class="sub-card-name">攻击1</div>
+        <div class="sub-card-hint">等级1</div>
+      </button>
+      <button class="sub-card atk1" id="sb-a2" data-action="attack_2">
+        <div class="sub-card-cost">2</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
+        <div class="sub-card-name">攻击2</div>
+        <div class="sub-card-hint">等级2</div>
+      </button>
+      <button class="sub-card atk1" id="sb-a3" data-action="attack_3">
+        <div class="sub-card-cost">3</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
+        <div class="sub-card-name">攻击3</div>
+        <div class="sub-card-hint">等级3</div>
+      </button>
+      <button class="sub-card atk2" id="sb-a4" data-action="attack_4">
+        <div class="sub-card-cost">4</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
+        <div class="sub-card-name">攻击4</div>
+        <div class="sub-card-hint">等级4</div>
+      </button>
+      <button class="sub-card atk2" id="sb-a5" data-action="attack_5">
+        <div class="sub-card-cost">5</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
+        <div class="sub-card-name">攻击5</div>
+        <div class="sub-card-hint">等级5</div>
+      </button>
+      <button class="sub-card atk2" id="sb-a6" data-action="attack_6">
+        <div class="sub-card-cost">6</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
+        <div class="sub-card-name">攻击6</div>
+        <div class="sub-card-hint">等级6</div>
+      </button>
+      <button class="sub-card atk3" id="sb-a7" data-action="attack_7">
+        <div class="sub-card-cost">7</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔⚔</div>
+        <div class="sub-card-name">攻击7</div>
+        <div class="sub-card-hint">等级7</div>
+      </button>
+    </div>
+
+    <!-- 子面板（特殊） -->
+    <div class="sub-panel" id="sp-special">
+      <button class="sub-card sp-card" id="sb-sp1" data-action="mage_release">
+        <div class="sub-card-cost orb">5⚡</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚡⚡</div>
+        <div class="sub-card-name">一重释放</div>
+        <div class="sub-card-hint">等级5攻击</div>
+      </button>
+    </div>
+
+    <!-- 隐藏的旧子面板/按钮（保持 JS 兼容） -->
     <div style="display:none">
+      <div id="sp-a1"></div>
+      <div id="sp-a2"></div>
+      <div id="sp-a3"></div>
       <button id="mb-a1" data-main="a1"></button>
       <button id="mb-a2" data-main="a2"></button>
       <button id="mb-a3" data-main="a3"></button>
     </div>
 
-    <!-- 子面板 -->
-    <div class="sub-panel" id="sp-def">
-      <button class="sub-btn" id="sb-d0" data-action="defense_0">🛡 防御 (0Ji) | 防3</button>
-      <button class="sub-btn" id="sb-d1" data-action="defense_1">🛡🛡 超防 (1Ji) | 防6</button>
-      <button class="sub-btn" id="sb-d2" data-action="defense_2">🛡🛡🛡 无敌防 (2Ji) | 防7</button>
-    </div>
-    <!-- 合并攻击子面板 -->
-    <div class="sub-panel" id="sp-atk">
-      <button class="sub-btn" id="sb-a1" data-action="attack_1">⚔ 攻击1 (1Ji)</button>
-      <button class="sub-btn" id="sb-a2" data-action="attack_2">⚔ 攻击2 (2Ji)</button>
-      <button class="sub-btn" id="sb-a3" data-action="attack_3">⚔ 攻击3 (3Ji)</button>
-      <button class="sub-btn atk-mid" id="sb-a4" data-action="attack_4">⚔⚔ 攻击4 (4Ji)</button>
-      <button class="sub-btn atk-mid" id="sb-a5" data-action="attack_5">⚔⚔ 攻击5 (5Ji)</button>
-      <button class="sub-btn atk-mid" id="sb-a6" data-action="attack_6">⚔⚔ 攻击6 (6Ji)</button>
-      <button class="sub-btn atk-hi" id="sb-a7" data-action="attack_7">⚔⚔⚔ 攻击7 (7Ji)</button>
-    </div>
-    <!-- 旧子面板（隐藏备用） -->
-    <div style="display:none">
-      <div id="sp-a1"><button id="sp-a1-placeholder"></button></div>
-      <div id="sp-a2"><button id="sp-a2-placeholder"></button></div>
-      <div id="sp-a3"><button id="sp-a3-placeholder"></button></div>
-    </div>
-    <div class="sub-panel" id="sp-special">
-      <button class="sub-btn sp-btn" id="sb-sp1" data-action="mage_release">⚡⚡ 一重释放 (5闪电球) | 等级5</button>
+    <!-- 4 个主行动卡牌 -->
+    <div class="main-cards-row">
+      <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
+        <div class="acb-cost-badge charge-badge">-</div>
+        <!-- 主卡面接口：加 has-art 类，设 acb-img 的 src -->
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚡</span></div>
+        <div class="acb-name">蓄力</div>
+        <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
+      </button>
+      <button class="action-card-btn def-card" id="mb-def" data-main="def">
+        <div class="acb-cost-badge def-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">🛡</span></div>
+        <div class="acb-name">防御</div>
+        <div class="acb-hint">0~2 Ji</div>
+      </button>
+      <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
+        <div class="acb-cost-badge atk-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚔</span></div>
+        <div class="acb-name">攻击</div>
+        <div class="acb-hint">1~7 Ji</div>
+      </button>
+      <button class="action-card-btn sp-main-card" id="mb-sp" data-main="sp">
+        <div class="acb-cost-badge sp-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">✨</span></div>
+        <div class="acb-name">特殊</div>
+        <div class="acb-hint" id="sp-hint">职业技能</div>
+      </button>
     </div>
 
     <!-- 确认行 -->
@@ -244,8 +326,10 @@
       <div class="sel-preview">已选：<em id="sel-preview-text">未选择</em></div>
       <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓</button>
     </div>
-  </div>
-</div>
+
+  </div><!-- /action-area -->
+
+</div><!-- /screen-battle -->
 
 <!-- ══════════════ 结算屏 ══════════════ -->
 <div id="screen-gameover" class="screen result-screen">
@@ -263,7 +347,7 @@
 <div id="screen-victory" class="screen result-screen">
   <div class="result-wrap">
     <div class="result-icon">🏆</div>
-    <div class="big-result green">胜 利 ！</div>
+    <div class="big-result gold-text">胜 利 ！</div>
     <p class="result-sub">你完成了三连 Boss 试炼！</p>
     <div class="result-btns">
       <button class="btn btn-green" id="btn-restart-run-from-victory">↺ 再来一局</button>

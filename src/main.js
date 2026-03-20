@@ -241,7 +241,7 @@ function mainSelect(category) {
   if (category === 'ji') {
     G.ui.mainSel = 'ji';
     G.ui.actionKey = 'ji';
-    document.querySelectorAll('.main-btn').forEach((btn) => btn.classList.remove('sel'));
+    document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
     $('mb-ji').classList.add('sel');
     document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
     document.querySelectorAll('.sub-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -256,7 +256,7 @@ function mainSelect(category) {
 
   if (category === 'sp' && G.player.classKey !== 'mage') return;
 
-  document.querySelectorAll('.main-btn').forEach((btn) => btn.classList.remove('sel'));
+  document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
   document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
 
   if (G.ui.mainSel === category) {
@@ -274,8 +274,8 @@ function subSelect(key) {
   if (!action || action.disabledByOrbs || action.cost > G.player.ji) return;
   G.ui.actionKey = key;
 
-  document.querySelectorAll('.sub-btn').forEach((btn) => btn.classList.remove('sel'));
-  const button = document.querySelector(`.sub-btn[data-action="${key}"]`);
+  document.querySelectorAll('.sub-card, .sub-btn').forEach((btn) => btn.classList.remove('sel'));
+  const button = document.querySelector(`.sub-card[data-action="${key}"], .sub-btn[data-action="${key}"]`);
   if (button) button.classList.add('sel');
 
   $('pc-emoji').textContent = action.emoji;
@@ -305,9 +305,9 @@ function confirmAction() {
 function doReveal() {
   const enemyAction = getActionData(G.battle.eAction, 'enemy');
   const enemyCard = $('enemy-card');
-  enemyCard.className = 'card revealed-enemy';
-  enemyCard.innerHTML = `<div class="card-emoji">${enemyAction.emoji}</div><div class="card-main">${enemyAction.name}</div><div class="card-sub">${getActionSubText(enemyAction)}</div>`;
-  $('player-card').className = 'card revealed-player';
+  enemyCard.className = 'reveal-card revealed-enemy';
+  enemyCard.innerHTML = `<div class="ac-emoji">${enemyAction.emoji}</div><div class="ac-name">${enemyAction.name}</div><div class="ac-sub">${getActionSubText(enemyAction)}</div>`;
+  $('player-card').className = 'reveal-card revealed-player';
   $('round-phase').textContent = '结算中...';
   setTimeout(doResolve, 480);
 }
@@ -473,11 +473,11 @@ function bindStaticEvents() {
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 
-  document.querySelectorAll('.main-btn[data-main]').forEach((btn) => {
+  document.querySelectorAll('.action-card-btn[data-main]').forEach((btn) => {
     btn.addEventListener('click', () => mainSelect(btn.dataset.main));
   });
 
-  document.querySelectorAll('.sub-btn[data-action]').forEach((btn) => {
+  document.querySelectorAll('.sub-card[data-action], .sub-btn[data-action]').forEach((btn) => {
     btn.addEventListener('click', () => subSelect(btn.dataset.action));
   });
 
