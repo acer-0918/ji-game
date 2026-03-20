@@ -22,25 +22,71 @@ export const ORB_META = {
 
 export const ORB_KEYS = Object.keys(ORB_META);
 
-export const ABILITY_DEFS = [
-  {key:'fireBlade',    icon:'🔥',  name:'刀刀烈火刀刀爆', cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次攻击造成的伤害 +1。'},
-  {key:'savedByBlade', icon:'🗡️', name:'名刀司命',       cost:1, desc:'全局仅一次：当你死亡时，回复至 1 生命并继续本局游戏。'},
-  {key:'oneVsFour',    icon:'⚡',  name:'一抵四',         cost:1, desc:'你的回费效率 +1。'},
-  {key:'mango',        icon:'🥭',  name:'芒果',           cost:1, desc:'生命值上限 +5，且当前生命同步 +5。'},
-  {key:'happyFlower',  icon:'🌼',  name:'开心小花',       cost:1, desc:'每 3 个回合获得 1 Ji。'},
+export const COMMON_ABILITY_DEFS = [
+  {key:'mango',       icon:'🥭',  name:'芒果',       cost:1, desc:'生命值上限 +5，且当前生命同步 +5。'},
+  {key:'happyFlower', icon:'🌼',  name:'开心小花',   cost:1, desc:'每三个回合开始时，获得 1 Ji。'},
+  {key:'smoothStone', icon:'🪨',  name:'光滑的石头', cost:1, desc:'你在使用任何等级的防御时，获得防御等级 +2。'},
 ];
 
+export const CLASS_DEFS = {
+  assassin: {
+    key: 'assassin',
+    icon: '🗡️',
+    name: '刺客',
+    baseHp: 3,
+    baseJiRate: 3,
+    abilityDefs: [
+      {key:'fireBlade',    icon:'💥',  name:'暴击',     cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次攻击造成的伤害 +1。'},
+      {key:'savedByBlade', icon:'🗡️', name:'名刀司命', cost:1, desc:'全局仅一次，当你死亡时，回复至 1 生命且继续本局游戏。'},
+      {key:'oneVsFour',    icon:'⚡',  name:'一抵四',   cost:1, desc:'你的回费效率 +1。'},
+    ],
+  },
+  tank: {
+    key: 'tank',
+    icon: '🛡️',
+    name: '坦克',
+    baseHp: 10,
+    baseJiRate: 1,
+    abilityDefs: [
+      {key:'popcorn',     icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
+      {key:'smallPotion', icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
+      {key:'tigerTank',   icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入 Boss 时，生命上限立刻永久 +3，且当前生命同步 +3。'},
+    ],
+  },
+  mage: {
+    key: 'mage',
+    icon: '🔮',
+    name: '法师',
+    baseHp: 3,
+    baseJiRate: 2,
+    abilityDefs: [
+      {key:'focus',          icon:'🎯', name:'集中',     cost:1, desc:'如果【一重释放】命中了敌人，则造成伤害 +1。'},
+      {key:'storm',          icon:'⛈️', name:'雷暴',     cost:1, desc:'每场战斗开始时获得 2 闪电球。'},
+      {key:'electrodynamics',icon:'⚙️', name:'电动力学', cost:1, desc:'如果【一重释放】命中了敌人，则获得 3 闪电球。'},
+    ],
+  },
+};
+
+export const DEFAULT_CLASS_KEY = 'assassin';
+
 export const SHOP_ITEMS = [
-  {key:'enhancedBlade', icon:'👻⚔', name:'强化鬼刀',     cost:1, desc:'替换攻击 5。攻击等级仍为 5，但只消耗 4 Ji。', slot:'weapon'},
-  {key:'powerEquip',    icon:'🧰',  name:'一个强化装备', cost:1, desc:'装备。你造成任何伤害时，额外 +1 伤害。', slot:'gear'},
-  {key:'smoothStone',   icon:'🪨',  name:'光滑的石头',   cost:1, desc:'遗物。你的所有防御等级 +2。', slot:'relic'},
+  {key:'enhancedDagger',  icon:'🗡✨', name:'强化小刀',       cost:2, desc:'替换攻击 1。强化小刀命中时，获得 1 Ji。', slot:'weapon'},
+  {key:'enhancedIceBlade', icon:'❄️🗡', name:'强化冰刀',       cost:2, desc:'替换攻击 3。强化冰刀命中时造成伤害 +1。', slot:'weapon'},
+  {key:'enhancedBlade',    icon:'👻⚔', name:'强化鬼刀',       cost:2, desc:'替换攻击 5。攻击等级仍为 5，但只消耗 4 Ji。', slot:'weapon'},
+  {key:'powerEquip',       icon:'🧰',  name:'磨刀石',   cost:2, desc:'装备。造成任何伤害时，伤害 +1。', slot:'gear'},
+  {key:'vitalityEquip',    icon:'❤️‍🩹', name:'不朽馈赠', cost:2, desc:'装备。若通过战斗房间且未受到伤害，生命上限 +1 且当前生命 +1。', slot:'gear'},
 ];
+
+export function getAbilityDefsForClass(classKey) {
+  const selected = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
+  return [...selected.abilityDefs, ...COMMON_ABILITY_DEFS];
+}
 
 export const MAP_TEMPLATE = [
   {type:'shop', icon:'🛒', label:'商店'},
-  {type:'boss', icon:'🕶️', label:'Boss I', reward:0, enemy:{id:'jiaxu', name:'贾诩', emoji:'🕶️', hp:15, maxHp:15, ji:0, jiRate:3, hideJi:true}},
-  {type:'boss', icon:'👑', label:'Boss II', reward:0, enemy:{id:'gufu', name:'古夫大帝', emoji:'👑', hp:15, maxHp:15, ji:0, jiRate:3, chargeValue:1}},
-  {type:'boss', icon:'🤖', label:'Boss III', reward:0, finalBoss:true, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:15, maxHp:15, ji:0, jiRate:3, orbs:{plasma:0,frost:0,lightning:0,dark:0,glass:0}}},
+  {type:'boss', icon:'🕶️', label:'Boss I', reward:0, enemy:{id:'jiaxu', name:'贾诩', emoji:'🕶️', hp:10, maxHp:10, ji:0, jiRate:3, hideJi:true}},
+  {type:'boss', icon:'👑', label:'Boss II', reward:0, enemy:{id:'gufu', name:'古夫大帝', emoji:'👑', hp:10, maxHp:10, ji:0, jiRate:3, chargeValue:1}},
+  {type:'boss', icon:'🤖', label:'Boss III', reward:0, finalBoss:true, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:10, maxHp:10, ji:0, jiRate:3, orbs:{plasma:0,frost:0,lightning:0,dark:0,glass:0}}},
 ];
 
 export const MAX_JI_DISPLAY = 12;

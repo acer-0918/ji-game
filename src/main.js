@@ -1,5 +1,5 @@
 import { aiDecide } from './ai.js';
-import { ABILITY_DEFS, SHOP_ITEMS } from './data.js';
+import { SHOP_ITEMS, getAbilityDefsForClass } from './data.js';
 import {
   calcDamage,
   describeAttack,
@@ -24,6 +24,7 @@ import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnaps
 import { clone } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
+let selectedClassKey = null;
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
@@ -49,7 +50,7 @@ function closeAbilityTree() {
 }
 
 function unlockAbility(key) {
-  const ab = ABILITY_DEFS.find((item) => item.key === key);
+  const ab = getAbilityDefsForClass(G.player.classKey).find((item) => item.key === key);
   if (!ab || G.abilities[key] || G.player.fragments < ab.cost) return;
   G.player.fragments -= ab.cost;
   G.abilities[key] = true;
@@ -64,10 +65,27 @@ function unlockAbility(key) {
 function buyShopItem(key) {
   const item = SHOP_ITEMS.find((entry) => entry.key === key);
   if (!item || G.shop[key] || G.player.fragments < item.cost) return;
+  if (item.slot === 'gear' && G.equippedGear && G.equippedGear !== key) return;
   G.player.fragments -= item.cost;
   G.shop[key] = true;
+  if (item.slot === 'gear') G.equippedGear = key;
   renderShop();
   renderMap();
+  if (G.enemy) refreshBars();
+}
+
+function unequipGear() {
+  const equippedKey = G.equippedGear;
+  if (!equippedKey) return;
+  const item = SHOP_ITEMS.find((entry) => entry.key === equippedKey);
+  const itemName = item ? item.name : '当前装备';
+  const ok = window.confirm(`是否卸下【${itemName}】？卸下后需要重新购买才能再次装备。`);
+  if (!ok) return;
+  G.shop[equippedKey] = false;
+  G.equippedGear = null;
+  renderMap();
+  if ($('ov-shop').classList.contains('show')) renderShop();
+  if (G.enemy) refreshBars();
 }
 
 function leaveShop() {
@@ -92,15 +110,11 @@ function doSurrender() {
 }
 
 function startGame() {
+  if (!selectedClassKey) return;
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
-  initGame();
+  initGame(selectedClassKey);
   showScreen('map');
   renderMap();
-  setTimeout(() => {
-    if (G.nodeIdx === 0 && G.nodes[0] && G.nodes[0].type === 'shop') {
-      enterNode(0);
-    }
-  }, 0);
 }
 
 function enterNode(index) {
@@ -127,6 +141,12 @@ function restartBattle() {
 
 function startBattle(node, keepSnapshot=false) {
   G.currentNode = clone(node);
+  let tigerTriggered = false;
+  if (!keepSnapshot && G.abilities.tigerTank && node.type === 'boss') {
+    G.player.maxHp += 3;
+    G.player.hp += 3;
+    tigerTriggered = true;
+  }
   if (!keepSnapshot) {
     G.battleEntrySnapshot = clone(G);
   }
@@ -135,12 +155,20 @@ function startBattle(node, keepSnapshot=false) {
   ensureFaultRobotState(G.enemy);
   resetRoomJi();
   G.enemy.ji = 0;
-  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null};
+  G.roomFlags.playerDamagedInBattle = false;
+  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, popcornPending:false};
   G.ui = {mainSel:null, actionKey:null};
+
+  if (G.abilities.smallPotion && G.player.hp < G.player.maxHp) {
+    G.player.hp += 1;
+  }
+  if (G.player.classKey === 'mage' && G.abilities.storm) {
+    G.player.lightningOrbs = (G.player.lightningOrbs || 0) + 2;
+  }
 
   $('b-enemy-emoji').textContent = G.enemy.emoji || '👹';
   $('b-enemy-name').textContent = G.enemy.name;
-  $('b-player-name').textContent = G.player.name;
+  $('b-player-name').textContent = `${G.player.classIcon || ''} ${G.player.name}`;
 
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
@@ -150,10 +178,13 @@ function startBattle(node, keepSnapshot=false) {
   addLog('rnd', '▶ 回合 1');
   addLog('', `战斗开始！对手：${G.enemy.emoji} ${G.enemy.name}`);
   addLog('', '进入新房间，双方 Ji 已清零。');
+  if (tigerTriggered) addLog('log-ab', '🐯 虎式坦克触发：进入 Boss，生命上限 +3 且当前生命同步 +3。');
+  if (G.abilities.smallPotion) addLog('log-ab', '🧪 小血瓶触发：战斗开始时回复 1 生命。');
+  if (G.player.classKey === 'mage' && G.abilities.storm) addLog('log-ab', '⛈️ 雷暴触发：战斗开始时获得 2 闪电球。');
   if (G.enemy.id === 'jiaxu') {
     addLog('log-ab', '🌫️ 贾诩展开了【无知之幕】：双方 Ji 数量都被隐藏。');
   } else if (G.enemy.id === 'gufu') {
-    addLog('log-ab', '👑 古夫大帝的【帝王蓄力】会不断成长。');
+    addLog('log-ab', '👑 古夫大帝的【野性之心】会不断成长。');
   } else if (G.enemy.id === 'faultRobot') {
     addLog('log-ab', '🤖 故障机器人会随机生成 5 类充能球；当五类都已出现后，再次启动会直接消灭玩家。');
   }
@@ -166,8 +197,8 @@ function startBattle(node, keepSnapshot=false) {
 }
 
 function mainSelect(category) {
-  const panelMap = {def:'sp-def', a1:'sp-a1', a2:'sp-a2', a3:'sp-a3'};
-  const btnMap = {ji:'mb-ji', def:'mb-def', a1:'mb-a1', a2:'mb-a2', a3:'mb-a3'};
+  const panelMap = {def:'sp-def', a1:'sp-a1', a2:'sp-a2', a3:'sp-a3', sp:'sp-special'};
+  const btnMap = {ji:'mb-ji', def:'mb-def', a1:'mb-a1', a2:'mb-a2', a3:'mb-a3', sp:'mb-sp'};
 
   if (category === 'ji') {
     G.ui.mainSel = 'ji';
@@ -185,6 +216,8 @@ function mainSelect(category) {
     return;
   }
 
+  if (category === 'sp' && G.player.classKey !== 'mage') return;
+
   document.querySelectorAll('.main-btn').forEach((btn) => btn.classList.remove('sel'));
   document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
 
@@ -200,7 +233,7 @@ function mainSelect(category) {
 
 function subSelect(key) {
   const action = getActionData(key, 'player');
-  if (!action || action.cost > G.player.ji) return;
+  if (!action || action.disabledByOrbs || action.cost > G.player.ji) return;
   G.ui.actionKey = key;
 
   document.querySelectorAll('.sub-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -209,9 +242,11 @@ function subSelect(key) {
 
   $('pc-emoji').textContent = action.emoji;
   $('pc-main').textContent = action.name;
-  $('pc-sub').textContent = action.type === 'defense' ? `防御${action.def} | 耗${action.cost}Ji` : describeAttack(action);
+  if (action.type === 'defense') $('pc-sub').textContent = `防御${action.def} | 耗${action.cost}Ji`;
+  else $('pc-sub').textContent = describeAttack(action);
 
-  let preview = `${action.emoji} ${action.name} (${action.cost}Ji)`;
+  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
+  let preview = `${action.emoji} ${action.name} (${costLabel})`;
   if (action.type === 'defense') preview += ` 防御${action.def}`;
   if (action.type === 'attack') preview += ` 攻击${action.atk} / ${action.damage}伤害`;
   $('sel-preview-text').textContent = preview;
@@ -258,6 +293,10 @@ function doResolve() {
     const result = calcDamage(pResult.action, eResult.action);
     p.hp = Math.max(0, p.hp - result.pdmg);
     e.hp = Math.max(0, e.hp - result.edmg);
+    if (result.pdmg > 0) {
+      G.roomFlags.playerDamagedInBattle = true;
+      if (G.abilities.popcorn) G.battle.popcornPending = true;
+    }
     result.msgs.forEach((msg) => addLog(result.edmg > 0 || result.pdmg > 0 ? 'log-dmg' : 'log-blk', msg));
     result.triggers.forEach((trigger) => addLog('log-ab', `✨ ${trigger}`));
     if (result.pdmg > 0) addLog('log-dmg', `玩家受到 ${result.pdmg} 点伤害！`);
@@ -290,6 +329,11 @@ function doResolve() {
 }
 
 function applyRoundStartEffects() {
+  if (G.abilities.popcorn && G.battle.popcornPending) {
+    G.player.ji += 2;
+    G.battle.popcornPending = false;
+    addLog('log-ab', '🍿 爆米：上回合你受到了伤害，本回合开始获得 2 Ji。');
+  }
   if (G.abilities.happyFlower && G.battle.round % 3 === 0) {
     G.player.ji += 1;
     addLog('log-ab', `🌼 开心小花：第 ${G.battle.round} 回合开始，获得 1 Ji。`);
@@ -321,9 +365,14 @@ function endBattle(win) {
     G.player.fragments += reward;
     G.nodes[G.nodeIdx].done = true;
     G.nodeIdx += 1;
+    if (G.equippedGear === 'vitalityEquip' && !G.roomFlags.playerDamagedInBattle) {
+      G.player.maxHp += 1;
+      G.player.hp += 1;
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>🩹 无伤通过战斗，<strong style="color:#8bd48b">生命上限 +1</strong>。`;
+    }
     if (node.finalBoss) {
-      body.innerHTML = '你击败了三连 Boss 的最后一位，完成了这次测试版挑战。';
-    } else {
+      body.innerHTML = '胜利……？';
+    } else if (!body.innerHTML) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>继续前进，后面还有更强的敌人。`;
     }
   } else {
@@ -390,6 +439,23 @@ function bindStaticEvents() {
     const button = event.target.closest('button[data-buy]');
     if (!button) return;
     buyShopItem(button.dataset.buy);
+  });
+
+  ['map-equip-slots', 'battle-equip-slots'].forEach((id) => {
+    $(id).addEventListener('click', (event) => {
+      const slot = event.target.closest('.equip-slot[data-slot="gear"].filled');
+      if (!slot) return;
+      unequipGear();
+    });
+  });
+
+  document.querySelectorAll('.class-btn[data-class]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      selectedClassKey = btn.dataset.class;
+      document.querySelectorAll('.class-btn[data-class]').forEach((item) => item.classList.remove('sel'));
+      btn.classList.add('sel');
+      $('btn-start').disabled = false;
+    });
   });
 }
 

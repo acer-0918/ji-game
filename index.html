@@ -3,26 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>来Ji - Repo 协作版</title>
+  <title>来Ji</title>
   <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body>
   <div id="screen-menu" class="screen active">
     <div class="title">来Ji</div>
-    <div class="subtitle">三连 Boss 测试版 · Repo 协作版</div>
+    <div class="subtitle">beta</div>
     <div class="center">
-      <button class="btn" id="btn-start">开始游戏</button>
-      <p style="color:#333;font-size:.78em;margin-top:20px;">当前职业：刺客</p>
-      <div style="color:#444;font-size:.75em;margin-top:24px;max-width:470px;margin-left:auto;margin-right:auto;line-height:1.85;text-align:left;padding:12px;border:1px solid #1a1a2a;">
-        <strong style="color:#666;">测试规则</strong><br>
-        初始生命 5 / 5，蓄力效率 +3Ji，开局拥有 7 碎片，并会先进入商店。<br>
-        进入每个新房间后，双方 Ji 都会清零，不能跨战斗保留。<br><br>
-        <strong style="color:#666;">多次攻击</strong><br>
-        未被防御或抵消的每一次攻击都会单独造成一次伤害。<br>
-        若攻击等级不高于防御等级，则该次多段攻击的每一下都会被防御。<br><br>
-        <strong style="color:#666;">测试目标</strong><br>
-        商店后连续挑战：贾诩 → 古夫大帝 → 故障机器人。每场战斗可用 SL 重新开始。
+      <div id="class-pick" class="class-pick">
+        <button class="class-btn" data-class="assassin">🗡️ 刺客<br><small>3血 / 回费3</small></button>
+        <button class="class-btn" data-class="tank">🛡️ 坦克<br><small>10血 / 回费1</small></button>
+        <button class="class-btn" data-class="mage">🔮 法师<br><small>3血 / 回费2</small></button>
       </div>
+      <button class="btn" id="btn-start" disabled>开始游戏</button>
     </div>
   </div>
 
@@ -99,7 +93,7 @@
       <span>第 <span id="round-num">1</span> 回合 · <span id="round-phase">选择行动</span></span>
       <div style="display:flex;gap:8px;">
         <button class="btn-surrender" id="btn-restart-battle">↺ SL</button>
-        <button class="btn-surrender" id="btn-ask-surrender">🏳 投降</button>
+        <button class="btn-surrender" id="btn-ask-surrender">自刎归天</button>
       </div>
     </div>
 
@@ -142,6 +136,7 @@
         <button class="main-btn" id="mb-a1" data-main="a1">⚔ 一档 ▾<br><small style="color:#444">1~3Ji</small></button>
         <button class="main-btn" id="mb-a2" data-main="a2">⚔⚔ 二档 ▾<br><small style="color:#444">4~6Ji</small></button>
         <button class="main-btn" id="mb-a3" data-main="a3">⚔⚔⚔ 三档 ▾<br><small style="color:#444">7Ji</small></button>
+        <button class="main-btn" id="mb-sp" data-main="sp">✨ 特殊 ▾<br><small style="color:#444">职业技能</small></button>
       </div>
       <div class="sub-panel" id="sp-def">
         <button class="sub-btn" id="sb-d0" data-action="defense_0">🛡 防 (0Ji) | 防御3</button>
@@ -160,6 +155,9 @@
       </div>
       <div class="sub-panel" id="sp-a3">
         <button class="sub-btn" id="sb-a7" data-action="attack_7">⚔⚔⚔ 攻击7 (7Ji) | 等级7</button>
+      </div>
+      <div class="sub-panel" id="sp-special">
+        <button class="sub-btn" id="sb-sp1" data-action="mage_release">⚡⚡ 一重释放 (5闪电球) | 等级5</button>
       </div>
       <div class="confirm-row">
         <div class="sel-preview">已选: <em id="sel-preview-text">未选择</em></div>
@@ -207,10 +205,10 @@
 
   <div class="overlay" id="ov-surrender">
     <div class="overlay-box red">
-      <div class="overlay-title">🏳 投降</div>
+      <div class="overlay-title">自刎归天</div>
       <div class="overlay-body">确定要放弃这一局并重新开始吗？<br>本局所有进度将会丢失。</div>
       <div class="overlay-btns">
-        <button class="btn btn-red" id="btn-confirm-surrender">确定投降</button>
+        <button class="btn btn-red" id="btn-confirm-surrender">确认自刎归天</button>
         <button class="btn" id="btn-cancel-surrender">再想想</button>
       </div>
     </div>
@@ -218,7 +216,7 @@
 
   <div class="overlay" id="ov-abtree">
     <div class="overlay-box gold" style="max-width:520px;width:92%;">
-      <div class="overlay-title">✨ 能力树 · 刺客</div>
+      <div class="overlay-title" id="abtree-title">✨ 能力树</div>
       <div class="overlay-body" style="margin-bottom:14px;">
         当前碎片：<strong id="abtree-frags" style="color:#c9a227">0</strong> ✨
         <span style="font-size:.78em;color:#555;margin-left:8px;">（每个节点消耗 1 碎片）</span>

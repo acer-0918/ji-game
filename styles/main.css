@@ -17,6 +17,11 @@ body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-heigh
 .title{font-size:3.5em;color:#7f5af0;text-shadow:0 0 25px #7f5af0;letter-spacing:12px;text-align:center;margin:60px 0 8px;}
 .subtitle{text-align:center;color:#555;margin-bottom:40px;font-size:.9em;}
 .center{text-align:center;}
+.class-pick{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:18px;}
+.class-btn{min-width:150px;padding:10px 12px;background:#0f0f18;border:1px solid #2a2a3a;color:#aaa;cursor:pointer;font-family:inherit;line-height:1.4;font-size:.85em;transition:all .15s;}
+.class-btn small{color:#666;font-size:.75em;}
+.class-btn:hover{border-color:#7f5af0;color:#9a7fe0;}
+.class-btn.sel{border-color:#7f5af0;background:#160d2a;color:#9a7fe0;}
 
 .map-title{font-size:1.3em;color:#7f5af0;text-align:center;margin-bottom:14px;}
 .map-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#0d0d18;border:1px solid #2a2a40;margin-bottom:10px;gap:8px;flex-wrap:wrap;}
@@ -50,6 +55,8 @@ body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-heigh
 .equip-slots{display:flex;gap:8px;flex-wrap:wrap;}
 .equip-slot{min-width:112px;padding:8px 10px;border:1px dashed #2a2a40;color:#555;background:#090914;font-size:.74em;text-align:center;}
 .equip-slot.filled{border-style:solid;border-color:#c9a227;color:#e7d597;background:#18140a;box-shadow:0 0 10px #c9a22722;}
+.equip-slot.clickable{cursor:pointer;transition:all .2s;}
+.equip-slot.clickable:hover{border-color:#e53;color:#ffd0d0;box-shadow:0 0 10px #e5333355;}
 
 .fighter-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0c0c18;border:1px solid #222;flex-wrap:wrap;}
 .fighter-row.enemy{border-color:#c0392b;}
@@ -90,7 +97,7 @@ body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-heigh
 .log-ab{color:#c9a227;}
 
 .round-bar{display:flex;justify-content:space-between;align-items:center;font-size:.82em;color:#555;padding:3px 6px;gap:8px;flex-wrap:wrap;}
-.btn-surrender{background:transparent;border:1px solid #553;color:#886;padding:4px 10px;cursor:pointer;font-family:inherit;font-size:.75em;transition:all .2s;}
+.btn-surrender{background:transparent;border:1px solid #553;color:#886;padding:5px 12px;min-width:92px;cursor:pointer;font-family:inherit;font-size:.75em;transition:all .2s;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;}
 .btn-surrender:hover{border-color:#e53;color:#e53;}
 
 .action-area{background:#0c0c18;border:1px solid #222;padding:10px;}
@@ -128,6 +135,7 @@ body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-heigh
 .overlay-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
 
 .ab-node-card,.shop-item-card{border:1px solid #252535;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;text-align:left;background:#0d0d18;}
+.ab-section-title{font-size:.8em;color:#9a7fe0;letter-spacing:1px;margin:12px 0 8px;text-align:left;}
 .ab-node-card.unlocked,.shop-item-card.owned{border-color:#7f5af0;background:#110d1e;}
 .ab-node-card.cant-afford,.shop-item-card.cant-afford{opacity:.55;}
 .ab-icon{font-size:1.8em;min-width:36px;text-align:center;}
@@ -143,6 +151,8 @@ body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-heigh
 .btn-unlock:hover{background:#7f5af0;color:#fff;}
 .btn-buy:hover{background:#c9a227;color:#111;}
 .btn-unlock:disabled,.btn-buy:disabled{border-color:#252535;color:#333;cursor:not-allowed;}
+
+#abtree-nodes{max-height:46vh;overflow-y:auto;padding-right:6px;}
 
 .big-result{font-size:3em;font-weight:bold;text-shadow:0 0 20px currentColor;margin:60px 0 16px;}
 .big-result.green{color:#2cb67d;}
