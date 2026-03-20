@@ -45,9 +45,8 @@ body {
 .screen.active { display: block; }
 #screen-battle.active {
   display: flex; flex-direction: column;
-  height: 100vh; max-height: 100vh;
+  min-height: 100vh;
   padding: 12px; gap: 8px;
-  overflow: hidden;
 }
 
 /* ── Buttons ─────────────────────────────────────── */
@@ -241,7 +240,7 @@ body {
 /* ── Battlefield ─────────────────────────────────── */
 .battlefield {
   display: flex; flex-direction: column;
-  gap: 8px; flex: 1; min-height: 0;
+  gap: 8px; flex-shrink: 0;
 }
 
 /* 状态栏行：三列 */
@@ -260,13 +259,13 @@ body {
   box-shadow: 0 4px 14px rgba(156,111,222,0.1);
 }
 
-/* 立绘行：填满剩余高度 */
+/* 立绘行：固定高度，不随屏幕压缩 */
 .portrait-row {
-  flex: 1; min-height: 0;
+  height: 300px;
+  flex-shrink: 0;
   display: flex; flex-direction: row;
   align-items: center; justify-content: space-around;
   padding: 0 40px;
-  overflow: hidden;
 }
 
 /* 每个立绘台：固定相同尺寸 */
@@ -274,7 +273,7 @@ body {
   display: flex; flex-direction: column;
   align-items: center; gap: 6px;
   width: 200px;
-  height: min(42vh, 380px);
+  height: 280px;
   flex-shrink: 0;
 }
 .portrait-label {
