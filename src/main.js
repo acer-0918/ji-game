@@ -203,6 +203,20 @@ function startBattle(node, keepSnapshot=false) {
   $('b-enemy-name').textContent = G.enemy.name;
   $('b-player-name').textContent = `${G.player.classIcon || ''} ${G.player.name}`;
 
+  // 动态加载立绘（有图片则显示，否则回退到 emoji）
+  function loadPortrait(frameId, imgId, src) {
+    const frame = $(frameId);
+    const img = $(imgId);
+    frame.classList.remove('has-art');
+    img.onload  = () => frame.classList.add('has-art');
+    img.onerror = () => frame.classList.remove('has-art');
+    img.src = src;
+  }
+  loadPortrait('b-player-portrait', 'b-player-portrait-img',
+    `assets/portraits/player_${G.player.classKey}.png`);
+  loadPortrait('b-enemy-portrait', 'b-enemy-portrait-img',
+    `assets/portraits/enemy_${G.enemy.id.toLowerCase()}.png`);
+
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
   renderEquipSlots('battle-equip-slots');

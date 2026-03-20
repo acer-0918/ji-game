@@ -260,7 +260,7 @@ body {
   background: transparent; position: relative; overflow: hidden;
 }
 /* Artwork interface: set portrait-img src + add has-art class to portrait-frame */
-.portrait-img { display: none; width: 100%; height: 100%; object-fit: contain; border-radius: var(--r-md); }
+.portrait-img { display: none; width: 100%; height: 100%; object-fit: contain; object-position: bottom; border-radius: var(--r-md); }
 .portrait-frame.has-art .portrait-emoji { display: none; }
 .portrait-frame.has-art .portrait-img   { display: block; }
 .portrait-emoji { font-size: 5em; line-height: 1; }
