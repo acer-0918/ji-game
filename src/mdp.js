@@ -52,6 +52,29 @@ function _loadV(key, expectedLen) {
   } catch (_) { return null; }
 }
 
+/**
+ * Load V table for a boss: pre-generated file → localStorage → null (triggers compute).
+ * Pre-generated files live in src/mdp/{label}_{suffix}.js as ES modules.
+ * localStorage is used for custom classes not covered by pre-generated files.
+ */
+async function _loadVForBoss(label, classKey, expectedLen) {
+  // 1. Pre-generated static file (instant, covers all built-in classes)
+  const suffix = classKey === 'mage' ? 'mage' : 'standard';
+  try {
+    const mod = await import(`./mdp/${label}_${suffix}.js`);
+    const arr = mod.default;
+    if (Array.isArray(arr) && arr.length === expectedLen) {
+      return new Float64Array(arr);
+    }
+  } catch (_) { /* file not found — custom class */ }
+
+  // 2. localStorage cache (for custom classes computed previously)
+  const cached = _loadV(_cacheKey(label, classKey), expectedLen);
+  if (cached) return cached;
+
+  return null; // caller will compute on-the-fly and save to localStorage
+}
+
 // Proxy action object for mage_release (0 Ji cost, atk 5, type attack)
 const MAGE_RELEASE_ACT = { type: 'attack', cost: 0, atk: 5, damage: 1 };
 
@@ -257,10 +280,11 @@ function computePolicyStandard(bossJiRate, pm, cacheLabel, classKey) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const key = _cacheKey(cacheLabel, classKey);
-  const cached = _loadV(key, NS);
-  const V = cached ?? valueIteration(NS, bellman);
-  if (!cached) _saveV(key, V);
+  let V = preV;
+  if (!V) {
+    V = valueIteration(NS, bellman);
+    _saveV(_cacheKey(cacheLabel, classKey), V);
+  }
 
   function decide(bj0, pj0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
