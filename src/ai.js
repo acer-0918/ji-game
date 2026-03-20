@@ -218,10 +218,10 @@ function aiBasic(enemy) {
 
 export function aiDecide(enemy) {
   if (!enemy) return 'ji';
-  // Hard mode: use precomputed MDP policy for boss enemies
+  // Hard mode: blend MDP (70%) with heuristic (30%) for strategic variety
   const mdpAction = mdpDecide(enemy);
-  if (mdpAction !== null) return mdpAction;
-  // Normal mode: fall back to hand-crafted heuristic AI
+  if (mdpAction !== null && Math.random() < 0.70) return mdpAction;
+  // Heuristic fallback (also sole path in normal mode)
   if (enemy.id === 'jiaxu') return aiJiaxu(enemy);
   if (enemy.id === 'gufu') return aiGufu(enemy);
   if (enemy.id === 'faultRobot') return aiFaultRobot(enemy);

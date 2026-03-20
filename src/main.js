@@ -126,7 +126,7 @@ function startHardGame() {
   const btn = $('btn-hard-start');
   if (btn) { btn.disabled = true; btn.textContent = '计算中...'; }
   // Synchronous computation — typically <150 ms
-  initMDPPolicies();
+  initMDPPolicies(selectedClassKey);
   if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
   initGame(selectedClassKey);
   G.hardMode = true;
