@@ -676,6 +676,13 @@ body {
 .btn-buy:hover    { background: var(--gold);   color: #fff; border-color: var(--gold); }
 .btn-unlock:disabled, .btn-buy:disabled { border-color: var(--card-border); color: var(--text-lt); cursor: not-allowed; }
 #abtree-nodes { max-height: 44vh; overflow-y: auto; padding-right: 4px; }
+#shop-items { max-height: 44vh; overflow-y: auto; padding-right: 4px; }
+
+#loading-tip {
+  font-size: 1.02em;
+  font-weight: 700;
+  color: var(--purple);
+}
 
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }

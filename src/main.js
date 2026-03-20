@@ -40,6 +40,24 @@ function closeOverlay(id) {
   $(id).classList.remove('show');
 }
 
+function setLoadingText(text) {
+  const tip = $('loading-tip');
+  if (tip) tip.textContent = text || '加载中...';
+}
+
+function openLoading(text='机器学习了') {
+  setLoadingText(text);
+  openOverlay('ov-loading');
+}
+
+function closeLoading() {
+  closeOverlay('ov-loading');
+}
+
+function nextPaint() {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 function openAbilityTree() {
   renderAbilityTree();
   openOverlay('ov-abtree');
@@ -107,7 +125,7 @@ function closeSurrender() {
 
 function doSurrender() {
   closeOverlay('ov-surrender');
-  restartRun();
+  confirmBackToMenu();
 }
 
 function startGame() {
@@ -120,14 +138,19 @@ function startGame() {
   renderMap();
 }
 
-function startHardGame() {
+async function startHardGame() {
   if (!selectedClassKey) return;
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
   const btn = $('btn-hard-start');
-  if (btn) { btn.disabled = true; btn.textContent = '计算中...'; }
-  // Synchronous computation — typically <150 ms
-  initMDPPolicies(selectedClassKey);
-  if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
+  if (btn) { btn.disabled = true; btn.textContent = '准备中...'; }
+  openLoading('机器学习了');
+  await nextPaint();
+  try {
+    await initMDPPolicies(selectedClassKey);
+  } finally {
+    closeLoading();
+    if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
+  }
   initGame(selectedClassKey);
   G.hardMode = true;
   updateHardBadge(true);
@@ -456,8 +479,8 @@ function closeBattleOverlay() {
   renderMap();
 }
 
-function openBackToMenu() { openOverlay('ov-to-menu'); }
-function cancelBackToMenu() { closeOverlay('ov-to-menu'); }
+function openSettings() { openOverlay('ov-settings'); }
+function closeSettings() { closeOverlay('ov-settings'); }
 function confirmBackToMenu() {
   document.querySelectorAll('.overlay').forEach((o) => o.classList.remove('show'));
   document.querySelectorAll('.class-btn').forEach((b) => b.classList.remove('sel'));
@@ -481,11 +504,10 @@ function bindStaticEvents() {
   $('btn-confirm').addEventListener('click', confirmAction);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
   $('btn-restart-run-from-victory').addEventListener('click', restartRun);
-  // Back to menu
-  $('btn-to-menu-map')?.addEventListener('click', openBackToMenu);
-  $('btn-to-menu-battle')?.addEventListener('click', openBackToMenu);
-  $('btn-confirm-to-menu')?.addEventListener('click', confirmBackToMenu);
-  $('btn-cancel-to-menu')?.addEventListener('click', cancelBackToMenu);
+  // Settings placeholder
+  $('btn-to-menu-map')?.addEventListener('click', openSettings);
+  $('btn-to-menu-battle')?.addEventListener('click', openSettings);
+  $('btn-settings-close')?.addEventListener('click', closeSettings);
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 

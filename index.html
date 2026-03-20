@@ -44,7 +44,7 @@
 <!-- ══════════════ 地图 ══════════════ -->
 <div id="screen-map" class="screen">
   <div class="map-topbar">
-    <button class="btn-ghost" id="btn-to-menu-map">← 主菜单</button>
+    <button class="btn-ghost" id="btn-to-menu-map">⚙ 设置</button>
     <div class="map-title-text">⚔ 试炼路径</div>
     <button class="frag-badge" id="btn-open-abtree">✨ <span id="map-frags">0</span> 碎片 · 能力树</button>
   </div>
@@ -91,8 +91,8 @@
     </div>
     <div class="topbar-actions">
       <button class="btn-ghost" id="btn-restart-battle">↺ 读档</button>
-      <button class="btn-ghost danger" id="btn-ask-surrender">🏳 投降</button>
-      <button class="btn-ghost" id="btn-to-menu-battle">← 主菜单</button>
+      <button class="btn-ghost danger" id="btn-ask-surrender">🗡 自刎归天</button>
+      <button class="btn-ghost" id="btn-to-menu-battle">⚙ 设置</button>
     </div>
   </div>
 
@@ -377,22 +377,30 @@
 
 <div class="overlay" id="ov-surrender">
   <div class="overlay-box red">
-    <div class="overlay-title">🏳 投降确认</div>
-    <div class="overlay-body">确定放弃本局并重新开始吗？<br>本局所有进度将会丢失。</div>
+    <div class="overlay-title">🗡 自刎归天</div>
+    <div class="overlay-body">死是凉爽的夏夜<br>可供人无忧的安眠</div>
     <div class="overlay-btns">
-      <button class="btn btn-red" id="btn-confirm-surrender">确认投降</button>
+      <button class="btn btn-red" id="btn-confirm-surrender">确认自刎归天</button>
       <button class="btn btn-outline" id="btn-cancel-surrender">再想想</button>
     </div>
   </div>
 </div>
 
-<div class="overlay" id="ov-to-menu">
+<div class="overlay" id="ov-settings">
   <div class="overlay-box">
-    <div class="overlay-title">← 返回主菜单</div>
-    <div class="overlay-body">确定要返回主菜单吗？<br>当前局的所有进度将会丢失。</div>
+    <div class="overlay-title">⚙ 设置</div>
+    <div class="overlay-body">设置功能开发中，敬请期待。</div>
     <div class="overlay-btns">
-      <button class="btn btn-red" id="btn-confirm-to-menu">确认返回</button>
-      <button class="btn btn-outline" id="btn-cancel-to-menu">继续游戏</button>
+      <button class="btn btn-outline" id="btn-settings-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-loading">
+  <div class="overlay-box">
+    <div class="overlay-title">⚙ 载入中</div>
+    <div class="overlay-body">
+      <div id="loading-tip">机器学习了</div>
     </div>
   </div>
 </div>

@@ -57,11 +57,11 @@ function _loadV(key, expectedLen) {
  * Pre-generated files live in src/mdp/{label}_{suffix}.js as ES modules.
  * localStorage is used for custom classes not covered by pre-generated files.
  */
-async function _loadVForBoss(label, classKey, expectedLen) {
+async function _loadVForBoss(moduleLabel, cacheLabel, classKey, expectedLen) {
   // 1. Pre-generated static file (instant, covers all built-in classes)
   const suffix = classKey === 'mage' ? 'mage' : 'standard';
   try {
-    const mod = await import(`./mdp/${label}_${suffix}.js`);
+    const mod = await import(`./mdp/${moduleLabel}_${suffix}.js`);
     const arr = mod.default;
     if (Array.isArray(arr) && arr.length === expectedLen) {
       return new Float64Array(arr);
@@ -69,7 +69,7 @@ async function _loadVForBoss(label, classKey, expectedLen) {
   } catch (_) { /* file not found — custom class */ }
 
   // 2. localStorage cache (for custom classes computed previously)
-  const cached = _loadV(_cacheKey(label, classKey), expectedLen);
+  const cached = _loadV(_cacheKey(cacheLabel, classKey), expectedLen);
   if (cached) return cached;
 
   return null; // caller will compute on-the-fly and save to localStorage
@@ -251,7 +251,7 @@ function sampleSoftmax(qMap, temperature) {
 // State: (bj, pj, plo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyStandard(bossJiRate, pm, cacheLabel, classKey) {
+async function computePolicyStandard(bossJiRate, pm, moduleLabel, cacheLabel, classKey) {
   const N  = MAX_JI + 1;
   const NP = pm.ploSize;
   const NS = N * N * NP;
@@ -280,7 +280,7 @@ function computePolicyStandard(bossJiRate, pm, cacheLabel, classKey) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  let V = preV;
+  let V = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
   if (!V) {
     V = valueIteration(NS, bellman);
     _saveV(_cacheKey(cacheLabel, classKey), V);
@@ -315,7 +315,7 @@ function computePolicyStandard(bossJiRate, pm, cacheLabel, classKey) {
 // State: (bj, pj, cv, plo)  —  cv = chargeValue, grows by 1 each time boss charges
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyGufu(pm, classKey) {
+async function computePolicyGufu(pm, moduleLabel, cacheLabel, classKey) {
   const N     = MAX_JI + 1;
   const MAX_CV = 7;
   const NC    = MAX_CV + 1;   // cv indices 0..7 (cv=0 is unused sentinel)
@@ -359,8 +359,8 @@ function computePolicyGufu(pm, classKey) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const key = _cacheKey('gufu', classKey);
-  const cached = _loadV(key, NS);
+  const key = _cacheKey(cacheLabel, classKey);
+  const cached = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
   const V = cached ?? valueIteration(NS, bellman);
   if (!cached) _saveV(key, V);
 
@@ -404,7 +404,7 @@ function computePolicyGufu(pm, classKey) {
 // Handled separately from regular BASE_ACTIONS loop to model uo transitions.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyFaultRobot(pm, classKey) {
+async function computePolicyFaultRobot(pm, moduleLabel, cacheLabel, classKey) {
   const N  = MAX_JI + 1;
   const NO = 6;   // uo: 0..5
   const NP = pm.ploSize;
@@ -459,8 +459,8 @@ function computePolicyFaultRobot(pm, classKey) {
     return bestQ;
   }
 
-  const key = _cacheKey('faultRobot', classKey);
-  const cached = _loadV(key, NS);
+  const key = _cacheKey(cacheLabel, classKey);
+  const cached = await _loadVForBoss(moduleLabel, cacheLabel, classKey, NS);
   const V = cached ?? valueIteration(NS, bellman);
   if (!cached) _saveV(key, V);
 
@@ -502,15 +502,16 @@ let _classKey  = null;
  * Pass classKey so the correct player behaviour model is used.
  * Call once at hard-mode game start.
  */
-export function initMDPPolicies(classKey = 'assassin') {
+export async function initMDPPolicies(classKey = 'assassin') {
   _classKey = classKey;
   const pm = classKey === 'mage' ? makeMageModel() : makeStdModel();
   console.time('[MDP] compute');
-  _policies = {
-    jiaxu:      computePolicyStandard(3, pm, 'jiaxu', classKey),
-    gufu:       computePolicyGufu(pm, classKey),
-    faultRobot: computePolicyFaultRobot(pm, classKey),
-  };
+  const [jiaxu, gufu, faultRobot] = await Promise.all([
+    computePolicyStandard(3, pm, 'jiaxu', 'jiaxu', classKey),
+    computePolicyGufu(pm, 'gufu', 'gufu', classKey),
+    computePolicyFaultRobot(pm, 'faultrobot', 'faultrobot', classKey),
+  ]);
+  _policies = { jiaxu, gufu, faultRobot };
   console.timeEnd('[MDP] compute');
 }
 
