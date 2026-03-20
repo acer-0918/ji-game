@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>来Ji - 刺客 Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#08080f;color:#dde;font-family:'Courier New',monospace;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px;}
+.screen{display:none;width:100%;max-width:760px;}
+.screen.active{display:block;}
+#screen-battle.active{display:flex;flex-direction:column;gap:8px;}
+
+.btn{background:transparent;border:2px solid #7f5af0;color:#7f5af0;padding:11px 28px;font-size:1em;cursor:pointer;font-family:inherit;transition:all .2s;letter-spacing:2px;}
+.btn:hover{background:#7f5af0;color:#fff;box-shadow:0 0 15px #7f5af0;}
+.btn-red{border-color:#e53;color:#e53;}
+.btn-red:hover{background:#e53;color:#fff;box-shadow:0 0 15px #e53;}
+.btn-green{border-color:#2cb67d;color:#2cb67d;}
+.btn-green:hover{background:#2cb67d;color:#000;box-shadow:0 0 15px #2cb67d;}
+.btn-gold{border-color:#c9a227;color:#c9a227;}
+.btn-gold:hover{background:#c9a227;color:#111;box-shadow:0 0 15px #c9a227;}
+.btn-sm{padding:6px 14px;font-size:.8em;letter-spacing:1px;}
+
+.title{font-size:3.5em;color:#7f5af0;text-shadow:0 0 25px #7f5af0;letter-spacing:12px;text-align:center;margin:60px 0 8px;}
+.subtitle{text-align:center;color:#555;margin-bottom:40px;font-size:.9em;}
+.center{text-align:center;}
+
+.map-title{font-size:1.3em;color:#7f5af0;text-align:center;margin-bottom:14px;}
+.map-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#0d0d18;border:1px solid #2a2a40;margin-bottom:10px;gap:8px;flex-wrap:wrap;}
+.map-header-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.map-header-right{display:flex;align-items:center;gap:8px;}
+.frag-badge{background:#1a1025;border:1px solid #7f5af0;color:#9a7fe0;padding:4px 10px;font-size:.8em;cursor:pointer;transition:all .2s;}
+.frag-badge:hover{background:#7f5af0;color:#fff;}
+.nodes-wrap{display:flex;flex-direction:column;align-items:center;gap:0;}
+.node-line{width:2px;height:22px;background:#2a2a3a;}
+.map-node{width:260px;padding:14px 18px;border:2px solid #2a2a40;cursor:default;text-align:center;transition:all .2s;}
+.map-node.available{border-color:#7f5af0;cursor:pointer;}
+.map-node.available:hover{background:#140a28;box-shadow:0 0 12px #7f5af066;}
+.map-node.done{border-color:#1e1e28;color:#333;}
+.map-node.boss-node{border-color:#c0392b;}
+.map-node.shop-node{border-color:#c9a227;}
+.map-node.shop-node.available:hover{background:#20170a;box-shadow:0 0 12px #c9a22766;}
+.map-node.boss-node.available:hover{background:#1e0505;box-shadow:0 0 12px #c0392b66;}
+.node-icon{font-size:1.6em;}
+.node-name{font-weight:bold;margin:4px 0;font-size:.9em;}
+.node-hint{font-size:.75em;color:#666;}
+.map-node.available .node-hint{color:#9a7fe0;}
+.map-node.boss-node.available .node-hint{color:#e07070;}
+.map-node.shop-node.available .node-hint{color:#d9c070;}
+
+.meta-row{display:grid;grid-template-columns:1.8fr 1fr;gap:10px;margin-bottom:12px;}
+.info-panel{background:#0d0d18;border:1px solid #222233;padding:10px 12px;min-height:72px;}
+.panel-title{font-size:.76em;color:#666;margin-bottom:8px;letter-spacing:1px;}
+.tag-wrap{display:flex;gap:6px;flex-wrap:wrap;min-height:30px;align-items:flex-start;}
+.ab-tag{font-size:.68em;padding:3px 6px;border:1px solid #3a2060;color:#7f5af0;background:#0d0818;white-space:nowrap;}
+.tag-placeholder{font-size:.75em;color:#444;align-self:center;}
+.equip-slots{display:flex;gap:8px;flex-wrap:wrap;}
+.equip-slot{min-width:112px;padding:8px 10px;border:1px dashed #2a2a40;color:#555;background:#090914;font-size:.74em;text-align:center;}
+.equip-slot.filled{border-style:solid;border-color:#c9a227;color:#e7d597;background:#18140a;box-shadow:0 0 10px #c9a22722;}
+
+.fighter-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#0c0c18;border:1px solid #222;flex-wrap:wrap;}
+.fighter-row.enemy{border-color:#c0392b;}
+.fighter-row.player-row{border-color:#7f5af0;}
+.fighter-emoji{font-size:1.8em;min-width:36px;text-align:center;}
+.fighter-name{min-width:90px;font-weight:bold;font-size:.92em;}
+.enemy .fighter-name{color:#e07070;}
+.player-row .fighter-name{color:#9a7fe0;}
+.bars{display:flex;gap:14px;flex:1;min-width:280px;}
+.bar-group{display:flex;align-items:center;gap:6px;flex:1;min-width:0;}
+.bar-lbl{font-size:.72em;color:#777;min-width:18px;}
+.bar-track{flex:1;height:11px;background:#181820;border:1px solid #333;min-width:55px;}
+.bar-fill{height:100%;transition:width .3s ease;}
+.hp-fill{background:#27ae60;}
+.ji-fill{background:#7f5af0;}
+.bar-val{font-size:.8em;min-width:40px;text-align:right;color:#aaa;}
+.battle-meta-row{display:grid;grid-template-columns:1.2fr 1.8fr 1fr;gap:8px;}
+
+.reveal-area{display:flex;justify-content:space-around;align-items:center;padding:16px 10px;background:#0c0c18;border:1px solid #1a1a28;min-height:100px;}
+.action-slot{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.slot-label{font-size:.72em;color:#666;}
+.slot-label.enemy-lbl{color:#c0392b;}
+.slot-label.player-lbl{color:#7f5af0;}
+.card{width:150px;height:78px;border:2px solid #333;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f0f1a;transition:all .3s;gap:2px;}
+.card.facedown{background:repeating-linear-gradient(45deg,#0f0f1a,#0f0f1a 6px,#141420 6px,#141420 12px);border-color:#1e1e30;}
+.card.revealed-enemy{border-color:#c0392b;box-shadow:0 0 8px #c0392b44;}
+.card.revealed-player{border-color:#7f5af0;box-shadow:0 0 8px #7f5af044;}
+.card-emoji{font-size:1.3em;line-height:1;}
+.card-main{font-size:.9em;font-weight:bold;text-align:center;padding:0 4px;}
+.card-sub{font-size:.68em;color:#888;text-align:center;padding:0 4px;}
+.vs{font-size:1.4em;color:#333;font-weight:bold;}
+
+.battle-log{background:#09090f;border:1px solid #1a1a28;padding:8px 10px;height:84px;overflow-y:auto;font-size:.78em;line-height:1.65;}
+.log-entry{color:#666;}
+.log-dmg{color:#e07070;}
+.log-blk{color:#74b9ff;}
+.log-rnd{color:#7f5af0;font-weight:bold;}
+.log-ab{color:#c9a227;}
+
+.round-bar{display:flex;justify-content:space-between;align-items:center;font-size:.82em;color:#555;padding:3px 6px;gap:8px;flex-wrap:wrap;}
+.btn-surrender{background:transparent;border:1px solid #553;color:#886;padding:4px 10px;cursor:pointer;font-family:inherit;font-size:.75em;transition:all .2s;}
+.btn-surrender:hover{border-color:#e53;color:#e53;}
+
+.action-area{background:#0c0c18;border:1px solid #222;padding:10px;}
+.main-row{display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
+.main-btn{flex:1;padding:9px 4px;background:#0f0f18;border:1px solid #2a2a3a;color:#888;cursor:pointer;font-family:inherit;font-size:.78em;text-align:center;transition:all .15s;line-height:1.4;min-width:118px;}
+.main-btn:hover:not(:disabled){border-color:#7f5af0;color:#9a7fe0;background:#160d2a;}
+.main-btn.sel{border-color:#7f5af0;background:#160d2a;color:#9a7fe0;}
+.main-btn:disabled{color:#2a2a2a;border-color:#161620;cursor:not-allowed;}
+.sub-panel{display:none;flex-wrap:wrap;gap:5px;margin-bottom:6px;padding:7px;background:#080810;border:1px solid #1a1a28;}
+.sub-panel.show{display:flex;}
+.sub-btn{padding:6px 11px;background:#0f0f18;border:1px solid #252535;color:#999;cursor:pointer;font-family:inherit;font-size:.77em;transition:all .15s;}
+.sub-btn:hover:not(:disabled){border-color:#2cb67d;color:#2cb67d;}
+.sub-btn.sel{border-color:#2cb67d;background:#071410;color:#2cb67d;}
+.sub-btn:disabled{color:#252525;border-color:#151520;cursor:not-allowed;text-decoration:line-through;}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;}
+.sel-preview{font-size:.78em;color:#555;}
+.sel-preview em{color:#2cb67d;font-style:normal;}
+.btn-confirm{padding:9px 22px;background:transparent;border:2px solid #2cb67d;color:#2cb67d;cursor:pointer;font-family:inherit;font-size:.9em;transition:all .2s;}
+.btn-confirm:hover:not(:disabled){background:#2cb67d;color:#000;}
+.btn-confirm:disabled{border-color:#1e2e26;color:#2a3a32;cursor:not-allowed;}
+
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);justify-content:center;align-items:center;z-index:50;}
+.overlay.show{display:flex;}
+.overlay-box{background:#0d0d18;padding:32px 40px;text-align:center;min-width:300px;max-width:560px;width:90%;}
+.overlay-box.green{border:2px solid #2cb67d;}
+.overlay-box.red{border:2px solid #c0392b;}
+.overlay-box.purple{border:2px solid #7f5af0;}
+.overlay-box.gold{border:2px solid #c9a227;}
+.overlay-title{font-size:1.7em;font-weight:bold;margin-bottom:10px;}
+.green .overlay-title{color:#2cb67d;}
+.red .overlay-title{color:#e07070;}
+.purple .overlay-title{color:#9a7fe0;}
+.gold .overlay-title{color:#c9a227;}
+.overlay-body{color:#888;margin-bottom:20px;font-size:.9em;line-height:1.7;}
+.overlay-btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+.ab-node-card,.shop-item-card{border:1px solid #252535;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;text-align:left;background:#0d0d18;}
+.ab-node-card.unlocked,.shop-item-card.owned{border-color:#7f5af0;background:#110d1e;}
+.ab-node-card.cant-afford,.shop-item-card.cant-afford{opacity:.55;}
+.ab-icon{font-size:1.8em;min-width:36px;text-align:center;}
+.ab-info{flex:1;}
+.ab-name{font-weight:bold;font-size:.92em;margin-bottom:3px;}
+.unlocked .ab-name,.owned .ab-name{color:#9a7fe0;}
+.ab-desc{font-size:.78em;color:#777;line-height:1.5;}
+.ab-cost{font-size:.75em;color:#666;margin-top:4px;}
+.ab-action{min-width:84px;text-align:right;}
+.ab-unlocked-mark{color:#7f5af0;font-size:.85em;}
+.btn-unlock,.btn-buy{padding:6px 12px;background:transparent;border:1px solid #7f5af0;color:#7f5af0;cursor:pointer;font-family:inherit;font-size:.78em;transition:all .2s;}
+.btn-buy{border-color:#c9a227;color:#c9a227;}
+.btn-unlock:hover{background:#7f5af0;color:#fff;}
+.btn-buy:hover{background:#c9a227;color:#111;}
+.btn-unlock:disabled,.btn-buy:disabled{border-color:#252535;color:#333;cursor:not-allowed;}
+
+.big-result{font-size:3em;font-weight:bold;text-shadow:0 0 20px currentColor;margin:60px 0 16px;}
+.big-result.green{color:#2cb67d;}
+.big-result.red{color:#e07070;}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:#333;}
+
+@media (max-width: 720px){
+  body{padding:12px;}
+  .screen{max-width:100%;}
+  .meta-row,.battle-meta-row{grid-template-columns:1fr;}
+  .card{width:130px;}
+  .map-node{width:100%;max-width:280px;}
+  .overlay-box{padding:24px 18px;}
+}
+</style>
+</head>
+<body>
+
+<div id="screen-menu" class="screen active">
+  <div class="title">来Ji</div>
+  <div class="subtitle">Roguelike · 同步回合制 · 刺客版 Demo</div>
+  <div class="center">
+    <button class="btn" onclick="startGame()">开始游戏</button>
+    <p style="color:#333;font-size:.78em;margin-top:20px;">当前职业：刺客</p>
+    <div style="color:#444;font-size:.75em;margin-top:24px;max-width:470px;margin-left:auto;margin-right:auto;line-height:1.85;text-align:left;padding:12px;border:1px solid #1a1a2a;">
+      <strong style="color:#666;">刺客基础</strong><br>
+      初始生命 5 / 5，蓄力效率 +3Ji。<br>
+      进入新房间后，双方 Ji 都会清零，不能跨房间保留。<br><br>
+      <strong style="color:#666;">战斗规则</strong><br>
+      ⚡ 蓄力：获得 Ji；🛡 防御：防御等级 3 / 6 / 7；⚔ 攻击：等级等于档位。<br>
+      攻击 &gt; 对方防御等级时命中；双方互攻时，高等级一方造成伤害。<br><br>
+      <strong style="color:#666;">成长</strong><br>
+      战胜敌人获得碎片，可解锁能力树；商店出售强化鬼刀和一个强化装备。
+    </div>
+  </div>
+</div>
+
+<div id="screen-map" class="screen">
+  <div class="map-title">探索地图</div>
+  <div class="map-header">
+    <div class="map-header-left">
+      <span id="map-name" style="color:#9a7fe0;font-weight:bold;">🗡️ 刺客</span>
+      <span>❤ <span id="map-hp">5</span>/<span id="map-maxhp">5</span></span>
+      <span style="color:#7f5af0;">⚡ <span id="map-ji">0</span></span>
+      <span style="color:#c9a227;">⟳ +<span id="map-rate">3</span>Ji</span>
+    </div>
+    <div class="map-header-right">
+      <div class="frag-badge" onclick="openAbilityTree()" title="查看能力树">
+        ✨ <span id="map-frags">0</span> 碎片 · 能力树
+      </div>
+    </div>
+  </div>
+
+  <div class="meta-row">
+    <div class="info-panel">
+      <div class="panel-title">已持有能力 / 战法</div>
+      <div class="tag-wrap" id="map-passive-tags"></div>
+    </div>
+    <div class="info-panel">
+      <div class="panel-title">装备栏</div>
+      <div class="equip-slots" id="map-equip-slots"></div>
+    </div>
+  </div>
+
+  <div class="nodes-wrap" id="nodes-wrap"></div>
+</div>
+
+<div id="screen-battle" class="screen">
+  <div class="fighter-row enemy">
+    <div class="fighter-emoji" id="b-enemy-emoji">👹</div>
+    <div class="fighter-name" id="b-enemy-name">敌人</div>
+    <div class="bars">
+      <div class="bar-group">
+        <div class="bar-lbl">HP</div>
+        <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
+        <div class="bar-val" id="b-enemy-hp-val">3/3</div>
+      </div>
+      <div class="bar-group" style="max-width:120px;">
+        <div class="bar-lbl">Ji</div>
+        <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
+        <div class="bar-val" id="b-enemy-ji-val">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reveal-area">
+    <div class="action-slot">
+      <div class="slot-label enemy-lbl">敌方行动</div>
+      <div class="card facedown" id="enemy-card">
+        <div class="card-emoji" style="color:#1e1e30">🂠</div>
+        <div class="card-main" style="color:#333">???</div>
+      </div>
+    </div>
+    <div class="vs">VS</div>
+    <div class="action-slot">
+      <div class="slot-label player-lbl">我方行动</div>
+      <div class="card" id="player-card">
+        <div class="card-emoji" id="pc-emoji">　</div>
+        <div class="card-main" id="pc-main">—</div>
+        <div class="card-sub" id="pc-sub"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="battle-log" id="battle-log"></div>
+
+  <div class="round-bar">
+    <span>第 <span id="round-num">1</span> 回合 · <span id="round-phase">选择行动</span></span>
+    <button class="btn-surrender" onclick="askSurrender()">🏳 投降</button>
+  </div>
+
+  <div class="fighter-row player-row">
+    <div class="fighter-emoji">🗡️</div>
+    <div class="fighter-name" id="b-player-name">刺客</div>
+    <div class="bars">
+      <div class="bar-group">
+        <div class="bar-lbl">HP</div>
+        <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
+        <div class="bar-val" id="b-player-hp-val">5/5</div>
+      </div>
+      <div class="bar-group" style="max-width:120px;">
+        <div class="bar-lbl">Ji</div>
+        <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
+        <div class="bar-val" id="b-player-ji-val">0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="battle-meta-row">
+    <div class="info-panel">
+      <div class="panel-title" style="color:#a66;">敌方特性 / 状态</div>
+      <div class="tag-wrap" id="enemy-state-tags"></div>
+    </div>
+    <div class="info-panel">
+      <div class="panel-title">当前能力 / 战法</div>
+      <div class="tag-wrap" id="battle-passive-tags"></div>
+    </div>
+    <div class="info-panel">
+      <div class="panel-title">装备栏</div>
+      <div class="equip-slots" id="battle-equip-slots"></div>
+    </div>
+  </div>
+
+  <div class="action-area" id="action-area">
+    <div class="main-row">
+      <button class="main-btn" id="mb-ji" onclick="mainSelect('ji')">⚡ 蓄力<br><small id="ji-rate-hint" style="color:#444">+3Ji</small></button>
+      <button class="main-btn" id="mb-def" onclick="mainSelect('def')">🛡 防御 ▾<br><small style="color:#444">0~2Ji</small></button>
+      <button class="main-btn" id="mb-a1" onclick="mainSelect('a1')">⚔ 一档 ▾<br><small style="color:#444">1~3Ji</small></button>
+      <button class="main-btn" id="mb-a2" onclick="mainSelect('a2')">⚔⚔ 二档 ▾<br><small style="color:#444">4~6Ji</small></button>
+      <button class="main-btn" id="mb-a3" onclick="mainSelect('a3')">⚔⚔⚔ 三档 ▾<br><small style="color:#444">7Ji</small></button>
+    </div>
+    <div class="sub-panel" id="sp-def">
+      <button class="sub-btn" id="sb-d0" onclick="subSelect('defense_0')">🛡 防 (0Ji) | 防御3</button>
+      <button class="sub-btn" id="sb-d1" onclick="subSelect('defense_1')">🛡🛡 超防 (1Ji) | 防御6</button>
+      <button class="sub-btn" id="sb-d2" onclick="subSelect('defense_2')">🛡🛡🛡 无敌防 (2Ji) | 防御7</button>
+    </div>
+    <div class="sub-panel" id="sp-a1">
+      <button class="sub-btn" id="sb-a1" onclick="subSelect('attack_1')">⚔ 攻击1 (1Ji) | 等级1</button>
+      <button class="sub-btn" id="sb-a2" onclick="subSelect('attack_2')">⚔ 攻击2 (2Ji) | 等级2</button>
+      <button class="sub-btn" id="sb-a3" onclick="subSelect('attack_3')">⚔ 攻击3 (3Ji) | 等级3</button>
+    </div>
+    <div class="sub-panel" id="sp-a2">
+      <button class="sub-btn" id="sb-a4" onclick="subSelect('attack_4')">⚔⚔ 攻击4 (4Ji) | 等级4</button>
+      <button class="sub-btn" id="sb-a5" onclick="subSelect('attack_5')">⚔⚔ 攻击5 (5Ji) | 等级5</button>
+      <button class="sub-btn" id="sb-a6" onclick="subSelect('attack_6')">⚔⚔ 攻击6 (6Ji) | 等级6</button>
+    </div>
+    <div class="sub-panel" id="sp-a3">
+      <button class="sub-btn" id="sb-a7" onclick="subSelect('attack_7')">⚔⚔⚔ 攻击7 (7Ji) | 等级7</button>
+    </div>
+    <div class="confirm-row">
+      <div class="sel-preview">已选: <em id="sel-preview-text">未选择</em></div>
+      <button class="btn-confirm" id="btn-confirm" onclick="confirmAction()" disabled>确认出牌</button>
+    </div>
+  </div>
+</div>
+
+<div id="screen-gameover" class="screen">
+  <div class="center" style="padding:50px 0;">
+    <div class="big-result red">GAME OVER</div>
+    <p style="color:#666;margin-bottom:30px;">你的旅途在此画上了句点...</p>
+    <button class="btn btn-red" onclick="startGame()">再来一局</button>
+  </div>
+</div>
+
+<div id="screen-victory" class="screen">
+  <div class="center" style="padding:50px 0;">
+    <div class="big-result green">胜 利 ！</div>
+    <p style="color:#666;margin-bottom:30px;">你连续击败三位 Boss，成功通关！</p>
+    <button class="btn btn-green" onclick="startGame()">再来一局</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-battle">
+  <div class="overlay-box" id="ov-battle-box">
+    <div class="overlay-title" id="ov-battle-title">胜利！</div>
+    <div class="overlay-body" id="ov-battle-body"></div>
+    <button class="btn" onclick="closeBattleOverlay()">继续</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-rest">
+  <div class="overlay-box purple">
+    <div class="overlay-title">🔥 篝火</div>
+    <div class="overlay-body" id="ov-rest-body">在此休息，恢复 3 点生命值。</div>
+    <button class="btn" onclick="useRest()">休息 (+3 HP)</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-shop">
+  <div class="overlay-box gold">
+    <div class="overlay-title">🛒 商店</div>
+    <div class="overlay-body" style="margin-bottom:14px;">
+      当前碎片：<strong id="shop-frags" style="color:#c9a227">0</strong> ✨
+    </div>
+    <div id="shop-items"></div>
+    <div style="margin-top:14px;">
+      <button class="btn btn-sm" onclick="leaveShop()">离开商店</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-surrender">
+  <div class="overlay-box red">
+    <div class="overlay-title">🏳 投降</div>
+    <div class="overlay-body">确定要放弃这一局并重新开始吗？<br>本局所有进度将会丢失。</div>
+    <div class="overlay-btns">
+      <button class="btn btn-red" onclick="doSurrender()">确定投降</button>
+      <button class="btn" onclick="closeSurrender()">再想想</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-abtree">
+  <div class="overlay-box gold" style="max-width:520px;width:92%;">
+    <div class="overlay-title">✨ 能力树 · 刺客</div>
+    <div class="overlay-body" style="margin-bottom:14px;">
+      当前碎片：<strong id="abtree-frags" style="color:#c9a227">0</strong> ✨
+      <span style="font-size:.78em;color:#555;margin-left:8px;">（每个节点消耗 1 碎片）</span>
+    </div>
+    <div id="abtree-nodes"></div>
+    <div style="margin-top:14px;">
+      <button class="btn btn-sm" onclick="closeAbilityTree()">关闭</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+const BASE_ACTIONS = {
+  ji:        {type:'ji',      cost:0, def:0, atk:0, name:'蓄力',    emoji:'⚡'},
+  defense_0: {type:'defense', cost:0, def:3, atk:0, name:'防',      emoji:'🛡'},
+  defense_1: {type:'defense', cost:1, def:6, atk:0, name:'超防',    emoji:'🛡🛡'},
+  defense_2: {type:'defense', cost:2, def:7, atk:0, name:'无敌防',  emoji:'🛡🛡🛡'},
+  attack_1:  {type:'attack',  cost:1, def:0, atk:1, name:'攻击1',   emoji:'⚔'},
+  attack_2:  {type:'attack',  cost:2, def:0, atk:2, name:'攻击2',   emoji:'⚔'},
+  attack_3:  {type:'attack',  cost:3, def:0, atk:3, name:'攻击3',   emoji:'⚔'},
+  attack_4:  {type:'attack',  cost:4, def:0, atk:4, name:'攻击4',   emoji:'⚔⚔'},
+  attack_5:  {type:'attack',  cost:5, def:0, atk:5, name:'攻击5',   emoji:'⚔⚔'},
+  attack_6:  {type:'attack',  cost:6, def:0, atk:6, name:'攻击6',   emoji:'⚔⚔'},
+  attack_7:  {type:'attack',  cost:7, def:0, atk:7, name:'攻击7',   emoji:'⚔⚔⚔'},
+};
+
+const ABILITY_DEFS = [
+  {key:'fireBlade',    icon:'🔥',  name:'刀刀烈火刀刀爆', cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次伤害 +1。'},
+  {key:'savedByBlade', icon:'🗡️', name:'名刀司命',       cost:1, desc:'全局仅一次：当你死亡时，回复至 1 生命并继续本局游戏。'},
+  {key:'oneVsFour',    icon:'⚡',  name:'一抵四',         cost:1, desc:'你的回费效率 +1。'},
+  {key:'mango',        icon:'🥭',  name:'芒果',           cost:1, desc:'生命值上限 +5，且当前生命同步 +5。'},
+  {key:'happyFlower',  icon:'🌼',  name:'开心小花',       cost:1, desc:'每场战斗的第三回合开始时，赠送 1 Ji。'},
+];
+
+const SHOP_ITEMS = [
+  {key:'enhancedBlade', icon:'👻⚔', name:'强化鬼刀',     cost:1, desc:'替换攻击 5。攻击等级仍为 5，但只消耗 4 Ji。'},
+  {key:'powerEquip',    icon:'🧰',  name:'一个强化装备', cost:1, desc:'装备。造成任何伤害时，伤害 +1。'},
+];
+
+const MAP_TEMPLATE = [
+  {type:'battle', icon:'⚔️',   label:'普通敌人', reward:1, enemy:{id:'mobA', name:'普通敌人·甲', emoji:'😈', hp:3,  maxHp:3,  ji:0, jiRate:1}},
+  {type:'battle', icon:'⚔️',   label:'普通敌人', reward:1, enemy:{id:'mobB', name:'普通敌人·乙', emoji:'👹', hp:3,  maxHp:3,  ji:0, jiRate:2}},
+  {type:'battle', icon:'⚔️',   label:'普通敌人', reward:1, enemy:{id:'mobC', name:'普通敌人·丙', emoji:'💀', hp:5,  maxHp:5,  ji:0, jiRate:2}},
+  {type:'battle', icon:'⚔️💀', label:'精英敌人', reward:2, enemy:{id:'elite', name:'精英敌人', emoji:'🦾', hp:10, maxHp:10, ji:0, jiRate:2}},
+  {type:'shop',   icon:'🛒',   label:'商店'},
+  {type:'rest',   icon:'🔥',   label:'篝火'},
+  {type:'boss',   icon:'🤖',   label:'Boss I', reward:0, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:15, maxHp:15, ji:0, jiRate:3, plasmaOrbs:0}},
+  {type:'boss',   icon:'👑',   label:'Boss II', reward:0, enemy:{id:'gufu', name:'古夫大帝', emoji:'👑', hp:15, maxHp:15, ji:0, jiRate:3, chargeValue:1}},
+  {type:'boss',   icon:'👺',   label:'Boss III', reward:0, finalBoss:true, enemy:{id:'blindBoss', name:'终局 Boss', emoji:'👺', hp:15, maxHp:15, ji:0, jiRate:3, hideJi:true}},
+];
+
+let G = {};
+
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function initGame(){
+  G = {
+    player: {name:'刺客', hp:5, maxHp:5, ji:0, fragments:0},
+    abilities: {fireBlade:false, savedByBlade:false, savedByBladeUsed:false, oneVsFour:false, mango:false, happyFlower:false},
+    shop: {enhancedBlade:false, powerEquip:false},
+    nodes: clone(MAP_TEMPLATE),
+    nodeIdx: 0,
+    currentNode: null,
+    enemy: null,
+    battle: {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null},
+    ui: {mainSel:null, actionKey:null},
+  };
+}
+
+function getPlayerJiRate(){
+  return 3 + (G.abilities.oneVsFour ? 1 : 0);
+}
+
+function getEnemyStandardChargeGain(enemy){
+  return enemy?.jiRate || 0;
+}
+
+function isJiHiddenBattle(){
+  return !!(G.enemy && G.enemy.hideJi);
+}
+
+function getActionData(key, side='player'){
+  if (side === 'enemy' && G.enemy) {
+    if (key === 'plasma_orb') {
+      return {type:'orb', cost:2, def:0, atk:0, name:'等离子充能球', emoji:'🔵'};
+    }
+    if (key === 'ji' && G.enemy.id === 'gufu') {
+      return {
+        type:'gufu_charge',
+        cost:0,
+        def:0,
+        atk:0,
+        name:'帝王蓄力',
+        emoji:'👑⚡',
+      };
+    }
+  }
+
+  const base = clone(BASE_ACTIONS[key]);
+  if (!base) return null;
+  if (side === 'player' && key === 'attack_5' && G.shop.enhancedBlade){
+    base.cost = 4;
+    base.name = '强化鬼刀';
+    base.emoji = '👻⚔';
+  }
+  return base;
+}
+
+function resetRoomJi(){
+  G.player.ji = 0;
+  if (G.enemy) G.enemy.ji = 0;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+function startGame(){
+  initGame();
+  showScreen('map');
+  renderMap();
+}
+
+function getPassiveBadges(){
+  const arr = [];
+  ABILITY_DEFS.forEach(ab => {
+    if (G.abilities[ab.key]) {
+      let name = ab.name;
+      if (ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed) name += '（已用）';
+      arr.push({icon:ab.icon, name});
+    }
+  });
+  if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
+  return arr;
+}
+
+function renderBadgeList(id, badges, emptyText='暂无'){
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!badges.length){
+    const empty = document.createElement('div');
+    empty.className = 'tag-placeholder';
+    empty.textContent = emptyText;
+    wrap.appendChild(empty);
+    return;
+  }
+  badges.forEach(tag => {
+    const el = document.createElement('span');
+    el.className = 'ab-tag';
+    el.textContent = `${tag.icon} ${tag.name}`;
+    wrap.appendChild(el);
+  });
+}
+
+function renderPassiveTags(id){
+  renderBadgeList(id, getPassiveBadges(), '暂无');
+}
+
+function getEnemyStateBadges(){
+  const arr = [];
+  if (!G.enemy) return arr;
+
+  if (G.enemy.id === 'faultRobot') {
+    arr.push({icon:'🔵', name:`等离子球 ×${G.enemy.plasmaOrbs || 0}`});
+    arr.push({icon:'⚡', name:`基础蓄力 +${G.enemy.jiRate}Ji`});
+  }
+  if (G.enemy.id === 'gufu') {
+    arr.push({icon:'👑', name:`帝王蓄力 当前 +${G.enemy.chargeValue || 1}Ji`});
+  }
+  if (G.enemy.hideJi) {
+    arr.push({icon:'🌫️', name:'暗幕力场：双方 Ji 数量隐藏'});
+  }
+  return arr;
+}
+
+function renderEnemyStateTags(){
+  renderBadgeList('enemy-state-tags', getEnemyStateBadges(), '无特殊效果');
+}
+
+function renderEquipSlots(id){
+  const wrap = document.getElementById(id);
+  wrap.innerHTML = '';
+  const slot = document.createElement('div');
+  slot.className = 'equip-slot' + (G.shop.powerEquip ? ' filled' : '');
+  slot.textContent = G.shop.powerEquip ? '🧰 一个强化装备' : '空装备槽';
+  wrap.appendChild(slot);
+}
+
+function renderMap(){
+  const p = G.player;
+  document.getElementById('map-hp').textContent = p.hp;
+  document.getElementById('map-maxhp').textContent = p.maxHp;
+  document.getElementById('map-ji').textContent = p.ji;
+  document.getElementById('map-frags').textContent = p.fragments;
+  document.getElementById('map-rate').textContent = getPlayerJiRate();
+
+  renderPassiveTags('map-passive-tags');
+  renderEquipSlots('map-equip-slots');
+
+  const wrap = document.getElementById('nodes-wrap');
+  wrap.innerHTML = '';
+  G.nodes.forEach((node, i) => {
+    if (i > 0) {
+      const line = document.createElement('div');
+      line.className = 'node-line';
+      wrap.appendChild(line);
+    }
+
+    const div = document.createElement('div');
+    let cls = 'map-node';
+    if (node.type === 'boss') cls += ' boss-node';
+    if (node.type === 'shop') cls += ' shop-node';
+    if (node.done) cls += ' done';
+    else if (i === G.nodeIdx) cls += ' available';
+    div.className = cls;
+
+    const hint = node.done ? '✓ 已完成' : i === G.nodeIdx ? '点击进入' : '🔒 未解锁';
+    const rewardTip = node.reward ? ` (+${node.reward}✨)` : '';
+    const enemyTip = node.enemy ? ` · ${node.enemy.emoji}${node.enemy.name}` : '';
+    div.innerHTML = `
+      <div class="node-icon">${node.icon}</div>
+      <div class="node-name">${node.label}${enemyTip}${rewardTip}</div>
+      <div class="node-hint">${hint}</div>`;
+    if (i === G.nodeIdx && !node.done) div.onclick = () => enterNode(i);
+    wrap.appendChild(div);
+  });
+}
+
+function enterNode(i){
+  const node = G.nodes[i];
+  resetRoomJi();
+  if (node.type === 'rest') {
+    document.getElementById('ov-rest-body').textContent = `在篝火边休息，恢复 3 点生命值（当前 HP: ${G.player.hp}/${G.player.maxHp}）`;
+    renderMap();
+    document.getElementById('ov-rest').classList.add('show');
+    return;
+  }
+  if (node.type === 'shop') {
+    renderShop();
+    renderMap();
+    document.getElementById('ov-shop').classList.add('show');
+    return;
+  }
+  G.currentNode = node;
+  startBattle(node);
+}
+
+function useRest(){
+  G.player.hp = Math.min(G.player.maxHp, G.player.hp + 3);
+  resetRoomJi();
+  G.nodes[G.nodeIdx].done = true;
+  G.nodeIdx++;
+  document.getElementById('ov-rest').classList.remove('show');
+  renderMap();
+}
+
+function renderAbilityTree(){
+  document.getElementById('abtree-frags').textContent = G.player.fragments;
+  const container = document.getElementById('abtree-nodes');
+  container.innerHTML = '';
+  ABILITY_DEFS.forEach(ab => {
+    const unlocked = G.abilities[ab.key];
+    const canAfford = G.player.fragments >= ab.cost;
+    const card = document.createElement('div');
+    card.className = 'ab-node-card' + (unlocked ? ' unlocked' : '') + (!unlocked && !canAfford ? ' cant-afford' : '');
+    const usedNote = ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed ? ' <span style="color:#555;font-size:.75em">（本局已用）</span>' : '';
+    card.innerHTML = `
+      <div class="ab-icon">${ab.icon}</div>
+      <div class="ab-info">
+        <div class="ab-name">${ab.name}${usedNote}</div>
+        <div class="ab-desc">${ab.desc}</div>
+        <div class="ab-cost">${unlocked ? '✓ 已解锁' : `需要 ${ab.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`}</div>
+      </div>
+      <div class="ab-action">
+        ${unlocked ? '<span class="ab-unlocked-mark">✓ 已激活</span>' : `<button class="btn-unlock" onclick="unlockAbility('${ab.key}')" ${canAfford ? '' : 'disabled'}>解锁</button>`}
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function openAbilityTree(){
+  renderAbilityTree();
+  document.getElementById('ov-abtree').classList.add('show');
+}
+
+function closeAbilityTree(){
+  document.getElementById('ov-abtree').classList.remove('show');
+  renderMap();
+}
+
+function unlockAbility(key){
+  const ab = ABILITY_DEFS.find(x => x.key === key);
+  if (!ab || G.abilities[key] || G.player.fragments < ab.cost) return;
+  G.player.fragments -= ab.cost;
+  G.abilities[key] = true;
+  if (key === 'mango') {
+    G.player.maxHp += 5;
+    G.player.hp += 5;
+  }
+  renderAbilityTree();
+  renderMap();
+}
+
+function renderShop(){
+  document.getElementById('shop-frags').textContent = G.player.fragments;
+  const container = document.getElementById('shop-items');
+  container.innerHTML = '';
+  SHOP_ITEMS.forEach(item => {
+    const owned = G.shop[item.key];
+    const canAfford = G.player.fragments >= item.cost;
+    const card = document.createElement('div');
+    card.className = 'shop-item-card' + (owned ? ' owned' : '') + (!owned && !canAfford ? ' cant-afford' : '');
+    card.innerHTML = `
+      <div class="ab-icon">${item.icon}</div>
+      <div class="ab-info">
+        <div class="ab-name">${item.name}</div>
+        <div class="ab-desc">${item.desc}</div>
+        <div class="ab-cost">${owned ? '✓ 已购买' : `售价 ${item.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`}</div>
+      </div>
+      <div class="ab-action">
+        ${owned ? '<span class="ab-unlocked-mark">✓ 已拥有</span>' : `<button class="btn-buy" onclick="buyShopItem('${item.key}')" ${canAfford ? '' : 'disabled'}>购买</button>`}
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+function buyShopItem(key){
+  const item = SHOP_ITEMS.find(x => x.key === key);
+  if (!item || G.shop[key] || G.player.fragments < item.cost) return;
+  G.player.fragments -= item.cost;
+  G.shop[key] = true;
+  renderShop();
+  renderMap();
+}
+
+function leaveShop(){
+  resetRoomJi();
+  G.nodes[G.nodeIdx].done = true;
+  G.nodeIdx++;
+  document.getElementById('ov-shop').classList.remove('show');
+  renderMap();
+}
+
+function askSurrender(){ document.getElementById('ov-surrender').classList.add('show'); }
+function closeSurrender(){ document.getElementById('ov-surrender').classList.remove('show'); }
+function doSurrender(){ document.getElementById('ov-surrender').classList.remove('show'); startGame(); }
+
+function startBattle(node){
+  G.enemy = clone(node.enemy);
+  resetRoomJi();
+  G.enemy.ji = 0;
+  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null};
+  G.ui = {mainSel:null, actionKey:null};
+
+  document.getElementById('b-enemy-emoji').textContent = G.enemy.emoji || '👹';
+  document.getElementById('b-enemy-name').textContent = G.enemy.name;
+  document.getElementById('b-player-name').textContent = G.player.name;
+
+  renderEnemyStateTags();
+  renderPassiveTags('battle-passive-tags');
+  renderEquipSlots('battle-equip-slots');
+
+  const log = document.getElementById('battle-log');
+  log.innerHTML = '';
+  addLog('rnd', '▶ 回合 1');
+  addLog('', `战斗开始！对手：${G.enemy.emoji} ${G.enemy.name}`);
+  addLog('', '进入新房间，双方 Ji 已清零。');
+  if (G.enemy.id === 'faultRobot') {
+    addLog('log-ab', '🤖 特性：故障机器人可消耗 2 Ji 生成等离子充能球；每回合开始时按充能球数量自动获得 Ji。');
+  } else if (G.enemy.id === 'gufu') {
+    addLog('log-ab', '👑 特性：古夫大帝的蓄力会成长。初始为 +1Ji，每次使用后下次会再 +1。');
+  } else if (G.enemy.hideJi) {
+    addLog('log-ab', '🌫️ 暗幕力场启动：本场战斗中，双方 Ji 数量都被隐藏。');
+  }
+
+  document.getElementById('round-num').textContent = '1';
+  refreshActionLabels();
+  resetRoundUI();
+  refreshBars();
+  showScreen('battle');
+}
+
+function refreshActionLabels(){
+  document.getElementById('ji-rate-hint').textContent = `+${getPlayerJiRate()}Ji`;
+  const labels = {
+    attack_1: '⚔ 攻击1',
+    attack_2: '⚔ 攻击2',
+    attack_3: '⚔ 攻击3',
+    attack_4: '⚔⚔ 攻击4',
+    attack_5: G.shop.enhancedBlade ? '👻⚔ 强化鬼刀' : '⚔⚔ 攻击5',
+    attack_6: '⚔⚔ 攻击6',
+    attack_7: '⚔⚔⚔ 攻击7',
+  };
+  const ids = ['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7'];
+  ids.forEach((key, idx) => {
+    const a = getActionData(key, 'player');
+    const btn = document.getElementById('sb-a' + (idx + 1));
+    if (btn) btn.textContent = `${labels[key]} (${a.cost}Ji) | 等级${a.atk}`;
+  });
+}
+
+function setJiDisplay(barId, valId, value, max, hidden){
+  const bar = document.getElementById(barId);
+  const val = document.getElementById(valId);
+  if (hidden) {
+    bar.style.width = '100%';
+    bar.style.opacity = '0.16';
+    bar.style.filter = 'grayscale(1)';
+    val.textContent = '??';
+    val.style.color = '#777';
+    return;
+  }
+  bar.style.width = Math.min((value / max) * 100, 100) + '%';
+  bar.style.opacity = '1';
+  bar.style.filter = 'none';
+  val.textContent = value;
+  val.style.color = '#aaa';
+}
+
+function refreshBars(){
+  const p = G.player, e = G.enemy;
+  const MAX_JI = 12;
+  setBar('b-player-hp-bar', 'b-player-hp-val', p.hp, p.maxHp);
+  setBar('b-enemy-hp-bar', 'b-enemy-hp-val', e.hp, e.maxHp);
+  const hideJi = isJiHiddenBattle();
+  setJiDisplay('b-player-ji-bar', 'b-player-ji-val', p.ji, MAX_JI, hideJi);
+  setJiDisplay('b-enemy-ji-bar', 'b-enemy-ji-val', e.ji, MAX_JI, hideJi);
+  updateSubButtons();
+  renderEnemyStateTags();
+  renderPassiveTags('battle-passive-tags');
+  renderEquipSlots('battle-equip-slots');
+}
+
+function setBar(barId, valId, cur, max){
+  const ratio = max > 0 ? Math.max(0, cur / max * 100) : 0;
+  document.getElementById(barId).style.width = ratio + '%';
+  document.getElementById(valId).textContent = `${Math.max(0, cur)}/${max}`;
+}
+
+function hasAffordable(keys){
+  return keys.some(key => {
+    const a = getActionData(key, 'player');
+    return a && a.cost <= G.player.ji;
+  });
+}
+
+function updateSubButtons(){
+  document.getElementById('sb-d1').disabled = G.player.ji < getActionData('defense_1', 'player').cost;
+  document.getElementById('sb-d2').disabled = G.player.ji < getActionData('defense_2', 'player').cost;
+
+  const attackKeys = ['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7'];
+  attackKeys.forEach((key, idx) => {
+    const btn = document.getElementById('sb-a' + (idx + 1));
+    const action = getActionData(key, 'player');
+    if (btn) btn.disabled = G.player.ji < action.cost;
+  });
+
+  document.getElementById('mb-a2').disabled = !hasAffordable(['attack_4','attack_5','attack_6']);
+  document.getElementById('mb-a3').disabled = !hasAffordable(['attack_7']);
+}
+
+function resetRoundUI(){
+  const ec = document.getElementById('enemy-card');
+  ec.className = 'card facedown';
+  ec.innerHTML = '<div class="card-emoji" style="color:#1e1e30">🂠</div><div class="card-main" style="color:#333">???</div>';
+  document.getElementById('player-card').className = 'card';
+  document.getElementById('pc-emoji').textContent = '　';
+  document.getElementById('pc-main').textContent = '—';
+  document.getElementById('pc-sub').textContent = '';
+  document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('show'));
+  document.querySelectorAll('.main-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('sel-preview-text').textContent = '未选择';
+  document.getElementById('btn-confirm').disabled = true;
+  document.getElementById('action-area').style.pointerEvents = 'auto';
+  document.getElementById('round-phase').textContent = '选择行动';
+  G.ui = {mainSel:null, actionKey:null};
+}
+
+function mainSelect(cat){
+  const panelMap = {def:'sp-def', a1:'sp-a1', a2:'sp-a2', a3:'sp-a3'};
+  const btnMap = {ji:'mb-ji', def:'mb-def', a1:'mb-a1', a2:'mb-a2', a3:'mb-a3'};
+
+  if (cat === 'ji') {
+    G.ui.mainSel = 'ji';
+    G.ui.actionKey = 'ji';
+    document.querySelectorAll('.main-btn').forEach(b => b.classList.remove('sel'));
+    document.getElementById('mb-ji').classList.add('sel');
+    document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('show'));
+    document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('sel'));
+    document.getElementById('pc-emoji').textContent = '⚡';
+    document.getElementById('pc-main').textContent = '蓄力';
+    document.getElementById('pc-sub').textContent = `+${getPlayerJiRate()}Ji`;
+    document.getElementById('sel-preview-text').textContent = `⚡ 蓄力 (+${getPlayerJiRate()}Ji)`;
+    document.getElementById('btn-confirm').disabled = false;
+    return;
+  }
+
+  document.querySelectorAll('.main-btn').forEach(b => b.classList.remove('sel'));
+  document.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('show'));
+
+  if (G.ui.mainSel === cat) {
+    G.ui.mainSel = null;
+    return;
+  }
+  G.ui.mainSel = cat;
+  document.getElementById(btnMap[cat]).classList.add('sel');
+  document.getElementById(panelMap[cat]).classList.add('show');
+}
+
+function subSelect(key){
+  const a = getActionData(key, 'player');
+  if (!a || a.cost > G.player.ji) return;
+  G.ui.actionKey = key;
+
+  document.querySelectorAll('.sub-btn').forEach(b => b.classList.remove('sel'));
+  const idMap = {
+    defense_0:'sb-d0', defense_1:'sb-d1', defense_2:'sb-d2',
+    attack_1:'sb-a1', attack_2:'sb-a2', attack_3:'sb-a3', attack_4:'sb-a4', attack_5:'sb-a5', attack_6:'sb-a6', attack_7:'sb-a7'
+  };
+  if (idMap[key]) document.getElementById(idMap[key]).classList.add('sel');
+
+  document.getElementById('pc-emoji').textContent = a.emoji;
+  document.getElementById('pc-main').textContent = a.name;
+  document.getElementById('pc-sub').textContent = a.type === 'defense' ? `防御${a.def} | 耗${a.cost}Ji` : `攻击等级${a.atk} | 耗${a.cost}Ji`;
+
+  let prev = `${a.emoji} ${a.name} (${a.cost}Ji)`;
+  if (a.type === 'defense') prev += ` 防御${a.def}`;
+  if (a.type === 'attack') prev += ` 攻击${a.atk}`;
+  document.getElementById('sel-preview-text').textContent = prev;
+  document.getElementById('btn-confirm').disabled = false;
+}
+
+function confirmAction(){
+  if (!G.ui.actionKey || G.battle.phase !== 'select') return;
+  G.battle.pAction = G.ui.actionKey;
+  G.battle.eAction = aiDecide(G.enemy);
+  G.battle.phase = 'reveal';
+  document.getElementById('action-area').style.pointerEvents = 'none';
+  document.getElementById('btn-confirm').disabled = true;
+  document.getElementById('round-phase').textContent = '揭示中...';
+  setTimeout(doReveal, 320);
+}
+
+function getActionSubText(action, side='player'){
+  if (action.type === 'ji') {
+    return side === 'player' ? `+${getPlayerJiRate()}Ji` : `+${getEnemyStandardChargeGain(G.enemy)}Ji`;
+  }
+  if (action.type === 'gufu_charge') {
+    return `当前 +${G.enemy.chargeValue}Ji，本次后成长`;
+  }
+  if (action.type === 'orb') {
+    return `消耗2Ji | 生成1个充能球`;
+  }
+  if (action.type === 'defense') {
+    return `防御${action.def} | 耗${action.cost}Ji`;
+  }
+  if (action.type === 'attack') {
+    return `攻击${action.atk} | 耗${action.cost}Ji`;
+  }
+  return '';
+}
+
+function doReveal(){
+  const ea = getActionData(G.battle.eAction, 'enemy');
+  const ec = document.getElementById('enemy-card');
+  ec.className = 'card revealed-enemy';
+  ec.innerHTML = `<div class="card-emoji">${ea.emoji}</div><div class="card-main">${ea.name}</div><div class="card-sub">${getActionSubText(ea, 'enemy')}</div>`;
+  document.getElementById('player-card').className = 'card revealed-player';
+  document.getElementById('round-phase').textContent = '结算中...';
+  setTimeout(doResolve, 620);
+}
+
+function resolveAction(side, action){
+  const actor = side === 'player' ? G.player : G.enemy;
+  const extraLogs = [];
+
+  if (action.type === 'ji') {
+    actor.ji += side === 'player' ? getPlayerJiRate() : getEnemyStandardChargeGain(actor);
+  } else if (action.type === 'gufu_charge') {
+    actor.ji += actor.chargeValue;
+    actor.chargeValue += 1;
+    extraLogs.push(`👑 古夫大帝的帝王蓄力成长了，下次将获得 +${actor.chargeValue}Ji。`);
+  } else if (action.type === 'orb') {
+    actor.ji -= action.cost;
+    actor.plasmaOrbs = (actor.plasmaOrbs || 0) + 1;
+    extraLogs.push(`🤖 故障机器人布置了等离子充能球（当前 ${actor.plasmaOrbs} 个）。`);
+  } else {
+    actor.ji -= action.cost;
+  }
+
+  actor.ji = Math.max(0, actor.ji);
+  return extraLogs;
+}
+
+function doResolve(){
+  const pa = getActionData(G.battle.pAction, 'player');
+  const ea = getActionData(G.battle.eAction, 'enemy');
+  const p = G.player;
+  const e = G.enemy;
+
+  const extraLogs = [];
+  extraLogs.push(...resolveAction('player', pa));
+  extraLogs.push(...resolveAction('enemy', ea));
+
+  const result = calcDamage(pa, ea);
+  p.hp = Math.max(0, p.hp - result.pdmg);
+  e.hp = Math.max(0, e.hp - result.edmg);
+
+  addLog('', `玩家: ${pa.emoji}${pa.name}  |  敌方: ${ea.emoji}${ea.name}`);
+  addLog(result.cls, result.msg);
+  result.triggers.forEach(t => addLog('log-ab', `✨ ${t}`));
+  extraLogs.forEach(t => addLog('log-ab', t));
+  if (result.pdmg > 0) addLog('log-dmg', `玩家受到 ${result.pdmg} 点伤害！`);
+  if (result.edmg > 0) addLog('log-dmg', `敌方受到 ${result.edmg} 点伤害！`);
+
+  G.battle.lastPlayerAction = G.battle.pAction;
+  G.battle.lastEnemyAction = G.battle.eAction;
+
+  refreshBars();
+
+  setTimeout(() => {
+    if (p.hp <= 0) {
+      if (G.abilities.savedByBlade && !G.abilities.savedByBladeUsed) {
+        G.abilities.savedByBladeUsed = true;
+        p.hp = 1;
+        refreshBars();
+        addLog('log-ab', '🗡️ 名刀司命触发！你回复至 1 生命并继续战斗。');
+        nextRound();
+        return;
+      }
+      endBattle(false);
+      return;
+    }
+    if (e.hp <= 0) {
+      endBattle(true);
+      return;
+    }
+    nextRound();
+  }, 680);
+}
+
+function calcDamage(pa, ea){
+  const pIsAtk = pa.type === 'attack';
+  const eIsAtk = ea.type === 'attack';
+  const out = {pdmg:0, edmg:0, msg:'', cls:'log-entry', triggers:[]};
+
+  if (!pIsAtk && !eIsAtk) {
+    out.msg = '双方均无攻击，本回合无伤害。';
+    return out;
+  }
+
+  if (pIsAtk && !eIsAtk) {
+    const enemyDef = ea.def || 0;
+    if (pa.atk > enemyDef) {
+      out.edmg = 1;
+      out.msg = `玩家攻击${pa.atk} > 敌方防御${enemyDef}，命中！`;
+      out.cls = 'log-blk';
+      if (G.abilities.fireBlade && pa.atk - enemyDef >= 3) {
+        out.edmg += 1;
+        out.triggers.push('刀刀烈火刀刀爆——高出至少 3 级，伤害 +1');
+      }
+    } else {
+      out.msg = `玩家攻击${pa.atk} ≤ 敌方防御${enemyDef}，防御成功！`;
+      out.cls = 'log-blk';
+    }
+  } else if (!pIsAtk && eIsAtk) {
+    const playerDef = pa.def || 0;
+    if (ea.atk > playerDef) {
+      out.pdmg = 1;
+      out.msg = `敌方攻击${ea.atk} > 玩家防御${playerDef}，被命中！`;
+      out.cls = 'log-dmg';
+    } else {
+      out.msg = `敌方攻击${ea.atk} ≤ 玩家防御${playerDef}，防御成功！`;
+      out.cls = 'log-blk';
+    }
+  } else {
+    if (pa.atk > ea.atk) {
+      out.edmg = 1;
+      out.msg = `双方互攻！玩家${pa.atk} > 敌方${ea.atk}，敌方受伤！`;
+      out.cls = 'log-dmg';
+      if (G.abilities.fireBlade && pa.atk - ea.atk >= 3) {
+        out.edmg += 1;
+        out.triggers.push('刀刀烈火刀刀爆——高出至少 3 级，伤害 +1');
+      }
+    } else if (ea.atk > pa.atk) {
+      out.pdmg = 1;
+      out.msg = `双方互攻！敌方${ea.atk} > 玩家${pa.atk}，玩家受伤！`;
+      out.cls = 'log-dmg';
+    } else {
+      out.msg = `双方互攻！攻击等级相同（${pa.atk}），相互抵消！`;
+      out.cls = 'log-entry';
+    }
+  }
+
+  if (G.shop.powerEquip && out.edmg > 0) {
+    out.edmg += 1;
+    out.triggers.push('一个强化装备——造成伤害时，额外 +1');
+  }
+
+  return out;
+}
+
+function applyRoundStartEffects(){
+  if (G.enemy && G.enemy.id === 'faultRobot' && (G.enemy.plasmaOrbs || 0) > 0) {
+    G.enemy.ji += G.enemy.plasmaOrbs;
+    addLog('log-ab', `🔵 等离子充能球启动：故障机器人获得 ${G.enemy.plasmaOrbs} Ji。`);
+  }
+  if (G.battle.round === 3 && G.abilities.happyFlower) {
+    G.player.ji += 1;
+    addLog('log-ab', '🌼 开心小花：第三回合开始，获得 1 Ji！');
+  }
+}
+
+function nextRound(){
+  G.battle.round += 1;
+  G.battle.phase = 'select';
+  document.getElementById('round-num').textContent = G.battle.round;
+  addLog('rnd', `▶ 回合 ${G.battle.round}`);
+  applyRoundStartEffects();
+  resetRoundUI();
+  refreshBars();
+}
+
+function endBattle(win){
+  const box = document.getElementById('ov-battle-box');
+  const title = document.getElementById('ov-battle-title');
+  const body = document.getElementById('ov-battle-body');
+
+  resetRoomJi();
+
+  if (win) {
+    box.className = 'overlay-box green';
+    title.textContent = '战斗胜利！';
+    const node = G.currentNode;
+    const reward = node.reward || 0;
+    G.player.fragments += reward;
+    G.nodes[G.nodeIdx].done = true;
+    G.nodeIdx++;
+    if (node.finalBoss) {
+      body.innerHTML = '你击败了三连 Boss 的最后一位，对这场试炼完成了彻底突破！';
+    } else if (node.type === 'boss') {
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>继续前进，后面还有更强的敌人。`;
+    } else {
+      body.innerHTML = `获得 <strong style="color:#c9a227">${reward} ✨能力碎片</strong>！<br>返回地图后可继续解锁能力。`;
+    }
+  } else {
+    box.className = 'overlay-box red';
+    title.textContent = '战斗失败';
+    body.textContent = '你的生命归零，旅途就此结束...';
+  }
+
+  G.enemy = null;
+  document.getElementById('ov-battle').classList.add('show');
+}
+
+function closeBattleOverlay(){
+  document.getElementById('ov-battle').classList.remove('show');
+  if (G.player.hp <= 0) {
+    showScreen('gameover');
+    return;
+  }
+  const prev = G.nodes[G.nodeIdx - 1];
+  if (prev && prev.finalBoss) {
+    showScreen('victory');
+    return;
+  }
+  showScreen('map');
+  renderMap();
+}
+
+function getMaxAffordableAttack(side='enemy', jiOverride=null){
+  const ji = jiOverride == null ? (side === 'player' ? G.player.ji : G.enemy.ji) : jiOverride;
+  for (let lvl = 7; lvl >= 1; lvl--) {
+    const action = getActionData('attack_' + lvl, side);
+    if (action && action.cost <= ji) return action.atk;
+  }
+  return 0;
+}
+
+function addWeight(bucket, key, weight){
+  if (weight > 0) bucket[key] = (bucket[key] || 0) + weight;
+}
+
+function pickWeightedAction(weights, side='enemy', fallback='ji'){
+  const pool = [];
+  const actorJi = side === 'player' ? G.player.ji : G.enemy.ji;
+  Object.entries(weights).forEach(([key, weight]) => {
+    const action = getActionData(key, side);
+    if (!action || action.cost > actorJi || weight <= 0) return;
+    for (let i = 0; i < Math.round(weight); i++) pool.push(key);
+  });
+  if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+
+  const candidateOrder = [fallback, 'ji', 'defense_0', 'attack_1', 'defense_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7', 'defense_2'];
+  for (const key of candidateOrder) {
+    const action = getActionData(key, side);
+    if (action && action.cost <= actorJi) return key;
+  }
+  return 'defense_0';
+}
+
+function buildAiContext(enemy){
+  return {
+    round: G.battle.round,
+    eJi: enemy.ji,
+    eHp: enemy.hp,
+    eMaxHp: enemy.maxHp,
+    pJi: G.player.ji,
+    pHp: G.player.hp,
+    pMaxAtk: getMaxAffordableAttack('player', G.player.ji),
+    eMaxAtk: getMaxAffordableAttack('enemy', enemy.ji),
+    playerLikelyCharge: G.player.ji <= 1 || G.battle.lastPlayerAction === 'ji',
+    enemyLowHp: enemy.hp <= Math.max(2, Math.ceil(enemy.maxHp / 3)),
+    playerHighThreat: getMaxAffordableAttack('player', G.player.ji) >= 5,
+    lastPlayerAction: G.battle.lastPlayerAction,
+    lastEnemyAction: G.battle.lastEnemyAction,
+  };
+}
+
+function aiBasic(enemy){
+  const ctx = buildAiContext(enemy);
+  const w = {};
+
+  if (ctx.eJi === 0) {
+    addWeight(w, 'ji', ctx.pMaxAtk >= 4 ? 5 : 7);
+    if (ctx.pMaxAtk >= 4 || ctx.lastPlayerAction?.startsWith('attack_')) addWeight(w, 'defense_0', 3);
+    return pickWeightedAction(w, 'enemy', 'ji');
+  }
+
+  if (ctx.eJi >= 1 && ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
+  else if (ctx.eJi >= 1 && ctx.pJi === 0) addWeight(w, 'attack_1', 3);
+  else if (ctx.eJi >= 1 && ctx.pHp === 1) addWeight(w, 'attack_1', 4);
+
+  addWeight(w, 'defense_0', ctx.pJi >= 3 ? 2 : 1);
+  if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
+  if (ctx.eJi >= 2 && ctx.pMaxAtk >= 6) addWeight(w, 'defense_2', 3 + (ctx.enemyLowHp ? 1 : 0));
+  else if (ctx.eJi >= 2 && ctx.pMaxAtk >= 5 && ctx.enemyLowHp) addWeight(w, 'defense_2', 2);
+
+  if (ctx.eJi <= 1) addWeight(w, 'ji', ctx.playerLikelyCharge ? 5 : 6);
+  else if (ctx.eJi <= 3 && !ctx.playerHighThreat) addWeight(w, 'ji', ctx.playerLikelyCharge ? 2 : 3);
+  else if (ctx.eJi <= 4 && ctx.eHp > 3 && ctx.pMaxAtk <= 3) addWeight(w, 'ji', 1);
+
+  if (ctx.eJi >= 2) addWeight(w, 'attack_2', 2 + (ctx.playerLikelyCharge ? 1 : 0));
+  if (ctx.eJi >= 3) addWeight(w, 'attack_3', 2 + (ctx.pJi >= 2 ? 1 : 0));
+  if (ctx.eJi >= 4) addWeight(w, 'attack_4', 2 + (ctx.pHp <= 2 ? 2 : 0));
+  if (ctx.eJi >= 5) addWeight(w, 'attack_5', 2 + (ctx.pJi >= 4 ? 1 : 0));
+  if (ctx.eJi >= 6) addWeight(w, 'attack_6', ctx.pJi >= 5 || ctx.enemyLowHp ? 2 : 1);
+  if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.pHp <= 1 ? 3 : 1);
+
+  if (ctx.pMaxAtk < 6 && w.defense_2) w.defense_2 = Math.min(w.defense_2, 1);
+  return pickWeightedAction(w, 'enemy', ctx.eJi <= 1 ? 'ji' : 'attack_2');
+}
+
+function aiFaultRobot(enemy){
+  const ctx = buildAiContext(enemy);
+  const w = {};
+  const orbs = enemy.plasmaOrbs || 0;
+  const safeWindow = ctx.pMaxAtk <= 3 || ctx.pJi <= 2 || ctx.eHp >= 8;
+
+  if (ctx.eJi === 0) {
+    addWeight(w, 'ji', 8);
+    if (ctx.pMaxAtk >= 4) addWeight(w, 'defense_0', 3);
+    return pickWeightedAction(w, 'enemy', 'ji');
+  }
+
+  if (ctx.eJi >= 1 && ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
+  if (ctx.eJi >= 2) {
+    if (orbs === 0) addWeight(w, 'plasma_orb', safeWindow ? 9 : 4);
+    else if (orbs === 1) addWeight(w, 'plasma_orb', safeWindow ? 7 : 3);
+    else if (orbs === 2 && ctx.round <= 5 && safeWindow) addWeight(w, 'plasma_orb', 3);
+  }
+
+  if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
+  if (ctx.eJi >= 2 && ctx.pMaxAtk >= 6) addWeight(w, 'defense_2', 3 + (ctx.enemyLowHp ? 1 : 0));
+
+  if (orbs === 0) addWeight(w, 'ji', ctx.eJi <= 1 ? 6 : 3);
+  else if (orbs === 1) addWeight(w, 'ji', ctx.eJi <= 1 ? 5 : 2);
+  else addWeight(w, 'ji', ctx.eJi === 0 ? 4 : 1);
+
+  if (ctx.eJi >= 2) addWeight(w, 'attack_2', ctx.playerLikelyCharge ? 3 : 1);
+  if (ctx.eJi >= 3) addWeight(w, 'attack_3', 2);
+  if (ctx.eJi >= 4) addWeight(w, 'attack_4', 2 + orbs);
+  if (ctx.eJi >= 5) addWeight(w, 'attack_5', 2 + orbs);
+  if (ctx.eJi >= 6) addWeight(w, 'attack_6', 1 + orbs);
+  if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.pHp <= 2 ? 3 : 1 + Math.max(0, orbs - 1));
+
+  if (ctx.pMaxAtk < 6 && w.defense_2) w.defense_2 = Math.min(w.defense_2, 1);
+  return pickWeightedAction(w, 'enemy', orbs === 0 ? 'ji' : 'attack_4');
+}
+
+function aiGufu(enemy){
+  const ctx = buildAiContext(enemy);
+  const w = {};
+  const grow = enemy.chargeValue || 1;
+  const safeToScale = ctx.pMaxAtk <= 4 || ctx.pJi <= 2;
+
+  if (ctx.eJi === 0) {
+    addWeight(w, 'ji', safeToScale ? 9 : 6);
+    if (ctx.pMaxAtk >= 4) addWeight(w, 'defense_0', 3);
+    return pickWeightedAction(w, 'enemy', 'ji');
+  }
+
+  if (safeToScale) addWeight(w, 'ji', grow <= 3 ? 8 : 5);
+  else if (grow >= 4 && ctx.eJi <= 2) addWeight(w, 'ji', 3);
+
+  if (ctx.eJi >= 1 && ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
+  if (ctx.eJi >= 2 && ctx.pJi <= 2) addWeight(w, 'attack_2', 3);
+
+  if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
+  if (ctx.eJi >= 2 && ctx.pMaxAtk >= 6) addWeight(w, 'defense_2', 4);
+
+  if (ctx.eJi >= 3) addWeight(w, 'attack_3', 2);
+  if (ctx.eJi >= 4) addWeight(w, 'attack_4', 3);
+  if (ctx.eJi >= 5) addWeight(w, 'attack_5', 3 + (grow >= 4 ? 1 : 0));
+  if (ctx.eJi >= 6) addWeight(w, 'attack_6', 2 + (grow >= 5 ? 1 : 0));
+  if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.pHp <= 2 ? 4 : 2);
+
+  if (ctx.pMaxAtk < 6 && w.defense_2) w.defense_2 = Math.min(w.defense_2, 1);
+  return pickWeightedAction(w, 'enemy', grow <= 3 ? 'ji' : 'attack_4');
+}
+
+function aiBlindBoss(enemy){
+  const ctx = buildAiContext(enemy);
+  const w = {};
+
+  if (ctx.eJi === 0) {
+    addWeight(w, 'ji', ctx.pMaxAtk >= 4 ? 5 : 7);
+    if (ctx.pMaxAtk >= 4 || ctx.pJi >= 4) addWeight(w, 'defense_0', 4);
+    return pickWeightedAction(w, 'enemy', 'ji');
+  }
+
+  if (ctx.eJi >= 1 && ctx.playerLikelyCharge) addWeight(w, 'attack_1', 6);
+  if (ctx.eJi >= 1 && ctx.pJi === 0) addWeight(w, 'attack_1', 3);
+
+  addWeight(w, 'defense_0', ctx.pJi >= 3 ? 3 : 1);
+  if (ctx.eJi >= 1 && ctx.pMaxAtk >= 4) addWeight(w, 'defense_1', 3);
+  if (ctx.eJi >= 2 && ctx.pMaxAtk >= 6) addWeight(w, 'defense_2', 4 + (ctx.enemyLowHp ? 1 : 0));
+
+  if (ctx.eJi <= 1) addWeight(w, 'ji', 5);
+  else if (ctx.eJi <= 3 && ctx.pMaxAtk <= 3) addWeight(w, 'ji', 2);
+
+  if (ctx.eJi >= 2) addWeight(w, 'attack_2', 2 + (ctx.playerLikelyCharge ? 1 : 0));
+  if (ctx.eJi >= 3) addWeight(w, 'attack_3', 3);
+  if (ctx.eJi >= 4) addWeight(w, 'attack_4', 3);
+  if (ctx.eJi >= 5) addWeight(w, 'attack_5', 3 + (ctx.pJi >= 4 ? 1 : 0));
+  if (ctx.eJi >= 6) addWeight(w, 'attack_6', 2 + (ctx.enemyLowHp ? 1 : 0));
+  if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.pHp <= 2 ? 4 : 2);
+
+  if (ctx.pMaxAtk < 6 && w.defense_2) w.defense_2 = Math.min(w.defense_2, 1);
+  return pickWeightedAction(w, 'enemy', ctx.pJi >= 4 ? 'defense_1' : 'attack_3');
+}
+
+function aiDecide(enemy){
+  if (!enemy) return 'ji';
+  if (enemy.id === 'faultRobot') return aiFaultRobot(enemy);
+  if (enemy.id === 'gufu') return aiGufu(enemy);
+  if (enemy.id === 'blindBoss') return aiBlindBoss(enemy);
+  return aiBasic(enemy);
+}
+
+function addLog(cls, text){
+  const log = document.getElementById('battle-log');
+  const d = document.createElement('div');
+  d.className = 'log-entry ' + cls;
+  d.textContent = text;
+  log.appendChild(d);
+  log.scrollTop = log.scrollHeight;
+}
+
+initGame();
+</script>
+
+</body>
+</html>
