@@ -31,6 +31,22 @@ export function getActionData(key, side='player', actorOverride=null) {
     };
   }
 
+  if (side === 'player' && actor.classKey === 'nsyc' && key === 'ekai') {
+    const stacks = actor.shaBiStacks || 0;
+    return {
+      type: 'ekai',
+      cost: 0,
+      stackCost: 3,
+      def: 3,
+      atk: 0,
+      hits: 0,
+      damage: 1,
+      name: '厄介',
+      emoji: '💢',
+      disabledByOrbs: stacks < 3,
+    };
+  }
+
   if (side === 'enemy' && actor.id === 'faultRobot' && key === 'orb_random') {
     return {type:'fault_orb', cost:0, def:0, atk:0, hits:0, damage:0, name:'随机充能球', emoji:'🧪'};
   }
@@ -98,6 +114,7 @@ export function getActionSubText(action) {
   if (action.type === 'ji' || action.type === 'gufu_charge') return `+${action.gain}Ji`;
   if (action.type === 'fault_orb') return '0Ji | 随机生成充能球';
   if (action.type === 'orb_buff') return '充能完成';
+  if (action.type === 'ekai') return '消耗3层【傻逼】 | 下回合必定命中';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
     const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
@@ -111,7 +128,7 @@ export function getActionSubText(action) {
 export function formatSingleAction(action) {
   if (!action) return '—';
   if (action.type === 'ji' || action.type === 'gufu_charge') return `${action.emoji}${action.name}`;
-  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom') return `${action.emoji}${action.name}`;
+  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom' || action.type === 'ekai') return `${action.emoji}${action.name}`;
   if (action.type === 'defense') return `${action.emoji}${action.name}(防${action.def})`;
   if (action.type === 'attack') return `${action.emoji}${action.name}(攻${action.atk}${action.hits > 1 ? ` ×${action.hits}` : ''})`;
   return `${action.emoji}${action.name}`;
@@ -174,11 +191,27 @@ export function resolveAction(side, key) {
         logs.push(`💥 玻璃充能球在生成时立刻发动：视为发起 ${count} 次【攻击1】。`);
       }
     }
+  } else if (base.type === 'ekai') {
+    actor.shaBiStacks = Math.max(0, (actor.shaBiStacks || 0) - (base.stackCost || 3));
+    G.battle.ekaiPending = true;
+    logs.push('💢 厄介蓄势：你在本回合待机防御，下回合将必定命中敌方！');
+    action = { type:'defense', cost:0, def:3, atk:0, name:'厄介·待机', emoji:'💢', hits:0, damage:0 };
   } else {
     if (side === 'player' && base.isMageRelease) {
       actor.lightningOrbs = Math.max(0, (actor.lightningOrbs || 0) - (base.orbCost || 0));
     } else {
-      actor.ji -= base.cost;
+      const jiCost = base.cost || 0;
+      actor.ji -= jiCost;
+      // Track ji spent for nsyc amane passive (auto-ekai every 8 ji)
+      if (side === 'player' && actor.classKey === 'nsyc' && jiCost > 0 && G.abilities.amane) {
+        const prevMilestone = Math.floor((actor.jiSpentTotal || 0) / 8);
+        actor.jiSpentTotal = (actor.jiSpentTotal || 0) + jiCost;
+        const newMilestone = Math.floor(actor.jiSpentTotal / 8);
+        if (newMilestone > prevMilestone) {
+          G.battle.ekaiPending = true;
+          logs.push(`🐍 进藤天音：累计消耗满 ${actor.jiSpentTotal} 点Ji，自动触发一次【厄介】！`);
+        }
+      }
     }
     if (side === 'player' && actor.classKey === 'mage' && base.type === 'defense') {
       actor.lightningOrbs = (actor.lightningOrbs || 0) + 1;

@@ -120,6 +120,10 @@ function unlockAbility(key) {
     G.player.maxHp += 5;
     G.player.hp += 5;
   }
+  if (key === 'haruna') {
+    G.player.maxHp += 2;
+    G.player.hp += 2;
+  }
   keepDeveloperResources();
   renderAbilityTree();
   renderMap();
@@ -265,7 +269,7 @@ function startBattle(node, keepSnapshot=false) {
   resetRoomJi();
   G.enemy.ji = 0;
   G.roomFlags.playerDamagedInBattle = false;
-  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, popcornPending:false};
+  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, popcornPending:false, ekaiPending:false};
   G.ui = {mainSel:null, actionKey:null};
 
   if (G.abilities.smallPotion && G.player.hp < G.player.maxHp) {
@@ -306,6 +310,7 @@ function startBattle(node, keepSnapshot=false) {
   if (tigerTriggered) addLog('log-ab', '🐯 虎式坦克触发：进入 Boss，生命上限 +3 且当前生命同步 +3。');
   if (G.abilities.smallPotion) addLog('log-ab', '🧪 小血瓶触发：战斗开始时回复 1 生命。');
   if (G.player.classKey === 'mage' && G.abilities.storm) addLog('log-ab', '⛈️ 雷暴触发：战斗开始时获得 2 闪电球。');
+  if (G.player.classKey === 'nsyc') addLog('log-ab', '🤬 傻逼被动：每回合开始自动累计【傻逼】层数，满3层可释放【厄介】。');
   if (G.enemy.id === 'jiaxu') {
     addLog('log-ab', '🌫️ 贾诩展开了【无知之幕】：双方 Ji 数量都被隐藏。');
   } else if (G.enemy.id === 'gufu') {
@@ -346,7 +351,7 @@ function mainSelect(category) {
     return;
   }
 
-  if (category === 'sp' && G.player.classKey !== 'mage') return;
+  if (category === 'sp' && G.player.classKey !== 'mage' && G.player.classKey !== 'nsyc') return;
 
   document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
   document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
@@ -373,12 +378,14 @@ function subSelect(key) {
   $('pc-emoji').textContent = action.emoji;
   $('pc-main').textContent = action.name;
   if (action.type === 'defense') $('pc-sub').textContent = `防御${action.def} | 耗${action.cost}Ji`;
+  else if (action.type === 'ekai') $('pc-sub').textContent = getActionSubText(action);
   else $('pc-sub').textContent = describeAttack(action);
 
-  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
+  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : action.type === 'ekai' ? `3层傻逼` : `${action.cost}Ji`;
   let preview = `${action.emoji} ${action.name} (${costLabel})`;
   if (action.type === 'defense') preview += ` 防御${action.def}`;
   if (action.type === 'attack') preview += ` 攻击${action.atk} / ${action.damage}伤害`;
+  if (action.type === 'ekai') preview += ` 消耗3层傻逼·下回合必定命中`;
   $('sel-preview-text').textContent = preview;
   $('btn-confirm').disabled = false;
 }
@@ -470,6 +477,25 @@ function applyRoundStartEffects() {
     G.player.ji += 1;
     addLog('log-ab', `🌼 开心小花：第 ${G.battle.round} 回合开始，获得 1 Ji。`);
   }
+  // nsyc: 厄介 deferred damage fires at round start
+  if (G.player.classKey === 'nsyc' && G.battle.ekaiPending) {
+    const dmg = 1 + (G.abilities.hazuki ? 1 : 0);
+    G.battle.ekaiPending = false;
+    G.enemy.hp = Math.max(0, G.enemy.hp - dmg);
+    addLog('log-dmg', `💢 厄介发动！必定命中，对敌方造成 ${dmg} 点伤害！`);
+    refreshBars();
+    if (G.enemy.hp <= 0) {
+      endBattle(true);
+      return true;
+    }
+  }
+  // nsyc: 傻逼 passive stack accumulation each round
+  if (G.player.classKey === 'nsyc') {
+    const gain = 1 + (G.abilities.mitsuna ? 1 : 0);
+    G.player.shaBiStacks = (G.player.shaBiStacks || 0) + gain;
+    addLog('log-ab', `🤬 傻逼被动：本回合累计 ${gain} 层【傻逼】，当前共 ${G.player.shaBiStacks} 层。`);
+  }
+  return false;
 }
 
 function nextRound() {
@@ -477,7 +503,7 @@ function nextRound() {
   G.battle.phase = 'select';
   $('round-num').textContent = String(G.battle.round);
   addLog('rnd', `▶ 回合 ${G.battle.round}`);
-  applyRoundStartEffects();
+  if (applyRoundStartEffects()) return;
   resetRoundUI();
   refreshBars();
 }

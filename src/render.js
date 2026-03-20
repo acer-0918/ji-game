@@ -40,6 +40,10 @@ export function getPassiveBadges() {
   if (G.shop.enhancedIceBlade) arr.push({icon:'❄️🗡', name:'强化冰刀'});
   if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
   if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`});
+  if (G.player.classKey === 'nsyc') {
+    arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`});
+    if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发'});
+  }
   return arr;
 }
 
@@ -233,16 +237,29 @@ export function refreshActionLabels() {
   const specialMain = $('mb-sp');
   const specialPanel = $('sp-special');
   const spHint = $('sp-hint');
+  const sp1 = $('sb-sp1');
+  const sp2 = $('sb-sp2');
   if (G.player.classKey === 'mage') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
+    if (sp1) sp1.style.display = '';
+    if (sp2) sp2.style.display = 'none';
     const release = getActionData('mage_release', 'player');
     if (spHint) spHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
-    const sp1 = $('sb-sp1');
     setSubCardLabel(sp1, `${release.orbCost}⚡`, release.name, `等级${release.atk}·持有${G.player.lightningOrbs || 0}`);
+  } else if (G.player.classKey === 'nsyc') {
+    if (specialMain) specialMain.style.display = '';
+    if (specialPanel) specialPanel.style.display = '';
+    if (sp1) sp1.style.display = 'none';
+    if (sp2) sp2.style.display = '';
+    const stacks = G.player.shaBiStacks || 0;
+    if (spHint) spHint.textContent = `傻逼${stacks}层`;
+    setSubCardLabel(sp2, `3🤬`, '厄介', `持有${stacks}层`);
   } else {
     if (specialMain) specialMain.style.display = 'none';
     if (specialPanel) specialPanel.style.display = 'none';
+    if (sp1) sp1.style.display = '';
+    if (sp2) sp2.style.display = 'none';
     if (spHint) spHint.textContent = '职业技能';
   }
 }
@@ -296,15 +313,24 @@ export function updateSubButtons() {
   const a3 = $('mb-a3'); if (a3) a3.disabled = !hasAffordable(['attack_7']);
 
   const specialMain = $('mb-sp');
-  const specialBtn = $('sb-sp1');
+  const sp1Btn = $('sb-sp1');
+  const sp2Btn = $('sb-sp2');
   if (G.player.classKey === 'mage') {
     const release = getActionData('mage_release', 'player');
     const canRelease = !!release && !release.disabledByOrbs;
     specialMain.disabled = !canRelease;
-    specialBtn.disabled = !canRelease;
+    if (sp1Btn) sp1Btn.disabled = !canRelease;
+    if (sp2Btn) sp2Btn.disabled = true;
+  } else if (G.player.classKey === 'nsyc') {
+    const ekai = getActionData('ekai', 'player');
+    const canEkai = !!ekai && !ekai.disabledByOrbs;
+    specialMain.disabled = !canEkai;
+    if (sp1Btn) sp1Btn.disabled = true;
+    if (sp2Btn) sp2Btn.disabled = !canEkai;
   } else {
     specialMain.disabled = true;
-    specialBtn.disabled = true;
+    if (sp1Btn) sp1Btn.disabled = true;
+    if (sp2Btn) sp2Btn.disabled = true;
   }
 }
 

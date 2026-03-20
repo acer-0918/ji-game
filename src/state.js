@@ -23,6 +23,8 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
       ji: 0,
       baseJiRate: cls.baseJiRate,
       lightningOrbs: 0,
+      shaBiStacks: 0,
+      jiSpentTotal: 0,
       fragments: 7,
     },
     abilities: createAbilityState(cls.key),
@@ -65,7 +67,9 @@ export function allOrbsGenerated(enemy) {
 }
 
 export function getPlayerJiRate() {
-  return (G.player.baseJiRate || 0) + (G.abilities.oneVsFour ? 1 : 0);
+  return (G.player.baseJiRate || 0)
+    + (G.abilities.oneVsFour ? 1 : 0)
+    + (G.abilities.haruna ? 1 : 0);
 }
 
 export function getPlayerDefenseBonus() {
@@ -87,6 +91,8 @@ export function isJiHiddenBattle() {
 export function resetRoomJi() {
   G.player.ji = 0;
   G.player.lightningOrbs = 0;
+  G.player.shaBiStacks = 0;
+  G.player.jiSpentTotal = 0;
   if (G.enemy) G.enemy.ji = 0;
 }
 

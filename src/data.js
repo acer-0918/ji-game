@@ -65,6 +65,19 @@ export const CLASS_DEFS = {
       {key:'electrodynamics',icon:'⚙️', name:'电动力学', cost:1, desc:'如果【一重释放】命中了敌人，则获得 3 闪电球。'},
     ],
   },
+  nsyc: {
+    key: 'nsyc',
+    icon: '🎤',
+    name: 'nsyc',
+    baseHp: 4,
+    baseJiRate: 1,
+    abilityDefs: [
+      {key:'mitsuna', icon:'🐏', name:'羊宫妃那', cost:2, desc:'哎呀，主唱又忘词了，每回合额外累计一层【傻逼】层数。'},
+      {key:'haruna',  icon:'🐱', name:'青木阳菜', cost:1, desc:'太子！获得两点血量上限，Ji回复效率+1。'},
+      {key:'hazuki',  icon:'🧞', name:'反田叶月', cost:1, desc:'被妖女迷住了，你的【厄介】造成的伤害+1。'},
+      {key:'amane',   icon:'🐍', name:'进藤天音', cost:1, desc:'隐太子，八岐大蛇来了，每当你消耗八点Ji，自动额外释放一次【厄介】。'},
+    ],
+  },
 };
 
 export const DEFAULT_CLASS_KEY = 'assassin';
