@@ -158,12 +158,9 @@ export function resolveAction(side, key) {
       const meta = ORB_META[orbKey];
       logs.push(`${meta.icon} 故障机器人生成了【${meta.name}】（当前 ${count} 个）。`);
       if (orbKey === 'plasma') {
-        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji，视为蓄力。`);
-        action = getActionData('ji', side, actor);
-        actor.ji += action.gain;
+        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji。`);
       } else if (orbKey === 'frost') {
-        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}，视为【防御3】。`);
-        action = getActionData('defense_0', side, actor);
+        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}。`);
       } else if (orbKey === 'lightning') {
         logs.push(`⚔ 之后它的攻击等级额外 +${orbCount(actor, 'lightning')}。`);
         action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
