@@ -202,6 +202,8 @@ function startBattle(node, keepSnapshot=false) {
   $('b-enemy-emoji').textContent = G.enemy.emoji || '👹';
   $('b-enemy-name').textContent = G.enemy.name;
   $('b-player-name').textContent = `${G.player.classIcon || ''} ${G.player.name}`;
+  $('b-portrait-player-name').textContent = G.player.name;
+  $('b-portrait-enemy-name').textContent = G.enemy.name;
 
   // 动态加载立绘（有图片则显示，否则回退到 emoji）
   function loadPortrait(frameId, imgId, src) {

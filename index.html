@@ -99,93 +99,90 @@
   <!-- 战场：敌我对战区 -->
   <div class="battlefield">
 
-    <!-- 我方数值（左） -->
-    <div class="combatant-side player-side">
-      <div class="combatant-bars">
-        <div class="bar-row">
-          <span class="bar-lbl hp-lbl">❤</span>
-          <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
-          <span class="bar-val" id="b-player-hp-val">5/5</span>
+    <!-- ── 状态栏行（含出牌区） ── -->
+    <div class="stat-row">
+
+      <!-- 我方状态 -->
+      <div class="combatant-side player-side">
+        <div class="combatant-name player-name" id="b-player-name">刺客</div>
+        <div class="combatant-bars">
+          <div class="bar-row">
+            <span class="bar-lbl hp-lbl">❤</span>
+            <div class="bar-track"><div class="bar-fill hp-fill" id="b-player-hp-bar" style="width:100%"></div></div>
+            <span class="bar-val" id="b-player-hp-val">5/5</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-lbl ji-lbl">⚡</span>
+            <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
+            <span class="bar-val" id="b-player-ji-val">0</span>
+          </div>
         </div>
-        <div class="bar-row">
-          <span class="bar-lbl ji-lbl">⚡</span>
-          <div class="bar-track"><div class="bar-fill ji-fill" id="b-player-ji-bar" style="width:0%"></div></div>
-          <span class="bar-val" id="b-player-ji-val">0</span>
+        <div class="tag-wrap compact" id="battle-passive-tags"></div>
+        <div class="equip-slots compact" id="battle-equip-slots"></div>
+      </div>
+
+      <!-- 出牌区（中） -->
+      <div class="vs-center">
+        <div class="played-slot">
+          <div class="played-label enemy-lbl">敌方出牌</div>
+          <div class="reveal-card facedown" id="enemy-card">
+            <div class="ac-emoji">🂠</div>
+            <div class="ac-name">???</div>
+            <div class="ac-sub"></div>
+          </div>
+        </div>
+        <div class="vs-text">VS</div>
+        <div class="played-slot">
+          <div class="played-label player-lbl">我方出牌</div>
+          <div class="reveal-card" id="player-card">
+            <div class="ac-emoji" id="pc-emoji">　</div>
+            <div class="ac-name" id="pc-main">—</div>
+            <div class="ac-sub" id="pc-sub"></div>
+          </div>
         </div>
       </div>
-      <div class="tag-wrap compact" id="battle-passive-tags"></div>
-      <div class="equip-slots compact" id="battle-equip-slots"></div>
-    </div>
 
-    <!-- 中央：立绘 + 出牌区 -->
-    <div class="vs-center">
-      <div class="stage-row">
-
-        <!-- 玩家立绘 -->
-        <!-- 立绘接口：将 portrait-img 的 src 指向图片路径，并给 portrait-frame 加 has-art 类即可替换 emoji -->
-        <!-- 示例：<img class="portrait-img" id="b-player-portrait-img" src="assets/player_mage.png" alt="法师"> + class="portrait-frame has-art" -->
-        <div class="stage-portrait">
-          <div class="portrait-frame" id="b-player-portrait">
-            <img class="portrait-img" id="b-player-portrait-img" src="" alt="">
-            <div class="portrait-emoji" id="b-player-emoji">🗡️</div>
-          </div>
-          <div class="combatant-name player-name" id="b-player-name">刺客</div>
+      <!-- 敌方状态 -->
+      <div class="combatant-side enemy-side">
+        <div class="combatant-name enemy-name" id="b-enemy-name">敌人</div>
+        <div class="enemy-intent" id="enemy-intent-area" style="visibility:hidden">
+          <span>准备行动...</span>
         </div>
-
-        <!-- 出牌区 -->
-        <div class="played-area">
-          <div class="played-slot">
-            <div class="played-label enemy-lbl">敌方出牌</div>
-            <!-- 卡面接口：reveal-card 内可替换 ac-emoji 的内容为 <img class="card-art-img" src="..."> -->
-            <div class="reveal-card facedown" id="enemy-card">
-              <div class="ac-emoji">🂠</div>
-              <div class="ac-name">???</div>
-              <div class="ac-sub"></div>
-            </div>
+        <div class="combatant-bars">
+          <div class="bar-row">
+            <span class="bar-lbl hp-lbl">❤</span>
+            <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
+            <span class="bar-val" id="b-enemy-hp-val">10/10</span>
           </div>
-          <div class="vs-text">VS</div>
-          <div class="played-slot">
-            <div class="played-label player-lbl">我方出牌</div>
-            <div class="reveal-card" id="player-card">
-              <div class="ac-emoji" id="pc-emoji">　</div>
-              <div class="ac-name" id="pc-main">—</div>
-              <div class="ac-sub" id="pc-sub"></div>
-            </div>
+          <div class="bar-row">
+            <span class="bar-lbl ji-lbl">⚡</span>
+            <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
+            <span class="bar-val" id="b-enemy-ji-val">0</span>
           </div>
         </div>
-
-        <!-- 敌方立绘 -->
-        <!-- 立绘接口：同上，替换 b-enemy-portrait-img 的 src，加 has-art 类 -->
-        <div class="stage-portrait">
-          <div class="portrait-frame enemy-frame" id="b-enemy-portrait">
-            <img class="portrait-img" id="b-enemy-portrait-img" src="" alt="">
-            <div class="portrait-emoji" id="b-enemy-emoji">👹</div>
-          </div>
-          <div class="combatant-name enemy-name" id="b-enemy-name">敌人</div>
-        </div>
-
-      </div><!-- /stage-row -->
-    </div>
-
-    <!-- 敌方数值（右） -->
-    <div class="combatant-side enemy-side">
-      <div class="enemy-intent" id="enemy-intent-area" style="visibility:hidden">
-        <span>准备行动...</span>
+        <div class="tag-wrap compact" id="enemy-state-tags"></div>
       </div>
-      <div class="combatant-bars">
-        <div class="bar-row">
-          <span class="bar-lbl hp-lbl">❤</span>
-          <div class="bar-track"><div class="bar-fill hp-fill" id="b-enemy-hp-bar" style="width:100%"></div></div>
-          <span class="bar-val" id="b-enemy-hp-val">10/10</span>
+
+    </div><!-- /stat-row -->
+
+    <!-- ── 立绘行（填满剩余空间） ── -->
+    <!-- 立绘接口：给 portrait-frame 加 has-art 类，设 portrait-img 的 src 即可替换 emoji -->
+    <div class="portrait-row">
+      <div class="stage-portrait">
+        <div class="portrait-frame" id="b-player-portrait">
+          <img class="portrait-img" id="b-player-portrait-img" src="" alt="">
+          <div class="portrait-emoji" id="b-player-emoji">🗡️</div>
         </div>
-        <div class="bar-row">
-          <span class="bar-lbl ji-lbl">⚡</span>
-          <div class="bar-track"><div class="bar-fill ji-fill" id="b-enemy-ji-bar" style="width:0%"></div></div>
-          <span class="bar-val" id="b-enemy-ji-val">0</span>
-        </div>
+        <div class="portrait-label player-name" id="b-portrait-player-name">法师</div>
       </div>
-      <div class="tag-wrap compact" id="enemy-state-tags"></div>
-    </div>
+      <div class="stage-portrait">
+        <div class="portrait-frame enemy-frame" id="b-enemy-portrait">
+          <img class="portrait-img" id="b-enemy-portrait-img" src="" alt="">
+          <div class="portrait-emoji" id="b-enemy-emoji">👹</div>
+        </div>
+        <div class="portrait-label enemy-name" id="b-portrait-enemy-name">敌人</div>
+      </div>
+    </div><!-- /portrait-row -->
 
   </div><!-- /battlefield -->
 
