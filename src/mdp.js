@@ -22,6 +22,36 @@ const MAX_ITER    = 400;   // value-iteration cap
 const CONV_THRESH = 1e-5;  // convergence threshold
 const TEMP        = 1.3;   // softmax temperature (higher = more random)
 
+// ─── localStorage V-table cache ───────────────────────────────────────────────
+// Cache key encodes every parameter that affects the result.
+// Bump MDP_CACHE_VER whenever the MDP logic or constants change.
+const MDP_CACHE_VER = 'v1';
+
+function _cacheKey(label, classKey) {
+  return `mdp_${MDP_CACHE_VER}_${label}_${classKey}_ji${MAX_JI}_lo${MAX_LO}_g${GAMMA}_i${MAX_ITER}`;
+}
+
+function _saveV(key, V) {
+  try {
+    const bytes = new Uint8Array(V.buffer);
+    let bin = '';
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    localStorage.setItem(key, btoa(bin));
+  } catch (_) { /* storage full or unavailable */ }
+}
+
+function _loadV(key, expectedLen) {
+  try {
+    const b64 = localStorage.getItem(key);
+    if (!b64) return null;
+    const bin = atob(b64);
+    if (bin.length !== expectedLen * 8) return null;   // length mismatch → stale
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Float64Array(bytes.buffer);
+  } catch (_) { return null; }
+}
+
 // Proxy action object for mage_release (0 Ji cost, atk 5, type attack)
 const MAGE_RELEASE_ACT = { type: 'attack', cost: 0, atk: 5, damage: 1 };
 
@@ -198,7 +228,7 @@ function sampleSoftmax(qMap, temperature) {
 // State: (bj, pj, plo)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyStandard(bossJiRate, pm) {
+function computePolicyStandard(bossJiRate, pm, cacheLabel, classKey) {
   const N  = MAX_JI + 1;
   const NP = pm.ploSize;
   const NS = N * N * NP;
@@ -227,7 +257,10 @@ function computePolicyStandard(bossJiRate, pm) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  const key = _cacheKey(cacheLabel, classKey);
+  const cached = _loadV(key, NS);
+  const V = cached ?? valueIteration(NS, bellman);
+  if (!cached) _saveV(key, V);
 
   function decide(bj0, pj0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -258,7 +291,7 @@ function computePolicyStandard(bossJiRate, pm) {
 // State: (bj, pj, cv, plo)  —  cv = chargeValue, grows by 1 each time boss charges
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyGufu(pm) {
+function computePolicyGufu(pm, classKey) {
   const N     = MAX_JI + 1;
   const MAX_CV = 7;
   const NC    = MAX_CV + 1;   // cv indices 0..7 (cv=0 is unused sentinel)
@@ -302,7 +335,10 @@ function computePolicyGufu(pm) {
     return bestQ === -Infinity ? 0 : bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  const key = _cacheKey('gufu', classKey);
+  const cached = _loadV(key, NS);
+  const V = cached ?? valueIteration(NS, bellman);
+  if (!cached) _saveV(key, V);
 
   function decide(bj0, pj0, cv0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -344,7 +380,7 @@ function computePolicyGufu(pm) {
 // Handled separately from regular BASE_ACTIONS loop to model uo transitions.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function computePolicyFaultRobot(pm) {
+function computePolicyFaultRobot(pm, classKey) {
   const N  = MAX_JI + 1;
   const NO = 6;   // uo: 0..5
   const NP = pm.ploSize;
@@ -399,7 +435,10 @@ function computePolicyFaultRobot(pm) {
     return bestQ;
   }
 
-  const V = valueIteration(NS, bellman);
+  const key = _cacheKey('faultRobot', classKey);
+  const cached = _loadV(key, NS);
+  const V = cached ?? valueIteration(NS, bellman);
+  if (!cached) _saveV(key, V);
 
   function decide(bj0, pj0, uo0, plo0 = 0) {
     const bj  = clamp(bj0, 0, MAX_JI);
@@ -444,9 +483,9 @@ export function initMDPPolicies(classKey = 'assassin') {
   const pm = classKey === 'mage' ? makeMageModel() : makeStdModel();
   console.time('[MDP] compute');
   _policies = {
-    jiaxu:      computePolicyStandard(3, pm),
-    gufu:       computePolicyGufu(pm),
-    faultRobot: computePolicyFaultRobot(pm),
+    jiaxu:      computePolicyStandard(3, pm, 'jiaxu', classKey),
+    gufu:       computePolicyGufu(pm, classKey),
+    faultRobot: computePolicyFaultRobot(pm, classKey),
   };
   console.timeEnd('[MDP] compute');
 }
