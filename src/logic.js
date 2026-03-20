@@ -14,11 +14,28 @@ export function getActionData(key, side='player', actorOverride=null) {
   const actor = actorOverride || (side === 'player' ? G.player : G.enemy);
   if (!actor) return null;
 
+  if (side === 'player' && actor.classKey === 'mage' && key === 'mage_release') {
+    const canCast = (actor.lightningOrbs || 0) >= 5;
+    return {
+      type:'attack',
+      cost:0,
+      orbCost:5,
+      def:0,
+      atk:5,
+      hits:1,
+      damage:1,
+      name:'一重释放',
+      emoji:'⚡⚡',
+      isMageRelease:true,
+      disabledByOrbs:!canCast,
+    };
+  }
+
   if (side === 'enemy' && actor.id === 'faultRobot' && key === 'orb_random') {
     return {type:'fault_orb', cost:0, def:0, atk:0, hits:0, damage:0, name:'随机充能球', emoji:'🧪'};
   }
   if (side === 'enemy' && actor.id === 'gufu' && key === 'ji') {
-    return {type:'gufu_charge', cost:0, def:0, atk:0, hits:0, damage:0, name:'帝王蓄力', emoji:'👑⚡', gain:actor.chargeValue || 1};
+    return {type:'gufu_charge', cost:0, def:0, atk:0, hits:0, damage:0, name:'野性之心', emoji:'👑⚡', gain:actor.chargeValue || 1};
   }
 
   const base = clone(BASE_ACTIONS[key]);
@@ -32,7 +49,17 @@ export function getActionData(key, side='player', actorOverride=null) {
     base.name = '强化鬼刀';
     base.emoji = '👻⚔';
   }
-  if (side === 'player' && base.type === 'defense' && G.shop.smoothStone) {
+  if (side === 'player' && key === 'attack_1' && G.shop.enhancedDagger) {
+    base.name = '强化小刀';
+    base.emoji = '🗡✨';
+    base.onHitGainJi = 1;
+  }
+  if (side === 'player' && key === 'attack_3' && G.shop.enhancedIceBlade) {
+    base.name = '强化冰刀';
+    base.emoji = '❄️🗡';
+    base.damage += 1;
+  }
+  if (side === 'player' && base.type === 'defense') {
     base.def += getPlayerDefenseBonus();
   }
 
@@ -58,6 +85,7 @@ export function isAttack(action) {
 }
 
 export function describeAttack(action) {
+  if (action.isMageRelease) return `等级${action.atk} | 伤害${action.damage} | 耗${action.orbCost}闪电球`;
   const bits = [`等级${action.atk}`];
   if ((action.hits || 1) > 1) bits.push(`${action.hits}连击`);
   bits.push(`伤害${action.damage}`);
@@ -72,7 +100,8 @@ export function getActionSubText(action) {
   if (action.type === 'orb_buff') return '充能完成';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
-    const parts = [`等级${action.atk}`, `${action.damage}伤害`, `${action.cost}Ji`];
+    const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
+    const parts = [`等级${action.atk}`, `${action.damage}伤害`, costText];
     if ((action.hits || 1) > 1) parts.splice(1, 0, `${action.hits}次`);
     return parts.join(' | ');
   }
@@ -92,7 +121,7 @@ function resolveInstantGlassHit(actor, count) {
   return {
     type:'attack',
     cost:0,
-    atk:2 + orbCount(actor, 'lightning'),
+    atk:1 + orbCount(actor, 'lightning'),
     hits:count,
     damage:1 + orbCount(actor, 'dark'),
     name:'玻璃充能球',
@@ -103,6 +132,7 @@ function resolveInstantGlassHit(actor, count) {
 export function resolveAction(side, key) {
   const actor = side === 'player' ? G.player : G.enemy;
   const base = getActionData(key, side, actor);
+  if (!base) return {action:null, logs:[], instantKill:null};
   const logs = [];
   let action = clone(base);
   let instantKill = null;
@@ -114,13 +144,13 @@ export function resolveAction(side, key) {
     actor.ji += gain;
     action.gain = gain;
     actor.chargeValue = gain + 1;
-    logs.push(`👑 古夫大帝的帝王蓄力成长了，下次将获得 +${actor.chargeValue}Ji。`);
+    logs.push(`👑 古夫大帝的野性之心成长了，下次将获得 +${actor.chargeValue}Ji。`);
   } else if (base.type === 'fault_orb') {
     ensureFaultRobotState(actor);
     if (allOrbsGenerated(actor)) {
-      instantKill = side === 'enemy' ? 'player' : 'enemy';
-      action = {type:'doom', cost:0, name:'过载终焉', emoji:'☠️', hits:0, damage:0};
-      logs.push('☠️ 五类充能球已全部出现！故障机器人启动过载终焉，直接消灭玩家。');
+      action = {type:'orb_buff', cost:0, name:'过载临界', emoji:'☠️', hits:0, damage:0};
+      if (actor.overloadTriggered) logs.push('☠️ 过载终焉已发动过，本局战斗中不会再次触发。');
+      else logs.push('☠️ 五类充能球已全部出现！过载终焉将于本回合结算后发动。');
     } else {
       const orbKey = randomChoice(ORB_KEYS);
       actor.orbs[orbKey] = (actor.orbs[orbKey] || 0) + 1;
@@ -128,11 +158,12 @@ export function resolveAction(side, key) {
       const meta = ORB_META[orbKey];
       logs.push(`${meta.icon} 故障机器人生成了【${meta.name}】（当前 ${count} 个）。`);
       if (orbKey === 'plasma') {
-        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji。`);
-        action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
+        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji，视为蓄力。`);
+        action = getActionData('ji', side, actor);
+        actor.ji += action.gain;
       } else if (orbKey === 'frost') {
-        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}。`);
-        action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
+        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}，视为【防御3】。`);
+        action = getActionData('defense_0', side, actor);
       } else if (orbKey === 'lightning') {
         logs.push(`⚔ 之后它的攻击等级额外 +${orbCount(actor, 'lightning')}。`);
         action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
@@ -143,95 +174,231 @@ export function resolveAction(side, key) {
         action = resolveInstantGlassHit(actor, count);
         action.name = `${meta.name}冲击`;
         action.emoji = '🔷⚔';
-        logs.push(`💥 玻璃充能球在生成时立刻发动：视为发起 ${count} 次【攻击2】。`);
+        logs.push(`💥 玻璃充能球在生成时立刻发动：视为发起 ${count} 次【攻击1】。`);
       }
     }
   } else {
-    actor.ji -= base.cost;
+    if (side === 'player' && base.isMageRelease) {
+      actor.lightningOrbs = Math.max(0, (actor.lightningOrbs || 0) - (base.orbCost || 0));
+    } else {
+      actor.ji -= base.cost;
+    }
+    if (side === 'player' && actor.classKey === 'mage' && base.type === 'defense') {
+      actor.lightningOrbs = (actor.lightningOrbs || 0) + 1;
+      logs.push('⚡ 法师被动：本回合使用防御，获得 1 个闪电球。');
+    }
   }
 
   actor.ji = Math.max(0, actor.ji);
   return {action, logs, instantKill};
 }
 
-export function calcDamage(pa, ea) {
-  const out = {pdmg:0, edmg:0, msgs:[], triggers:[]};
+function getAttackHits(action) {
+  if (!isAttack(action)) return 0;
+  return action.hits || 1;
+}
+
+function createHitCompareEvent(pa, ea) {
+  return {
+    playerAction: pa,
+    enemyAction: ea,
+    playerHits: 0,
+    enemyHits: 0,
+    msgs: [],
+  };
+}
+
+function createHitEvent(side, attackAction, defendAction, hitCount) {
+  return {
+    side,
+    attackAction,
+    defendAction,
+    hitCount,
+    damageEvents: [],
+    bonusDamage: 0,
+    triggers: [],
+  };
+}
+
+const HIT_COMPARE_HOOKS = [];
+const HIT_HOOKS = [];
+const DAMAGE_EVENT_HOOKS = [];
+const DAMAGE_TOTAL_HOOKS = [];
+
+function runHooks(hooks, context) {
+  hooks.forEach((hook) => hook(context));
+}
+
+export function registerHitCompareHook(hook) {
+  HIT_COMPARE_HOOKS.push(hook);
+}
+
+export function registerHitHook(hook) {
+  HIT_HOOKS.push(hook);
+}
+
+export function registerDamageEventHook(hook) {
+  DAMAGE_EVENT_HOOKS.push(hook);
+}
+
+export function registerDamageTotalHook(hook) {
+  DAMAGE_TOTAL_HOOKS.push(hook);
+}
+
+function baseResolveHitCompare(ctx) {
+  const pa = ctx.playerAction;
+  const ea = ctx.enemyAction;
   const pAtk = isAttack(pa);
   const eAtk = isAttack(ea);
+  const pHits = getAttackHits(pa);
+  const eHits = getAttackHits(ea);
 
   if (!pAtk && !eAtk) {
-    out.msgs.push('双方都没有发动攻击，本回合无直接伤害。');
-    return out;
+    ctx.msgs.push('双方都没有发动攻击，本回合无直接伤害。');
+    return;
   }
 
   if (pAtk && !eAtk) {
     const enemyDef = ea.def || 0;
-    if (pa.atk > enemyDef) {
-      out.edmg += (pa.hits || 1) * (pa.damage || 1);
-      out.msgs.push(`玩家攻击等级 ${pa.atk} 突破敌方防御 ${enemyDef}，${pa.hits || 1} 次命中。`);
-      if (G.abilities.fireBlade && pa.atk - enemyDef >= 3) {
-        out.edmg += 1;
-        out.triggers.push('刀刀烈火刀刀爆——高出至少 3 级，伤害 +1');
-      }
+    if ((pa.atk || 0) > enemyDef) {
+      ctx.playerHits = pHits;
+      ctx.msgs.push(`玩家攻击等级 ${pa.atk} 突破敌方防御 ${enemyDef}，命中 ${ctx.playerHits} 次。`);
     } else {
-      out.msgs.push(`玩家攻击等级 ${pa.atk} 未高于敌方防御 ${enemyDef}，所有攻击都被防御。`);
+      ctx.msgs.push(`玩家攻击等级 ${pa.atk} 未高于敌方防御 ${enemyDef}，本次未命中。`);
     }
-  } else if (!pAtk && eAtk) {
+    return;
+  }
+
+  if (!pAtk && eAtk) {
     const playerDef = pa.def || 0;
-    if (ea.atk > playerDef) {
-      out.pdmg += (ea.hits || 1) * (ea.damage || 1);
-      out.msgs.push(`敌方攻击等级 ${ea.atk} 突破玩家防御 ${playerDef}，${ea.hits || 1} 次命中。`);
+    if ((ea.atk || 0) > playerDef) {
+      ctx.enemyHits = eHits;
+      ctx.msgs.push(`敌方攻击等级 ${ea.atk} 突破玩家防御 ${playerDef}，命中 ${ctx.enemyHits} 次。`);
     } else {
-      out.msgs.push(`敌方攻击等级 ${ea.atk} 未高于玩家防御 ${playerDef}，所有攻击都被防御。`);
+      ctx.msgs.push(`敌方攻击等级 ${ea.atk} 未高于玩家防御 ${playerDef}，本次未命中。`);
     }
+    return;
+  }
+
+  const pPower = (pa.atk || 0) * pHits;
+  const ePower = (ea.atk || 0) * eHits;
+  if (pPower > ePower) {
+    ctx.playerHits = pHits;
+    ctx.msgs.push(`双方互攻：玩家总攻击 ${pPower} 高于敌方 ${ePower}，玩家命中。`);
+  } else if (ePower > pPower) {
+    ctx.enemyHits = eHits;
+    ctx.msgs.push(`双方互攻：敌方总攻击 ${ePower} 高于玩家 ${pPower}，敌方命中。`);
   } else {
-    const pHits = pa.hits || 1;
-    const eHits = ea.hits || 1;
-    if (pHits === 1 && eHits === 1) {
-      if (pa.atk > ea.atk) {
-        out.edmg += pa.damage || 1;
-        out.msgs.push(`双方互攻！玩家攻击 ${pa.atk} 高于敌方 ${ea.atk}。`);
-        if (G.abilities.fireBlade && pa.atk - ea.atk >= 3) {
-          out.edmg += 1;
-          out.triggers.push('刀刀烈火刀刀爆——高出至少 3 级，伤害 +1');
-        }
-      } else if (ea.atk > pa.atk) {
-        out.pdmg += ea.damage || 1;
-        out.msgs.push(`双方互攻！敌方攻击 ${ea.atk} 高于玩家 ${pa.atk}。`);
-      } else {
-        out.msgs.push(`双方互攻！攻击等级相同（${pa.atk}），相互抵消。`);
-      }
-    } else {
-      const cancelled = Math.min(pHits, eHits);
-      const pRemain = pHits - cancelled;
-      const eRemain = eHits - cancelled;
-      if (cancelled > 0) out.msgs.push(`双方攻击相互抵消了 ${cancelled} 次。`);
-      if (pRemain > 0) {
-        out.edmg += pRemain * (pa.damage || 1);
-        out.msgs.push(`玩家仍有 ${pRemain} 次攻击穿过，造成 ${pRemain * (pa.damage || 1)} 点伤害。`);
-        if (G.abilities.fireBlade && pa.atk - ea.atk >= 3) {
-          out.edmg += 1;
-          out.triggers.push('刀刀烈火刀刀爆——高出至少 3 级，伤害 +1');
-        }
-      }
-      if (eRemain > 0) {
-        out.pdmg += eRemain * (ea.damage || 1);
-        out.msgs.push(`敌方仍有 ${eRemain} 次攻击穿过，造成 ${eRemain * (ea.damage || 1)} 点伤害。`);
-      }
-      if (cancelled > 0 && pRemain === 0 && eRemain === 0) out.msgs.push('所有攻击都在碰撞中被抵消了。');
-    }
+    ctx.msgs.push(`双方互攻：总攻击相同（${pPower}），双方均未命中。`);
   }
+}
 
-  if (G.shop.powerEquip && out.edmg > 0) {
-    out.edmg += 1;
-    out.triggers.push('一个强化装备——造成伤害时，额外 +1');
+function resolveHitPhase(pa, ea) {
+  const ctx = createHitCompareEvent(pa, ea);
+  baseResolveHitCompare(ctx);
+  runHooks(HIT_COMPARE_HOOKS, ctx);
+  ctx.playerHits = Math.max(0, Math.floor(ctx.playerHits || 0));
+  ctx.enemyHits = Math.max(0, Math.floor(ctx.enemyHits || 0));
+  return {playerHits: ctx.playerHits, enemyHits: ctx.enemyHits, msgs: ctx.msgs};
+}
+
+function applyDefaultDamageEventOnHit(ctx) {
+  for (let i = 0; i < ctx.hitCount; i++) {
+    ctx.damageEvents.push({amount:0});
   }
+}
 
+function applyDefaultDamagePoint(ctx) {
+  ctx.damageEvent.amount += 1;
+}
+
+function applyActionDamageBonus(ctx) {
+  const perHitBonus = Math.max(0, (ctx.attackAction.damage || 1) - 1);
+  if (perHitBonus > 0) ctx.damageEvent.amount += perHitBonus;
+}
+
+function applyFireBladeBonus(ctx) {
+  if (ctx.side !== 'player') return;
+  const defenseRank = isAttack(ctx.defendAction) ? (ctx.defendAction.atk || 0) : (ctx.defendAction.def || 0);
+  if (G.abilities.fireBlade && (ctx.attackAction.atk || 0) - defenseRank >= 3) {
+    ctx.bonusDamage += 1;
+    ctx.triggers.push('暴击——高出至少 3 级，伤害 +1');
+  }
+}
+
+function applyPowerEquipBonus(ctx) {
+  if (ctx.side !== 'player' || G.equippedGear !== 'powerEquip') return;
+  ctx.bonusDamage += 1;
+  ctx.triggers.push('磨刀石——造成伤害时，额外 +1');
+}
+
+function applyMageFocusBonus(ctx) {
+  if (ctx.side !== 'player' || !ctx.attackAction.isMageRelease) return;
+  if (!G.abilities.focus) return;
+  ctx.bonusDamage += 1;
+  ctx.triggers.push('集中——一重释放命中后，伤害 +1');
+}
+
+function applyEnhancedDaggerOnHit(ctx) {
+  if (ctx.side !== 'player') return;
+  const gainPerHit = ctx.attackAction.onHitGainJi || 0;
+  if (gainPerHit <= 0) return;
+  const gain = gainPerHit * ctx.hitCount;
+  G.player.ji += gain;
+  ctx.triggers.push(`强化小刀——命中后获得 ${gain} Ji`);
+}
+
+function applyMageElectrodynamicsOnHit(ctx) {
+  if (ctx.side !== 'player' || !ctx.attackAction.isMageRelease) return;
+  if (!G.abilities.electrodynamics) return;
+  G.player.lightningOrbs = (G.player.lightningOrbs || 0) + 3;
+  ctx.triggers.push('电动力学——一重释放命中后，获得 3 闪电球');
+}
+
+HIT_HOOKS.push(applyDefaultDamageEventOnHit);
+HIT_HOOKS.push(applyEnhancedDaggerOnHit);
+HIT_HOOKS.push(applyMageElectrodynamicsOnHit);
+DAMAGE_EVENT_HOOKS.push(applyDefaultDamagePoint);
+DAMAGE_EVENT_HOOKS.push(applyActionDamageBonus);
+DAMAGE_TOTAL_HOOKS.push(applyFireBladeBonus);
+DAMAGE_TOTAL_HOOKS.push(applyPowerEquipBonus);
+DAMAGE_TOTAL_HOOKS.push(applyMageFocusBonus);
+
+function resolveDamageFromHits(side, attackAction, defendAction, hitCount) {
+  if (hitCount <= 0) return {damage:0, triggers:[]};
+  const hitEvent = createHitEvent(side, attackAction, defendAction, hitCount);
+  runHooks(HIT_HOOKS, hitEvent);
+  hitEvent.damageEvents.forEach((damageEvent, eventIndex) => {
+    runHooks(DAMAGE_EVENT_HOOKS, {
+      ...hitEvent,
+      damageEvent,
+      eventIndex,
+    });
+  });
+  runHooks(DAMAGE_TOTAL_HOOKS, hitEvent);
+  const baseDamage = hitEvent.damageEvents.reduce((sum, item) => sum + Math.max(0, item.amount), 0);
+  return {damage: baseDamage + hitEvent.bonusDamage, triggers: hitEvent.triggers};
+}
+
+export function calcDamage(pa, ea) {
+  const out = {pdmg:0, edmg:0, msgs:[], triggers:[]};
+  const hitPhase = resolveHitPhase(pa, ea);
+  out.msgs.push(...hitPhase.msgs);
+
+  const playerDamage = resolveDamageFromHits('player', pa, ea, hitPhase.playerHits);
+  const enemyDamage = resolveDamageFromHits('enemy', ea, pa, hitPhase.enemyHits);
+
+  out.edmg += playerDamage.damage;
+  out.pdmg += enemyDamage.damage;
+  out.triggers.push(...playerDamage.triggers, ...enemyDamage.triggers);
   return out;
 }
 
 export function getMaxAffordableAttack(side='enemy', jiOverride=null, actorOverride=null) {
   const actor = actorOverride || (side === 'player' ? G.player : G.enemy);
+  if (side === 'player' && actor.classKey === 'mage' && (actor.lightningOrbs || 0) >= 5) {
+    return 5;
+  }
   const ji = jiOverride == null ? actor.ji : jiOverride;
   for (let lvl = 7; lvl >= 1; lvl--) {
     const action = getActionData(`attack_${lvl}`, side, actor);

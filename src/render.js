@@ -1,4 +1,4 @@
-import { ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, SHOP_ITEMS } from './data.js';
+import { CLASS_DEFS, COMMON_ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
 
@@ -25,16 +25,21 @@ export function renderBadgeList(id, badges, emptyText='暂无') {
 
 export function getPassiveBadges() {
   const arr = [];
-  ABILITY_DEFS.forEach((ab) => {
+  const classDef = CLASS_DEFS[G.player.classKey];
+  const allAbilities = [...(classDef ? classDef.abilityDefs : []), ...COMMON_ABILITY_DEFS];
+  allAbilities.forEach((ab) => {
     if (G.abilities[ab.key]) {
       let name = ab.name;
       if (ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed) name += '（已用）';
       arr.push({icon:ab.icon, name});
     }
   });
-  if (G.shop.powerEquip) arr.push({icon:'🧰', name:'一个强化装备'});
-  if (G.shop.smoothStone) arr.push({icon:'🪨', name:'光滑的石头'});
+  if (G.equippedGear === 'powerEquip') arr.push({icon:'🧰', name:'磨刀石'});
+  if (G.equippedGear === 'vitalityEquip') arr.push({icon:'❤️‍🩹', name:'不朽馈赠'});
+  if (G.shop.enhancedDagger) arr.push({icon:'🗡✨', name:'强化小刀'});
+  if (G.shop.enhancedIceBlade) arr.push({icon:'❄️🗡', name:'强化冰刀'});
   if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
+  if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`});
   return arr;
 }
 
@@ -49,7 +54,7 @@ export function getEnemyStateBadges() {
     arr.push({icon:'🌫️', name:'无知之幕：双方 Ji 数量隐藏'});
   }
   if (G.enemy.id === 'gufu') {
-    arr.push({icon:'👑', name:`帝王蓄力 当前 +${G.enemy.chargeValue || 1}Ji`});
+    arr.push({icon:'👑', name:`野性之心 当前 +${G.enemy.chargeValue || 1}Ji`});
   }
   if (G.enemy.id === 'faultRobot') {
     arr.push({icon:'🧪', name:`充能球图谱 ${orbUniqueCount(G.enemy)}/5`});
@@ -70,21 +75,22 @@ export function renderEquipSlots(id) {
   const wrap = $(id);
   if (!wrap) return;
   wrap.innerHTML = '';
-  const slots = [
-    {label:'武器', filled:G.shop.enhancedBlade, text:G.shop.enhancedBlade ? '👻⚔ 强化鬼刀' : '武器槽'},
-    {label:'装备', filled:G.shop.powerEquip, text:G.shop.powerEquip ? '🧰 一个强化装备' : '装备槽'},
-    {label:'遗物', filled:G.shop.smoothStone, text:G.shop.smoothStone ? '🪨 光滑的石头' : '遗物槽'},
-  ];
-  slots.forEach((slot) => {
-    const div = document.createElement('div');
-    div.className = `equip-slot${slot.filled ? ' filled' : ''}`;
-    div.textContent = `${slot.label}｜${slot.text}`;
-    wrap.appendChild(div);
-  });
+  const gearMeta = {
+    powerEquip: {icon:'🧰', name:'磨刀石'},
+    vitalityEquip: {icon:'❤️‍🩹', name:'不朽馈赠'},
+  };
+  const equipped = G.equippedGear ? gearMeta[G.equippedGear] : null;
+  const slot = document.createElement('div');
+  const filled = !!equipped;
+  slot.className = `equip-slot${filled ? ' filled clickable' : ''}`;
+  slot.dataset.slot = 'gear';
+  slot.textContent = filled ? `装备槽｜${equipped.icon} ${equipped.name}` : '装备槽｜空';
+  wrap.appendChild(slot);
 }
 
 export function renderMap() {
   const p = G.player;
+  $('map-name').textContent = `${p.classIcon || '🧙'} ${p.name}`;
   $('map-hp').textContent = p.hp;
   $('map-maxhp').textContent = p.maxHp;
   $('map-ji').textContent = p.ji;
@@ -125,10 +131,24 @@ export function renderMap() {
 }
 
 export function renderAbilityTree() {
+  const classDef = CLASS_DEFS[G.player.classKey];
+  const title = $('abtree-title');
+  if (title) title.textContent = `✨ 能力树 · ${classDef ? classDef.name : '职业'}`;
   $('abtree-frags').textContent = G.player.fragments;
   const container = $('abtree-nodes');
   container.innerHTML = '';
-  ABILITY_DEFS.forEach((ab) => {
+  const sections = [
+    {title:`${classDef ? classDef.name : '职业'}专属能力`, defs: classDef ? classDef.abilityDefs : []},
+    {title:'通用能力', defs: COMMON_ABILITY_DEFS},
+  ];
+
+  sections.forEach((section) => {
+    const head = document.createElement('div');
+    head.className = 'ab-section-title';
+    head.textContent = section.title;
+    container.appendChild(head);
+
+    section.defs.forEach((ab) => {
     const unlocked = G.abilities[ab.key];
     const canAfford = G.player.fragments >= ab.cost;
     const card = document.createElement('div');
@@ -145,6 +165,7 @@ export function renderAbilityTree() {
         ${unlocked ? '<span class="ab-unlocked-mark">✓ 已激活</span>' : `<button class="btn-unlock" data-unlock="${ab.key}" ${canAfford ? '' : 'disabled'}>解锁</button>`}
       </div>`;
     container.appendChild(card);
+    });
   });
 }
 
@@ -155,17 +176,24 @@ export function renderShop() {
   SHOP_ITEMS.forEach((item) => {
     const owned = G.shop[item.key];
     const canAfford = G.player.fragments >= item.cost;
+    const blockedByGearSlot = item.slot === 'gear' && !!G.equippedGear && G.equippedGear !== item.key;
     const card = document.createElement('div');
-    card.className = `shop-item-card${owned ? ' owned' : ''}${!owned && !canAfford ? ' cant-afford' : ''}`;
+    card.className = `shop-item-card${owned ? ' owned' : ''}${!owned && (!canAfford || blockedByGearSlot) ? ' cant-afford' : ''}`;
+    const canBuy = !owned && canAfford && !blockedByGearSlot;
+    const costText = owned
+      ? '✓ 已购买'
+      : blockedByGearSlot
+        ? '装备栏已满（请先卸下当前装备）'
+        : `售价 ${item.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`;
     card.innerHTML = `
       <div class="ab-icon">${item.icon}</div>
       <div class="ab-info">
         <div class="ab-name">${item.name}</div>
         <div class="ab-desc">${item.desc}</div>
-        <div class="ab-cost">${owned ? '✓ 已购买' : `售价 ${item.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`}</div>
+        <div class="ab-cost">${costText}</div>
       </div>
       <div class="ab-action">
-        ${owned ? '<span class="ab-unlocked-mark">✓ 已拥有</span>' : `<button class="btn-buy" data-buy="${item.key}" ${canAfford ? '' : 'disabled'}>购买</button>`}
+        ${owned ? '<span class="ab-unlocked-mark">✓ 已拥有</span>' : `<button class="btn-buy" data-buy="${item.key}" ${canBuy ? '' : 'disabled'}>购买</button>`}
       </div>`;
     container.appendChild(card);
   });
@@ -183,6 +211,22 @@ export function refreshActionLabels() {
     const btn = $(`sb-a${idx + 1}`);
     if (btn) btn.textContent = `${action.emoji} ${action.name} (${action.cost}Ji) | 等级${action.atk}`;
   });
+
+  const specialMain = $('mb-sp');
+  const specialPanel = $('sp-special');
+  if (G.player.classKey === 'mage') {
+    specialMain.style.display = '';
+    specialPanel.style.display = '';
+    const release = getActionData('mage_release', 'player');
+    const mainHint = specialMain.querySelector('small');
+    if (mainHint) mainHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
+    $('sb-sp1').textContent = `${release.emoji} ${release.name} (${release.orbCost}闪电球) | 等级${release.atk} | 持有${G.player.lightningOrbs || 0}`;
+  } else {
+    specialMain.style.display = 'none';
+    specialPanel.style.display = 'none';
+    const mainHint = specialMain.querySelector('small');
+    if (mainHint) mainHint.textContent = '职业技能';
+  }
 }
 
 function setJiDisplay(barId, valId, value, max, hidden) {
@@ -228,12 +272,25 @@ export function updateSubButtons() {
 
   $('mb-a2').disabled = !hasAffordable(['attack_4', 'attack_5', 'attack_6']);
   $('mb-a3').disabled = !hasAffordable(['attack_7']);
+
+  const specialMain = $('mb-sp');
+  const specialBtn = $('sb-sp1');
+  if (G.player.classKey === 'mage') {
+    const release = getActionData('mage_release', 'player');
+    const canRelease = !!release && !release.disabledByOrbs;
+    specialMain.disabled = !canRelease;
+    specialBtn.disabled = !canRelease;
+  } else {
+    specialMain.disabled = true;
+    specialBtn.disabled = true;
+  }
 }
 
 export function refreshBars() {
   const p = G.player;
   const e = G.enemy;
   if (!e) return;
+  refreshActionLabels();
   setBar('b-player-hp-bar', 'b-player-hp-val', p.hp, p.maxHp);
   setBar('b-enemy-hp-bar', 'b-enemy-hp-val', e.hp, e.maxHp);
   const hideJi = isJiHiddenBattle();
