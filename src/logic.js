@@ -37,14 +37,14 @@ export function getActionData(key, side='player', actorOverride=null) {
     return {
       type: 'ekai',
       cost: 0,
-      stackCost: 3,
+      stackCost: 4,
       def: 3,
       atk: 0,
       hits: 0,
       damage: 1,
       name: '厄介',
       emoji: '💢',
-      disabledByOrbs: stacks < 3,
+      disabledByOrbs: stacks < 4,
     };
   }
 
@@ -118,7 +118,7 @@ export function getActionSubText(action) {
   if (action.type === 'ji' || action.type === 'gufu_charge') return `+${action.gain}Ji`;
   if (action.type === 'fault_orb') return '0Ji | 随机生成充能球';
   if (action.type === 'orb_buff') return '充能完成';
-  if (action.type === 'ekai') return '消耗3层【傻逼】 | 下回合必定命中';
+  if (action.type === 'ekai') return '消耗4层【傻逼】 | 下回合必定命中';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
     const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;

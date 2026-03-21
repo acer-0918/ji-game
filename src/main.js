@@ -85,6 +85,7 @@ function isActionBlockedForRound(key) {
 function getPlayerActionKeysForSilence() {
   const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
   if (G.player.classKey === 'mage') keys.push('mage_release');
+  if (G.player.classKey === 'nsyc') keys.push('ekai');
   return keys;
 }
 
@@ -402,7 +403,7 @@ function startBattle(node, keepSnapshot=false) {
   if (tigerTriggered) addLog('log-ab', '🐯 虎式坦克触发：进入 Boss，生命上限 +3 且当前生命同步 +3。');
   if (G.abilities.smallPotion) addLog('log-ab', '🧪 小血瓶触发：战斗开始时回复 1 生命。');
   if (G.player.classKey === 'mage' && G.abilities.storm) addLog('log-ab', '⛈️ 雷暴触发：战斗开始时获得 2 闪电球。');
-  if (G.player.classKey === 'nsyc') addLog('log-ab', '🤬 傻逼被动：每回合开始自动累计【傻逼】层数，满3层可释放【厄介】。');
+  if (G.player.classKey === 'nsyc') addLog('log-ab', '🤬 傻逼被动：每回合开始自动累计【傻逼】层数，满4层可释放【厄介】。');
   if (G.enemy.id === 'jiaxu') {
     addLog('log-ab', '🌫️ 贾诩展开了【无知之幕】：双方 Ji 数量都被隐藏。');
   } else if (G.enemy.id === 'gufu') {
@@ -482,11 +483,11 @@ function subSelect(key) {
   else if (action.type === 'ekai') $('pc-sub').textContent = getActionSubText(action);
   else $('pc-sub').textContent = describeAttack(action);
 
-  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : action.type === 'ekai' ? `3层傻逼` : `${action.cost}Ji`;
+  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : action.type === 'ekai' ? `4层傻逼` : `${action.cost}Ji`;
   let preview = `${action.emoji} ${action.name} (${costLabel})`;
   if (action.type === 'defense') preview += ` 防御${action.def}`;
   if (action.type === 'attack') preview += ` 攻击${action.atk} / ${action.damage}伤害`;
-  if (action.type === 'ekai') preview += ` 消耗3层傻逼·下回合必定命中`;
+  if (action.type === 'ekai') preview += ` 消耗4层傻逼·下回合必定命中`;
   $('sel-preview-text').textContent = preview;
   $('btn-confirm').disabled = false;
 }
