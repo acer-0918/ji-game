@@ -213,6 +213,45 @@
       <span class="ji-energy-rate" id="ji-display-rate">+3/回</span>
     </div>
 
+    <!-- 隐藏的旧子面板/按钮（保持 JS 兼容） -->
+    <div style="display:none">
+      <div id="sp-a1"></div>
+      <div id="sp-a2"></div>
+      <div id="sp-a3"></div>
+      <button id="mb-a1" data-main="a1"></button>
+      <button id="mb-a2" data-main="a2"></button>
+      <button id="mb-a3" data-main="a3"></button>
+    </div>
+
+    <!-- 4 个主行动卡牌 -->
+    <div class="main-cards-row">
+      <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
+        <div class="acb-cost-badge charge-badge">-</div>
+        <!-- 主卡面接口：加 has-art 类，设 acb-img 的 src -->
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚡</span></div>
+        <div class="acb-name">蓄力</div>
+        <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
+      </button>
+      <button class="action-card-btn def-card" id="mb-def" data-main="def">
+        <div class="acb-cost-badge def-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">🛡</span></div>
+        <div class="acb-name">防御</div>
+        <div class="acb-hint">0~2 Ji</div>
+      </button>
+      <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
+        <div class="acb-cost-badge atk-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚔</span></div>
+        <div class="acb-name">攻击</div>
+        <div class="acb-hint">1~7 Ji</div>
+      </button>
+      <button class="action-card-btn sp-main-card" id="mb-sp" data-main="sp">
+        <div class="acb-cost-badge sp-badge">▾</div>
+        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">✨</span></div>
+        <div class="acb-name">特殊</div>
+        <div class="acb-hint" id="sp-hint">职业技能</div>
+      </button>
+    </div>
+
     <!-- 子面板（防御） -->
     <div class="sub-panel" id="sp-def">
       <button class="sub-card" id="sb-d0" data-action="defense_0">
@@ -297,45 +336,6 @@
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">💢</div>
         <div class="sub-card-name">厄介</div>
         <div class="sub-card-hint">下回合必定命中</div>
-      </button>
-    </div>
-
-    <!-- 隐藏的旧子面板/按钮（保持 JS 兼容） -->
-    <div style="display:none">
-      <div id="sp-a1"></div>
-      <div id="sp-a2"></div>
-      <div id="sp-a3"></div>
-      <button id="mb-a1" data-main="a1"></button>
-      <button id="mb-a2" data-main="a2"></button>
-      <button id="mb-a3" data-main="a3"></button>
-    </div>
-
-    <!-- 4 个主行动卡牌 -->
-    <div class="main-cards-row">
-      <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
-        <div class="acb-cost-badge charge-badge">-</div>
-        <!-- 主卡面接口：加 has-art 类，设 acb-img 的 src -->
-        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚡</span></div>
-        <div class="acb-name">蓄力</div>
-        <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
-      </button>
-      <button class="action-card-btn def-card" id="mb-def" data-main="def">
-        <div class="acb-cost-badge def-badge">▾</div>
-        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">🛡</span></div>
-        <div class="acb-name">防御</div>
-        <div class="acb-hint">0~2 Ji</div>
-      </button>
-      <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
-        <div class="acb-cost-badge atk-badge">▾</div>
-        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚔</span></div>
-        <div class="acb-name">攻击</div>
-        <div class="acb-hint">1~7 Ji</div>
-      </button>
-      <button class="action-card-btn sp-main-card" id="mb-sp" data-main="sp">
-        <div class="acb-cost-badge sp-badge">▾</div>
-        <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">✨</span></div>
-        <div class="acb-name">特殊</div>
-        <div class="acb-hint" id="sp-hint">职业技能</div>
       </button>
     </div>
 

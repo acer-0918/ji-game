@@ -22,9 +22,9 @@ export function registerDefaultDeathEffects(engine) {
     ),
     apply: (ctx) => {
       G.abilities.savedByBladeUsed = true;
-      G.player.hp = 1;
+      G.player.hp = Math.max(1, Math.floor(G.player.maxHp / 2));
       if (typeof ctx.refreshBars === 'function') ctx.refreshBars();
-      pushLog(ctx, 'log-ab', '🗡️ 名刀司命触发！你回复至 1 生命并继续战斗。');
+      pushLog(ctx, 'log-ab', `🗡️ 名刀司命触发！你回复至 ${G.player.hp} 生命并继续战斗。`);
       // Keep legacy precedence: once revived, skip win/lose checks this tick and go next round.
       ctx.outcome = BATTLE_OUTCOME.CONTINUE;
       ctx.resolved = true;

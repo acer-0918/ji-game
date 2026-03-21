@@ -164,22 +164,35 @@ export function renderAbilityTree() {
     head.textContent = section.title;
     container.appendChild(head);
 
-    section.defs.forEach((ab) => {
+    section.defs.forEach((ab, idx) => {
     const unlocked = G.abilities[ab.key];
     const canAfford = G.player.fragments >= ab.cost;
+    // Linear prerequisite: only for class-specific section (not common abilities)
+    const isClassSection = section === sections[0];
+    const prevLocked = isClassSection && idx > 0 && !G.abilities[section.defs[idx - 1].key];
+    const locked = !unlocked && prevLocked;
     const card = document.createElement('div');
-    card.className = `ab-node-card${unlocked ? ' unlocked' : ''}${!unlocked && !canAfford ? ' cant-afford' : ''}`;
+    card.className = `ab-node-card${unlocked ? ' unlocked' : ''}${!unlocked && !canAfford && !locked ? ' cant-afford' : ''}${locked ? ' cant-afford' : ''}`;
     const usedNote = ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed ? ' <span style="color:#555;font-size:.75em">（本局已用）</span>' : '';
+    let costText, actionHtml;
+    if (unlocked) {
+      costText = '✓ 已解锁';
+      actionHtml = '<span class="ab-unlocked-mark">✓ 已激活</span>';
+    } else if (locked) {
+      costText = '🔒 需先解锁上一节点';
+      actionHtml = '<button class="btn-unlock" disabled>🔒 锁定</button>';
+    } else {
+      costText = `需要 ${ab.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`;
+      actionHtml = `<button class="btn-unlock" data-unlock="${ab.key}" ${canAfford ? '' : 'disabled'}>解锁</button>`;
+    }
     card.innerHTML = `
       <div class="ab-icon">${ab.icon}</div>
       <div class="ab-info">
         <div class="ab-name">${ab.name}${usedNote}</div>
         <div class="ab-desc">${ab.desc}</div>
-        <div class="ab-cost">${unlocked ? '✓ 已解锁' : `需要 ${ab.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`}</div>
+        <div class="ab-cost">${costText}</div>
       </div>
-      <div class="ab-action">
-        ${unlocked ? '<span class="ab-unlocked-mark">✓ 已激活</span>' : `<button class="btn-unlock" data-unlock="${ab.key}" ${canAfford ? '' : 'disabled'}>解锁</button>`}
-      </div>`;
+      <div class="ab-action">${actionHtml}</div>`;
     container.appendChild(card);
     });
   });

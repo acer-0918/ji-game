@@ -220,6 +220,15 @@ function closeAbilityTree() {
 function unlockAbility(key) {
   const ab = getAbilityDefsForClass(G.player.classKey).find((item) => item.key === key);
   if (!ab || G.abilities[key] || (!G.devMode && G.player.fragments < ab.cost)) return;
+  // Linear prerequisite check: class abilities must be unlocked in order
+  const classDef = CLASS_DEFS[G.player.classKey];
+  if (classDef) {
+    const idx = classDef.abilityDefs.findIndex((a) => a.key === key);
+    if (idx > 0 && !G.devMode) {
+      const prevKey = classDef.abilityDefs[idx - 1].key;
+      if (!G.abilities[prevKey]) return;
+    }
+  }
   if (!G.devMode) G.player.fragments -= ab.cost;
   G.abilities[key] = true;
   if (key === 'mango') {

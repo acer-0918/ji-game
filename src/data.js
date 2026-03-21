@@ -39,9 +39,9 @@ export const CLASS_DEFS = {
     passiveDesc: null,
     spDesc: null,
     abilityDefs: [
-      {key:'fireBlade',    icon:'💥',  name:'暴击',     cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次攻击造成的伤害 +1。'},
-      {key:'savedByBlade', icon:'🗡️', name:'名刀司命', cost:1, desc:'全局仅一次，当你死亡时，回复至 1 生命且继续本局游戏。'},
       {key:'oneVsFour',    icon:'⚡',  name:'一抵四',   cost:1, desc:'你的回费效率 +1。'},
+      {key:'fireBlade',    icon:'💥',  name:'暴击',     cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次攻击造成的伤害 +1。'},
+      {key:'savedByBlade', icon:'🗡️', name:'名刀司命', cost:1, desc:'全局仅一次，当你死亡时，回复至生命上限的一半（向下取整）且继续本局游戏。'},
     ],
   },
   tank: {
@@ -56,7 +56,7 @@ export const CLASS_DEFS = {
     abilityDefs: [
       {key:'popcorn',     icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
       {key:'smallPotion', icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
-      {key:'tigerTank',   icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入 Boss 时，生命上限立刻永久 +3，且当前生命同步 +3。'},
+      {key:'tigerTank',   icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入精英或 Boss 房间时，生命上限立刻永久 +3，且当前生命同步 +3。'},
     ],
   },
   mage: {
@@ -66,11 +66,11 @@ export const CLASS_DEFS = {
     baseHp: 3,
     baseJiRate: 2,
     trait: '闪电球 · 技能流',
-    passiveDesc: '每次使用防御时获得 1 个【闪电球】；累积至 5 个时可释放【一重释放】，免除 Ji 费用。闪电球跨战斗保留。',
+    passiveDesc: '每次使用防御时获得 1 个【闪电球】；累积至 5 个时可释放【一重释放】，免除 Ji 费用。闪电球在进入新房间时归零。',
     spDesc: '⚡⚡ 一重释放 — 消耗 5 闪电球，发动等级 5 攻击造成 1 伤（集中 +1 伤，电动力学命中后 +3 球）。',
     abilityDefs: [
-      {key:'focus',          icon:'🎯', name:'集中',     cost:1, desc:'如果【一重释放】命中了敌人，则造成伤害 +1。'},
       {key:'storm',          icon:'⛈️', name:'雷暴',     cost:1, desc:'每场战斗开始时获得 2 闪电球。'},
+      {key:'focus',          icon:'🎯', name:'集中',     cost:1, desc:'如果【一重释放】命中了敌人，则造成伤害 +1。'},
       {key:'electrodynamics',icon:'⚙️', name:'电动力学', cost:1, desc:'如果【一重释放】命中了敌人，则获得 3 闪电球。'},
     ],
   },
