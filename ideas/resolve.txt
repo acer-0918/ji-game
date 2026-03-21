@@ -1,0 +1,209 @@
+战斗结算模块化规范（v0.1）
+================================
+
+目标
+----
+将“结算逻辑”从 `main.js` / `logic.js` 的流程编排中独立出来，形成可注册、可排序、可测试的战斗内核。
+
+核心原则
+--------
+1. 房间生命周期和战斗结算生命周期分离。
+2. 同一时点结算顺序固定：`Boss -> 玩家 -> 其他敌人 -> 系统`。
+3. 同一角色同一时点内，按事件编号升序结算。
+4. 事件编号是固定常量，不在运行时重置。
+5. 所有数值修正统一“先乘后加”。
+6. 任何 HP 变化后都触发死亡监听，直到状态稳定。
+
+
+一、房间与战斗生命周期
+----------------------
+房间级：
+`ENTER_ROOM -> BATTLE_START -> ROUND_LOOP -> BATTLE_END -> LEAVE_ROOM`
+
+回合循环级：
+`ROUND_START -> ACTION_SELECT -> RESOLVE -> ROUND_END -> (next round)`
+
+RESOLVE 细分：
+`ACTION_COMPARE -> HIT_CHECK -> ON_HIT -> DAMAGE_RESOLVE -> APPLY_DAMAGE -> TAKE_DAMAGE -> DEATH_CHECK`
+
+
+二、统一排序规则
+---------------
+排序键（从高到低）：
+1. `phaseIndex`
+2. `actorBucket`（Boss=0, Player=1, Others=2, System=3）
+3. `order`（事件编号）
+4. `effectId`（字符串，保证稳定性）
+
+说明：
+- 你规定的“同阶段先 Boss 再玩家再其他敌人”由 `actorBucket` 保证。
+- “同一类事件按编号顺序”由 `order` 保证。
+- 若只关心“最先/最后”，只需选编号区间即可。
+
+建议编号区间：
+- `0000-0099`: 系统预处理（清理标记、快照）
+- `0100-0999`: 最先触发
+- `1000-7999`: 常规触发
+- `8000-8999`: 较晚触发
+- `9000-9999`: 默认事件（如默认伤害、默认扣血、默认胜负）
+
+
+三、效果注册模型
+---------------
+每个效果统一为一个可注册对象：
+
+```
+{
+  effectId: "player.popcorn",
+  phase: "ROUND_START",
+  actorScope: "PLAYER",   // BOSS | PLAYER | OTHER_ENEMY | SYSTEM
+  order: 1200,
+  condition(ctx) { ... },
+  apply(ctx) { ... }      // 仅改 ctx，不直接操作 UI
+}
+```
+
+上下文 `ctx` 最少包含：
+- `battleState`（玩家、敌人、回合、临时标记）
+- `actionState`（双方行动与判定结果）
+- `queue`（待处理伤害包、待处理日志、待处理状态变更）
+- `runtime`（随机数、配置、调试开关）
+
+
+四、伤害与命中模型
+-----------------
+### 4.1 命中链路
+`ACTION_COMPARE -> HIT_CHECK -> ON_HIT`
+
+其中：
+- `ACTION_COMPARE`: 比较行动类型与攻击等级，输出命中次数（hits）。
+- `ON_HIT`: 先处理“命中附加效果”，最后处理“默认攻击伤害包生成”。
+
+### 4.2 伤害包（DamagePacket）
+
+```
+{
+  damageId: "pkt_xxx",
+  type: "attack" | "other",
+  source: actorId | null,
+  target: actorId,
+  base: 1,
+  mulMods: [],   // 乘法修正
+  addMods: [],   // 加法修正
+  tags: []       // 如 ["mage_release", "ekai", "relic"]
+}
+```
+
+结算公式：
+`finalDamage = floor(base * product(mulMods) + sum(addMods))`
+并做下限保护：`max(0, finalDamage)`。
+
+### 4.3 伤害类型语义
+- `attack`：由攻击或“视为攻击”的技能造成，攻击伤害修正只作用于该类型。
+- `other`：非攻击伤害（持续伤害、机制伤害等），来源可为空。
+
+### 4.4 受到伤害链路
+`TAKE_DAMAGE_PRE -> APPLY_HP_CHANGE(default) -> TAKE_DAMAGE_POST`
+
+- 默认扣血是一个系统事件（建议 `order=9000`）。
+- “受到伤害效果”可在前后两个钩子处理（如先改伤害、后触发反应）。
+
+说明：
+- 在实现上建议将默认扣血放到独立时点 `APPLY_DAMAGE`，再进入 `TAKE_DAMAGE`，便于与“受伤后触发”解耦。
+
+
+五、死亡结算模型
+---------------
+触发时机：每次 HP 变化后立即进入 `DEATH_CHECK`。
+
+死亡结算顺序：
+1. `DEATH_PREVENT`（复活/锁血/免死）
+2. 若脱离死亡（HP>0），终止死亡流程并返回战斗流程
+3. `DEATH_FINALIZE`
+4. `BATTLE_END_CHECK(default)`（胜/负/继续）
+
+默认胜负判定建议放 `order=9000`，保证“免死效果”优先。
+
+
+六、现有效果映射（建议版）
+------------------------
+注：以下是“迁移目标时点”，不是当前实现位置。
+
+### 6.1 进入房间/战斗开始
+- `player.tigerTank`（进 Boss 时加生命）：`ENTER_ROOM` / Player / `1200`
+- `system.resetRoomJi`（双方房间内资源重置）：`BATTLE_START` / System / `0100`
+- `player.smallPotion`（战斗开始回血）：`BATTLE_START` / Player / `1300`
+- `player.storm`（法师战斗开始+2球）：`BATTLE_START` / Player / `1400`
+
+### 6.2 回合开始
+- `system.clearRoundFlags`：`ROUND_START` / System / `0100`
+- `player.popcornGain`：`ROUND_START` / Player / `1200`
+- `player.happyFlower`：`ROUND_START` / Player / `1300`
+- `player.relic.lever`：`ROUND_START` / Player / `1400`
+- `player.relic.silenceGold`：`ROUND_START` / Player / `1500`
+- `player.nsyc.ekaiPendingDamage`：`ROUND_START` / Player / `1600`
+- `player.nsyc.stackGain`：`ROUND_START` / Player / `1700`
+
+### 6.3 命中阶段
+- `player.hardWorkLuck`：`ON_HIT` / Player / `1200`
+- `player.enhancedDaggerGainJi`：`ON_HIT` / Player / `1300`
+- `player.electrodynamics`：`ON_HIT` / Player / `1400`
+- `system.defaultAttackPacket`：`ON_HIT` / System / `9000`
+
+### 6.4 伤害修正（攻击伤害）
+- `player.fireBlade`：`DAMAGE_RESOLVE` / Player / `1200`
+- `player.focus`：`DAMAGE_RESOLVE` / Player / `1300`
+- `player.powerEquip`（若定义为“任何伤害+1”，可放通用）：`DAMAGE_RESOLVE` / Player / `1400`
+
+### 6.5 受伤阶段
+- `system.applyHpChange`：`TAKE_DAMAGE` / System / `9000`
+- `player.popcornMarkOnDamaged`：`TAKE_DAMAGE_POST` / Player / `1200`
+- `player.dogLuckOnDamaged`：`TAKE_DAMAGE_POST` / Player / `1300`
+- `player.relic.destinedFirstSight`（受伤即死）：`TAKE_DAMAGE_POST` / Player / `1400`
+
+### 6.6 死亡与战斗结束
+- `player.savedByBlade`：`DEATH_PREVENT` / Player / `1200`
+- `boss.faultRobot.overload`（机制致死）：`ROUND_END` / Boss / `1800`（或 `DEATH_PREVENT` 前的系统事件）
+- `system.defaultBattleEndCheck`：`BATTLE_END_CHECK` / System / `9000`
+- `system.rewardFragments`：`BATTLE_END` / System / `9100`
+- `player.vitalityEquipNoDamageReward`：`BATTLE_END` / Player / `9200`
+- `system.dropPowerRelic`：`BATTLE_END` / System / `9300`
+
+
+七、与现有代码解耦边界
+----------------------
+结算内核负责：
+- 状态推进
+- 事件排序与执行
+- 伤害、死亡、胜负
+- 纯数据日志（不含 DOM）
+
+UI 层（`main.js` / `render.js`）只负责：
+- 接收玩家输入并转成命令（选行动、确认、继续）
+- 渲染状态
+- 播放表现（动画、延时、音效）
+
+这样可以把当前 `main.js` 中的“流程 + 结算 + UI”拆成：
+- `battle_engine`（纯逻辑）
+- `battle_presenter`（UI 适配）
+
+
+八、落地顺序（建议）
+------------------
+1. 先落 `phase + actorBucket + order` 调度器，不改具体效果逻辑。
+2. 把 `ROUND_START` 效果迁入 registry（风险最小）。
+3. 再迁 `doResolve` 的后处理效果。
+4. 最后统一 `DEATH_CHECK` 与 `BATTLE_END`。
+
+这套顺序可以保证每一步都可运行、可回归。
+
+九、当前实现进度（2026-03）
+-------------------------
+已完成：
+1. `battle/engine` 已支持 `phase + actorBucket + order + effectId` 稳定排序执行。
+2. `ROUND_START / ACTION_COMPARE / HIT_CHECK / ON_HIT / DAMAGE_RESOLVE / APPLY_DAMAGE / TAKE_DAMAGE / ROUND_END / DEATH_CHECK` 已拆分为可注册效果。
+3. 已引入 `DamagePacket`，支持“先乘后加”的统一数值计算。
+4. 已新增 `battle/flow + battle/runtime`，`main.js` 不再手写阶段链，改为调用运行器。
+5. `DEATH_CHECK` 已改为产出 `outcome`（WIN/LOSE/CONTINUE），由外层流程决定 `endBattle/nextRound`。
+6. 已新增 `battle/order` 常量，集中管理事件编号，避免散落魔法数字。
+7. `logic.js` 中命中比较/命中效果 hooks 已迁入 `battle/hitResolution`，战斗结算核心进一步从 UI/动作定义中解耦。
