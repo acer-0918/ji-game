@@ -102,6 +102,17 @@ export const SHOP_ITEMS = [
   {key:'vitalityEquip',    icon:'❤️‍🩹', name:'不朽馈赠', cost:2, desc:'装备。若通过战斗房间且未受到伤害，生命上限 +1 且当前生命 +1。', slot:'gear'},
 ];
 
+export const POWER_RELIC_DEFS = [
+  {key:'lever', icon:'🪜', name:'杠杆', desc:'每个回合开始时随机将你的 Ji 翻倍或重置为 2。'},
+  {key:'silenceGold', icon:'🔕', name:'沉默是金', desc:'每个回合开始时随机禁用你的随机个行动，获得等量的 Ji。'},
+  {key:'destinedFirstSight', icon:'📕', name:'既定的初见', desc:'你的攻击等级固定为 7。当你受到伤害时，你死亡。'},
+  {key:'possibleReunion', icon:'🕊️', name:'可能的重逢', desc:'你无法再使用防守。敌人每使用 1 次超防，使你在这场战斗中造成的所有伤害 +1。'},
+];
+
+export function getPowerRelicDef(key) {
+  return POWER_RELIC_DEFS.find((item) => item.key === key) || null;
+}
+
 export function getAbilityDefsForClass(classKey) {
   const selected = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
   return [...selected.abilityDefs, ...COMMON_ABILITY_DEFS];
@@ -109,9 +120,9 @@ export function getAbilityDefsForClass(classKey) {
 
 export const MAP_TEMPLATE = [
   {type:'shop', icon:'🛒', label:'商店'},
-  {type:'boss', icon:'🕶️', label:'Boss I', reward:0, enemy:{id:'jiaxu', name:'贾诩', emoji:'🕶️', hp:10, maxHp:10, ji:0, jiRate:3, hideJi:true}},
+  {type:'boss', icon:'🕶️', label:'Boss I', reward:0, dropPowerRelic:true, enemy:{id:'jiaxu', name:'贾诩', emoji:'🕶️', hp:10, maxHp:10, ji:0, jiRate:3, hideJi:true}},
   {type:'boss', icon:'👑', label:'Boss II', reward:0, enemy:{id:'gufu', name:'古夫大帝', emoji:'👑', hp:10, maxHp:10, ji:0, jiRate:3, chargeValue:1}},
-  {type:'boss', icon:'🤖', label:'Boss III', reward:0, finalBoss:true, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:10, maxHp:10, ji:0, jiRate:3, orbs:{plasma:0,frost:0,lightning:0,dark:0,glass:0}}},
+  {type:'boss', icon:'🤖', label:'Boss III', reward:0, finalBoss:true, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:15, maxHp:15, ji:0, jiRate:3, orbs:{plasma:0,frost:0,lightning:0,dark:0,glass:0}}},
 ];
 
 export const MAX_JI_DISPLAY = 12;

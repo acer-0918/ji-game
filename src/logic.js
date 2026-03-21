@@ -16,12 +16,13 @@ export function getActionData(key, side='player', actorOverride=null) {
 
   if (side === 'player' && actor.classKey === 'mage' && key === 'mage_release') {
     const canCast = (actor.lightningOrbs || 0) >= 5;
+    const atkLevel = G.powerRelics && G.powerRelics.destinedFirstSight ? 7 : 5;
     return {
       type:'attack',
       cost:0,
       orbCost:5,
       def:0,
-      atk:5,
+      atk:atkLevel,
       hits:1,
       damage:1,
       name:'一重释放',
@@ -77,6 +78,9 @@ export function getActionData(key, side='player', actorOverride=null) {
   }
   if (side === 'player' && base.type === 'defense') {
     base.def += getPlayerDefenseBonus();
+  }
+  if (side === 'player' && base.type === 'attack' && G.powerRelics && G.powerRelics.destinedFirstSight) {
+    base.atk = 7;
   }
 
   if (side === 'enemy' && actor.id === 'faultRobot') {

@@ -1,6 +1,6 @@
 import { aiDecide } from './ai.js';
 import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
-import { CLASS_DEFS, COMMON_ABILITY_DEFS, SHOP_ITEMS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, COMMON_ABILITY_DEFS, POWER_RELIC_DEFS, SHOP_ITEMS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
 import {
   calcDamage,
   describeAttack,
@@ -22,7 +22,7 @@ import {
   resetRoundUI,
 } from './render.js';
 import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot, allOrbsGenerated } from './state.js';
-import { clone } from './utils.js';
+import { clone, randomChoice } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
@@ -67,6 +67,85 @@ function toggleDeveloperMode() {
   refreshDeveloperModeButton();
   if ($('screen-map').classList.contains('active')) renderMap();
   if ($('ov-shop').classList.contains('show')) renderShop();
+  if (G.enemy) refreshBars();
+}
+
+function getRoundBlockedSet() {
+  return new Set((G.battle && G.battle.roundDisabledActions) || []);
+}
+
+function isDefenseForbiddenByRelic() {
+  return !!(G.powerRelics && G.powerRelics.possibleReunion);
+}
+
+function isActionBlockedForRound(key) {
+  return getRoundBlockedSet().has(key);
+}
+
+function getPlayerActionKeysForSilence() {
+  const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
+  if (G.player.classKey === 'mage') keys.push('mage_release');
+  return keys;
+}
+
+function sampleDistinctKeys(pool, count) {
+  const bag = [...pool];
+  const out = [];
+  while (bag.length && out.length < count) {
+    const picked = randomChoice(bag);
+    out.push(picked);
+    const idx = bag.indexOf(picked);
+    if (idx >= 0) bag.splice(idx, 1);
+  }
+  return out;
+}
+
+function getPowerRelicOptions(count=2) {
+  const unowned = POWER_RELIC_DEFS.filter((item) => !G.powerRelics[item.key]);
+  if (!unowned.length) return [];
+  return sampleDistinctKeys(unowned, Math.min(count, unowned.length));
+}
+
+function clearRelicChoiceUI() {
+  const wrap = $('ov-battle-relic-wrap');
+  const options = $('ov-battle-relic-options');
+  if (options) options.innerHTML = '';
+  if (wrap) wrap.style.display = 'none';
+  G.pendingPowerRelicOptions = [];
+}
+
+function renderRelicChoiceUI(options) {
+  const wrap = $('ov-battle-relic-wrap');
+  const container = $('ov-battle-relic-options');
+  if (!wrap || !container) return;
+  container.innerHTML = '';
+  options.forEach((item) => {
+    const card = document.createElement('div');
+    card.className = 'ab-node-card relic-choice-card';
+    card.innerHTML = `
+      <div class="ab-icon">${item.icon}</div>
+      <div class="ab-info">
+        <div class="ab-name">${item.name}</div>
+        <div class="ab-desc">${item.desc}</div>
+      </div>
+      <div class="ab-action">
+        <button class="btn-unlock" data-choose-relic="${item.key}">获得</button>
+      </div>`;
+    container.appendChild(card);
+  });
+  wrap.style.display = '';
+}
+
+function choosePowerRelic(key) {
+  const def = getPowerRelicDef(key);
+  if (!def || G.powerRelics[key]) return;
+  G.powerRelics[key] = true;
+  if (Array.isArray(G.pendingPowerRelicOptions)) {
+    G.pendingPowerRelicOptions = G.pendingPowerRelicOptions.filter((item) => item.key !== key);
+  }
+  addLog('log-ab', `🧿 获得强大遗物：${def.name}。`);
+  clearRelicChoiceUI();
+  if ($('screen-map').classList.contains('active')) renderMap();
   if (G.enemy) refreshBars();
 }
 
@@ -269,7 +348,19 @@ function startBattle(node, keepSnapshot=false) {
   resetRoomJi();
   G.enemy.ji = 0;
   G.roomFlags.playerDamagedInBattle = false;
-  G.battle = {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, popcornPending:false, ekaiPending:false};
+  G.battle = {
+    round:1,
+    phase:'select',
+    pAction:null,
+    eAction:null,
+    lastPlayerAction:null,
+    lastEnemyAction:null,
+    popcornPending:false,
+    ekaiPending:false,
+    roundDisabledActions:[],
+    reunionDamageBonus:0,
+    killedByDestinedFirstSight:false,
+  };
   G.ui = {mainSel:null, actionKey:null};
 
   if (G.abilities.smallPotion && G.player.hp < G.player.maxHp) {
@@ -302,6 +393,7 @@ function startBattle(node, keepSnapshot=false) {
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
   renderEquipSlots('battle-equip-slots');
+  clearRelicChoiceUI();
 
   $('battle-log').innerHTML = '';
   addLog('rnd', '▶ 回合 1');
@@ -321,6 +413,7 @@ function startBattle(node, keepSnapshot=false) {
   if (G.hardMode) {
     addLog('log-ab', '⚡ 困难模式：此 Boss 使用马尔可夫最优策略（MDP），根据你当前的 Ji 状态动态决策。');
   }
+  applyRoundStartEffects();
   updateHardBadge(G.hardMode);
 
   $('round-num').textContent = '1';
@@ -336,6 +429,7 @@ function mainSelect(category) {
   const btnMap   = {ji:'mb-ji', def:'mb-def', atk:'mb-atk', a1:'mb-atk', a2:'mb-atk', a3:'mb-atk', sp:'mb-sp'};
 
   if (category === 'ji') {
+    if (isActionBlockedForRound('ji')) return;
     G.ui.mainSel = 'ji';
     G.ui.actionKey = 'ji';
     document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -351,7 +445,12 @@ function mainSelect(category) {
     return;
   }
 
-  if (category === 'sp' && G.player.classKey !== 'mage' && G.player.classKey !== 'nsyc') return;
+  if (category === 'def' && isDefenseForbiddenByRelic()) return;
+
+  if (category === 'sp') {
+    if (G.player.classKey !== 'mage' && G.player.classKey !== 'nsyc') return;
+    if (isActionBlockedForRound('mage_release')) return;
+  }
 
   document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
   document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
@@ -367,6 +466,8 @@ function mainSelect(category) {
 }
 
 function subSelect(key) {
+  if (isDefenseForbiddenByRelic() && key.startsWith('defense_')) return;
+  if (isActionBlockedForRound(key)) return;
   const action = getActionData(key, 'player');
   if (!action || action.disabledByOrbs || action.cost > G.player.ji) return;
   G.ui.actionKey = key;
@@ -392,6 +493,7 @@ function subSelect(key) {
 
 function confirmAction() {
   if (!G.ui.actionKey || G.battle.phase !== 'select') return;
+  if (isActionBlockedForRound(G.ui.actionKey)) return;
   G.battle.pAction = G.ui.actionKey;
   G.battle.eAction = aiDecide(G.enemy);
   G.battle.phase = 'reveal';
@@ -424,8 +526,21 @@ function doResolve() {
   eResult.logs.forEach((text) => addLog('log-ab', text));
 
   const result = calcDamage(pResult.action, eResult.action);
+  if (G.powerRelics && G.powerRelics.possibleReunion && G.battle.eAction === 'defense_1') {
+    G.battle.reunionDamageBonus = (G.battle.reunionDamageBonus || 0) + 1;
+    addLog('log-ab', `🕊️ 可能的重逢：敌方使用了超防，本战斗你的伤害加成提升至 +${G.battle.reunionDamageBonus}。`);
+  }
+  if (G.powerRelics && G.powerRelics.possibleReunion && result.edmg > 0 && (G.battle.reunionDamageBonus || 0) > 0) {
+    result.edmg += G.battle.reunionDamageBonus;
+    addLog('log-ab', `🕊️ 可能的重逢：本回合额外造成 ${G.battle.reunionDamageBonus} 点伤害。`);
+  }
   p.hp = Math.max(0, p.hp - result.pdmg);
   e.hp = Math.max(0, e.hp - result.edmg);
+  if (G.powerRelics && G.powerRelics.destinedFirstSight && result.pdmg > 0) {
+    G.battle.killedByDestinedFirstSight = true;
+    p.hp = 0;
+    addLog('log-dmg', '📕 既定的初见：你受到了伤害，立刻死亡。');
+  }
   if (result.pdmg > 0) {
     G.roomFlags.playerDamagedInBattle = true;
     if (G.abilities.popcorn) G.battle.popcornPending = true;
@@ -448,7 +563,7 @@ function doResolve() {
 
   setTimeout(() => {
     if (p.hp <= 0) {
-      if (G.abilities.savedByBlade && !G.abilities.savedByBladeUsed) {
+      if (!G.battle.killedByDestinedFirstSight && G.abilities.savedByBlade && !G.abilities.savedByBladeUsed) {
         G.abilities.savedByBladeUsed = true;
         p.hp = 1;
         refreshBars();
@@ -468,6 +583,9 @@ function doResolve() {
 }
 
 function applyRoundStartEffects() {
+  if (!G.battle) return;
+  G.battle.roundDisabledActions = [];
+
   if (G.abilities.popcorn && G.battle.popcornPending) {
     G.player.ji += 2;
     G.battle.popcornPending = false;
@@ -477,6 +595,29 @@ function applyRoundStartEffects() {
     G.player.ji += 1;
     addLog('log-ab', `🌼 开心小花：第 ${G.battle.round} 回合开始，获得 1 Ji。`);
   }
+
+  if (G.powerRelics && G.powerRelics.lever) {
+    if (Math.random() < 0.5) {
+      G.player.ji *= 2;
+      addLog('log-ab', `🪜 杠杆：本回合开始，Ji 翻倍至 ${G.player.ji}。`);
+    } else {
+      G.player.ji = 2;
+      addLog('log-ab', '🪜 杠杆：本回合开始，Ji 被重置为 2。');
+    }
+  }
+
+  if (G.powerRelics && G.powerRelics.silenceGold) {
+    const actionKeys = getPlayerActionKeysForSilence();
+    if (actionKeys.length > 1) {
+      const maxDisable = Math.max(1, Math.min(3, actionKeys.length - 1));
+      const disableCount = 1 + Math.floor(Math.random() * maxDisable);
+      const disabled = sampleDistinctKeys(actionKeys, disableCount);
+      G.battle.roundDisabledActions = disabled;
+      G.player.ji += disableCount;
+      addLog('log-ab', `🔕 沉默是金：本回合禁用 ${disableCount} 个行动（${disabled.join('、')}），并获得 ${disableCount} Ji。`);
+    }
+  }
+
   // nsyc: 厄介 deferred damage fires at round start
   if (G.player.classKey === 'nsyc' && G.battle.ekaiPending) {
     const dmg = 1 + (G.abilities.hazuki ? 1 : 0);
@@ -512,6 +653,10 @@ function endBattle(win) {
   const box = $('ov-battle-box');
   const title = $('ov-battle-title');
   const body = $('ov-battle-body');
+  // 清空上次结算文案，避免跨房间复用旧 Boss 名字
+  body.innerHTML = '';
+  clearRelicChoiceUI();
+  G.pendingPowerRelicOptions = [];
 
   resetRoomJi();
 
@@ -532,6 +677,14 @@ function endBattle(win) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！`;
     } else if (!body.innerHTML) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>继续前进，后面还有更强的敌人。`;
+    }
+
+    if (node.dropPowerRelic) {
+      const options = getPowerRelicOptions(2);
+      if (options.length > 0) {
+        G.pendingPowerRelicOptions = options;
+        renderRelicChoiceUI(options);
+      }
     }
   } else {
     box.className = 'overlay-box red';
@@ -659,6 +812,7 @@ function bindStaticEvents() {
   $('btn-confirm-surrender').addEventListener('click', doSurrender);
   $('btn-restart-battle').addEventListener('click', restartBattle);
   $('btn-battle-continue').addEventListener('click', closeBattleOverlay);
+  $('btn-relic-skip')?.addEventListener('click', clearRelicChoiceUI);
   $('btn-confirm').addEventListener('click', confirmAction);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
   $('btn-restart-run-from-victory').addEventListener('click', restartRun);
@@ -697,6 +851,12 @@ function bindStaticEvents() {
     const button = event.target.closest('button[data-buy]');
     if (!button) return;
     buyShopItem(button.dataset.buy);
+  });
+
+  $('ov-battle-relic-options')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-choose-relic]');
+    if (!btn) return;
+    choosePowerRelic(btn.dataset.chooseRelic);
   });
 
   ['map-equip-slots', 'battle-equip-slots'].forEach((id) => {

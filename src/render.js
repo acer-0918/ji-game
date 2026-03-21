@@ -1,4 +1,4 @@
-import { CLASS_DEFS, COMMON_ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, SHOP_ITEMS } from './data.js';
+import { CLASS_DEFS, COMMON_ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
 
@@ -39,6 +39,9 @@ export function getPassiveBadges() {
   if (G.shop.enhancedDagger) arr.push({icon:'🗡✨', name:'强化小刀'});
   if (G.shop.enhancedIceBlade) arr.push({icon:'❄️🗡', name:'强化冰刀'});
   if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
+  POWER_RELIC_DEFS.forEach((item) => {
+    if (G.powerRelics && G.powerRelics[item.key]) arr.push({icon:item.icon, name:item.name});
+  });
   if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`});
   if (G.player.classKey === 'nsyc') {
     arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`});
@@ -296,28 +299,43 @@ function hasAffordable(keys) {
 }
 
 export function updateSubButtons() {
-  $('sb-d1').disabled = G.player.ji < getActionData('defense_1', 'player').cost;
-  $('sb-d2').disabled = G.player.ji < getActionData('defense_2', 'player').cost;
+  const blocked = new Set((G.battle && G.battle.roundDisabledActions) || []);
+  const defenseForbidden = !!(G.powerRelics && G.powerRelics.possibleReunion);
+  $('sb-d0').disabled = defenseForbidden || blocked.has('defense_0');
+  $('sb-d1').disabled = defenseForbidden || blocked.has('defense_1') || G.player.ji < getActionData('defense_1', 'player').cost;
+  $('sb-d2').disabled = defenseForbidden || blocked.has('defense_2') || G.player.ji < getActionData('defense_2', 'player').cost;
 
   ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].forEach((key, idx) => {
     const btn = $(`sb-a${idx + 1}`);
     const action = getActionData(key, 'player');
-    if (btn) btn.disabled = G.player.ji < action.cost;
+    if (btn) btn.disabled = blocked.has(key) || G.player.ji < action.cost;
   });
 
   // Disable the combined attack card if no attacks affordable
   const atkCard = $('mb-atk');
-  if (atkCard) atkCard.disabled = !hasAffordable(['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7']);
+  if (atkCard) atkCard.disabled = !['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7'].some((key) => {
+    if (blocked.has(key)) return false;
+    const action = getActionData(key, 'player');
+    return action && action.cost <= G.player.ji;
+  });
+  const jiCard = $('mb-ji');
+  if (jiCard) jiCard.disabled = blocked.has('ji');
+  const defCard = $('mb-def');
+  if (defCard) defCard.disabled = defenseForbidden || ['defense_0','defense_1','defense_2'].every((key) => {
+    if (blocked.has(key)) return true;
+    const action = getActionData(key, 'player');
+    return action.cost > G.player.ji;
+  });
   // Legacy buttons (hidden but keep JS happy)
-  const a2 = $('mb-a2'); if (a2) a2.disabled = !hasAffordable(['attack_4', 'attack_5', 'attack_6']);
-  const a3 = $('mb-a3'); if (a3) a3.disabled = !hasAffordable(['attack_7']);
+  const a2 = $('mb-a2'); if (a2) a2.disabled = !['attack_4', 'attack_5', 'attack_6'].some((key) => !blocked.has(key) && getActionData(key, 'player').cost <= G.player.ji);
+  const a3 = $('mb-a3'); if (a3) a3.disabled = blocked.has('attack_7') || !hasAffordable(['attack_7']);
 
   const specialMain = $('mb-sp');
   const sp1Btn = $('sb-sp1');
   const sp2Btn = $('sb-sp2');
   if (G.player.classKey === 'mage') {
     const release = getActionData('mage_release', 'player');
-    const canRelease = !!release && !release.disabledByOrbs;
+    const canRelease = !!release && !release.disabledByOrbs && !blocked.has('mage_release');
     specialMain.disabled = !canRelease;
     if (sp1Btn) sp1Btn.disabled = !canRelease;
     if (sp2Btn) sp2Btn.disabled = true;

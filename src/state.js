@@ -1,4 +1,4 @@
-import { CLASS_DEFS, DEFAULT_CLASS_KEY, MAP_TEMPLATE, ORB_KEYS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, DEFAULT_CLASS_KEY, MAP_TEMPLATE, ORB_KEYS, POWER_RELIC_DEFS, getAbilityDefsForClass } from './data.js';
 import { clone } from './utils.js';
 
 export let G = {};
@@ -9,6 +9,14 @@ function createAbilityState(classKey) {
     abilityState[ab.key] = false;
   });
   return abilityState;
+}
+
+function createPowerRelicState() {
+  const relicState = {};
+  POWER_RELIC_DEFS.forEach((item) => {
+    relicState[item.key] = false;
+  });
+  return relicState;
 }
 
 export function initGame(classKey = DEFAULT_CLASS_KEY) {
@@ -28,6 +36,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
       fragments: 7,
     },
     abilities: createAbilityState(cls.key),
+    powerRelics: createPowerRelicState(),
     shop: {enhancedDagger:false, enhancedIceBlade:false, enhancedBlade:false, powerEquip:false, vitalityEquip:false},
     nodes: clone(MAP_TEMPLATE),
     nodeIdx: 0,
@@ -38,6 +47,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
     roomFlags: {playerDamagedInBattle:false},
     equippedGear: null,
     battleEntrySnapshot: null,
+    pendingPowerRelicOptions: [],
     hardMode: false,
     devMode: false,
   };
