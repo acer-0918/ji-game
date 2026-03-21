@@ -1,13 +1,17 @@
 import { aiDecide } from './ai.js';
+import { BATTLE_OUTCOME } from './battle/constants.js';
+import { registerDefaultCombatEffects } from './battle/defaultCombatEffects.js';
+import { registerDefaultDeathEffects } from './battle/defaultDeathEffects.js';
+import { registerDefaultRoundStartEffects } from './battle/defaultRoundStartEffects.js';
+import { registerDefaultResolveEffects } from './battle/defaultResolveEffects.js';
+import { createBattleEngine } from './battle/engine.js';
+import { createBattleRuntime } from './battle/runtime.js';
 import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
 import { CLASS_DEFS, COMMON_ABILITY_DEFS, POWER_RELIC_DEFS, SHOP_ITEMS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
 import {
-  calcDamage,
   describeAttack,
-  formatSingleAction,
   getActionData,
   getActionSubText,
-  resolveAction,
 } from './logic.js';
 import {
   addLog,
@@ -21,7 +25,7 @@ import {
   renderShop,
   resetRoundUI,
 } from './render.js';
-import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot, allOrbsGenerated, getDogLuckChance } from './state.js';
+import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
 import { clone, randomChoice } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -29,6 +33,18 @@ let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
 const DEV_FRAGMENTS = 999999999;
 let developerModeEnabled = false;
+const battleEngine = createBattleEngine();
+registerDefaultCombatEffects(battleEngine);
+registerDefaultRoundStartEffects(battleEngine);
+registerDefaultResolveEffects(battleEngine);
+registerDefaultDeathEffects(battleEngine);
+const battleRuntime = createBattleRuntime({
+  engine: battleEngine,
+  addLog,
+  refreshBars,
+  getPlayerActionKeysForSilence,
+  sampleDistinctKeys,
+});
 
 try {
   developerModeEnabled = window.localStorage.getItem(DEV_MODE_LS_KEY) === '1';
@@ -527,83 +543,21 @@ function doReveal() {
 }
 
 function doResolve() {
-  const pChosen = getActionData(G.battle.pAction, 'player');
-  const eChosen = getActionData(G.battle.eAction, 'enemy');
-  const pResult = resolveAction('player', G.battle.pAction);
-  const eResult = resolveAction('enemy', G.battle.eAction);
-  const p = G.player;
-  const e = G.enemy;
-
-  addLog('', `玩家: ${formatSingleAction(pChosen)}  |  敌方: ${formatSingleAction(eChosen)}`);
-  pResult.logs.forEach((text) => addLog('log-ab', text));
-  eResult.logs.forEach((text) => addLog('log-ab', text));
-
-  const result = calcDamage(pResult.action, eResult.action);
-  if (G.powerRelics && G.powerRelics.possibleReunion && G.battle.eAction === 'defense_1') {
-    G.battle.reunionDamageBonus = (G.battle.reunionDamageBonus || 0) + 1;
-    addLog('log-ab', `🕊️ 可能的重逢：敌方使用了超防，本战斗你的伤害加成提升至 +${G.battle.reunionDamageBonus}。`);
-  }
-  if (G.powerRelics && G.powerRelics.possibleReunion && result.edmg > 0 && (G.battle.reunionDamageBonus || 0) > 0) {
-    result.edmg += G.battle.reunionDamageBonus;
-    addLog('log-ab', `🕊️ 可能的重逢：本回合额外造成 ${G.battle.reunionDamageBonus} 点伤害。`);
-  }
-  p.hp = Math.max(0, p.hp - result.pdmg);
-  e.hp = Math.max(0, e.hp - result.edmg);
-  if (G.powerRelics && G.powerRelics.destinedFirstSight && result.pdmg > 0) {
-    G.battle.killedByDestinedFirstSight = true;
-    p.hp = 0;
-    addLog('log-dmg', '📕 既定的初见：你受到了伤害，立刻死亡。');
-  }
-  if (result.pdmg > 0) {
-    G.roomFlags.playerDamagedInBattle = true;
-    if (G.abilities.popcorn) G.battle.popcornPending = true;
-    if (G.player.classKey === 'dog') {
-      const gainBase = result.pdmg;
-      const gain = gainBase * (G.abilities.standFirm ? 2 : 1);
-      G.player.luck = Math.max(0, (G.player.luck || 0) + gain);
-      addLog('log-ab', `🐶 小狗被动：受伤后幸运值 +${gain}（当前 ${G.player.luck}）。`);
-      const chance = getDogLuckChance();
-      if (Math.random() * 100 < chance) {
-        const before = p.hp;
-        p.hp = Math.min(p.maxHp, p.hp + 1);
-        if (p.hp > before) addLog('log-ab', `🍀 幸运回复触发（${chance}%）：回复 1 点生命。`);
-        else addLog('log-ab', `🍀 幸运回复触发（${chance}%）：已满血，回复未生效。`);
-      } else {
-        addLog('log-ab', `🍀 幸运回复未触发（${chance}%）。`);
-      }
-    }
-  }
-  result.msgs.forEach((msg) => addLog(result.edmg > 0 || result.pdmg > 0 ? 'log-dmg' : 'log-blk', msg));
-  result.triggers.forEach((trigger) => addLog('log-ab', `✨ ${trigger}`));
-  if (result.pdmg > 0) addLog('log-dmg', `玩家受到 ${result.pdmg} 点伤害！`);
-  if (result.edmg > 0) addLog('log-dmg', `敌方受到 ${result.edmg} 点伤害！`);
-
-  // 过载机制：在双方行动结算后立即检查；每场战斗仅触发一次。
-  if (e && e.id === 'faultRobot' && !e.overloadTriggered && allOrbsGenerated(e)) {
-    e.overloadTriggered = true;
-    p.hp = 0;
-    addLog('log-dmg', '☠️ 过载终焉发动！玩家被直接消灭。');
-  }
+  const resolveCtx = battleRuntime.runResolvePhase();
+  if (!resolveCtx.result) return;
 
   G.battle.lastPlayerAction = G.battle.pAction;
   G.battle.lastEnemyAction = G.battle.eAction;
   refreshBars();
 
   setTimeout(() => {
-    if (p.hp <= 0) {
-      if (!G.battle.killedByDestinedFirstSight && G.abilities.savedByBlade && !G.abilities.savedByBladeUsed) {
-        G.abilities.savedByBladeUsed = true;
-        p.hp = 1;
-        refreshBars();
-        addLog('log-ab', '🗡️ 名刀司命触发！你回复至 1 生命并继续战斗。');
-        nextRound();
-        return;
-      }
-      endBattle(false);
+    const deathCtx = battleRuntime.runDeathCheckPhase();
+    if (deathCtx.outcome === BATTLE_OUTCOME.WIN) {
+      endBattle(true);
       return;
     }
-    if (e.hp <= 0) {
-      endBattle(true);
+    if (deathCtx.outcome === BATTLE_OUTCOME.LOSE) {
+      endBattle(false);
       return;
     }
     nextRound();
@@ -611,61 +565,13 @@ function doResolve() {
 }
 
 function applyRoundStartEffects() {
-  if (!G.battle) return;
-  G.battle.roundDisabledActions = [];
-
-  if (G.abilities.popcorn && G.battle.popcornPending) {
-    G.player.ji += 2;
-    G.battle.popcornPending = false;
-    addLog('log-ab', '🍿 爆米：上回合你受到了伤害，本回合开始获得 2 Ji。');
+  if (!G.battle) return false;
+  const phaseCtx = battleRuntime.runRoundStartPhase();
+  if (phaseCtx.battleEnded) {
+    if (phaseCtx.outcome === BATTLE_OUTCOME.WIN) endBattle(true);
+    else if (phaseCtx.outcome === BATTLE_OUTCOME.LOSE) endBattle(false);
   }
-  if (G.abilities.happyFlower && G.battle.round % 3 === 0) {
-    G.player.ji += 1;
-    addLog('log-ab', `🌼 开心小花：第 ${G.battle.round} 回合开始，获得 1 Ji。`);
-  }
-
-  if (G.powerRelics && G.powerRelics.lever) {
-    if (Math.random() < 0.5) {
-      G.player.ji *= 2;
-      addLog('log-ab', `🪜 杠杆：本回合开始，Ji 翻倍至 ${G.player.ji}。`);
-    } else {
-      G.player.ji = 2;
-      addLog('log-ab', '🪜 杠杆：本回合开始，Ji 被重置为 2。');
-    }
-  }
-
-  if (G.powerRelics && G.powerRelics.silenceGold) {
-    const actionKeys = getPlayerActionKeysForSilence();
-    if (actionKeys.length > 1) {
-      const maxDisable = Math.max(1, Math.min(3, actionKeys.length - 1));
-      const disableCount = 1 + Math.floor(Math.random() * maxDisable);
-      const disabled = sampleDistinctKeys(actionKeys, disableCount);
-      G.battle.roundDisabledActions = disabled;
-      G.player.ji += disableCount;
-      addLog('log-ab', `🔕 沉默是金：本回合禁用 ${disableCount} 个行动（${disabled.join('、')}），并获得 ${disableCount} Ji。`);
-    }
-  }
-
-  // nsyc: 厄介 deferred damage fires at round start
-  if (G.player.classKey === 'nsyc' && G.battle.ekaiPending) {
-    const dmg = 1 + (G.abilities.hazuki ? 1 : 0) + (G.equippedGear === 'powerEquip' ? 1 : 0);
-    G.battle.ekaiPending = false;
-    G.enemy.hp = Math.max(0, G.enemy.hp - dmg);
-    const dmgNote = dmg > 1 ? `（基础1${G.abilities.hazuki ? '+反田叶月1' : ''}${G.equippedGear === 'powerEquip' ? '+磨刀石1' : ''}）` : '';
-    addLog('log-dmg', `💢 厄介发动！必定命中，对敌方造成 ${dmg} 点伤害！${dmgNote}`);
-    refreshBars();
-    if (G.enemy.hp <= 0) {
-      endBattle(true);
-      return true;
-    }
-  }
-  // nsyc: 傻逼 passive stack accumulation each round
-  if (G.player.classKey === 'nsyc') {
-    const gain = 1 + (G.abilities.mitsuna ? 1 : 0);
-    G.player.shaBiStacks = (G.player.shaBiStacks || 0) + gain;
-    addLog('log-ab', `🤬 傻逼被动：本回合累计 ${gain} 层【傻逼】，当前共 ${G.player.shaBiStacks} 层。`);
-  }
-  return false;
+  return phaseCtx.battleEnded;
 }
 
 function nextRound() {
