@@ -49,6 +49,19 @@ export function registerDefaultCombatEffects(engine) {
   });
 
   engine.registerEffect({
+    effectId: 'system.log_hit_check_messages',
+    phase: PHASES.HIT_CHECK,
+    actorScope: ACTOR_SCOPE.SYSTEM,
+    order: 9000,
+    condition: (ctx) => !!(ctx.hitCheck && Array.isArray(ctx.hitCheck.msgs)),
+    apply: (ctx) => {
+      const hasHit = (ctx.hitCheck.playerHits || 0) > 0 || (ctx.hitCheck.enemyHits || 0) > 0;
+      const cls = hasHit ? 'log-dmg' : 'log-blk';
+      ctx.hitCheck.msgs.forEach((msg) => pushLog(ctx, cls, msg));
+    },
+  });
+
+  engine.registerEffect({
     effectId: 'system.on_hit_damage',
     phase: PHASES.ON_HIT,
     actorScope: ACTOR_SCOPE.SYSTEM,
@@ -82,6 +95,17 @@ export function registerDefaultCombatEffects(engine) {
         triggers:[...onHit.triggers],
       };
       toResultFromPackets(ctx);
+    },
+  });
+
+  engine.registerEffect({
+    effectId: 'system.log_on_hit_triggers',
+    phase: PHASES.ON_HIT,
+    actorScope: ACTOR_SCOPE.SYSTEM,
+    order: 9000,
+    condition: (ctx) => !!(ctx.result && Array.isArray(ctx.result.triggers) && ctx.result.triggers.length > 0),
+    apply: (ctx) => {
+      ctx.result.triggers.forEach((trigger) => pushLog(ctx, 'log-ab', `✨ ${trigger}`));
     },
   });
 }

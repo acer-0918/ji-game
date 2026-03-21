@@ -43,11 +43,13 @@ export function registerDefaultDeathEffects(engine) {
       if (G.player.hp <= 0) {
         ctx.outcome = BATTLE_OUTCOME.LOSE;
         ctx.resolved = true;
+        ctx.stopFlow = true;
         return;
       }
       if (G.enemy && G.enemy.hp <= 0) {
         ctx.outcome = BATTLE_OUTCOME.WIN;
         ctx.resolved = true;
+        ctx.stopFlow = true;
         return;
       }
       ctx.outcome = BATTLE_OUTCOME.CONTINUE;

@@ -32,6 +32,11 @@ const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
 const DEV_FRAGMENTS = 999999999;
+const BATTLE_TIMINGS = {
+  REVEAL_DELAY_MS: 120,
+  RESOLVE_DELAY_MS: 180,
+  OUTCOME_DELAY_MS: 0,
+};
 let developerModeEnabled = false;
 const battleEngine = createBattleEngine();
 registerDefaultCombatEffects(battleEngine);
@@ -191,6 +196,11 @@ function openLoading(text='机器学习了') {
 
 function closeLoading() {
   closeOverlay('ov-loading');
+}
+
+function runAfter(ms, fn) {
+  if (ms > 0) setTimeout(fn, ms);
+  else fn();
 }
 
 function nextPaint() {
@@ -529,7 +539,7 @@ function confirmAction() {
   $('action-area').style.pointerEvents = 'none';
   $('btn-confirm').disabled = true;
   $('round-phase').textContent = '揭示中...';
-  setTimeout(doReveal, 260);
+  runAfter(BATTLE_TIMINGS.REVEAL_DELAY_MS, doReveal);
 }
 
 function doReveal() {
@@ -539,7 +549,7 @@ function doReveal() {
   enemyCard.innerHTML = `<div class="ac-emoji">${enemyAction.emoji}</div><div class="ac-name">${enemyAction.name}</div><div class="ac-sub">${getActionSubText(enemyAction)}</div>`;
   $('player-card').className = 'reveal-card revealed-player';
   $('round-phase').textContent = '结算中...';
-  setTimeout(doResolve, 480);
+  runAfter(BATTLE_TIMINGS.RESOLVE_DELAY_MS, doResolve);
 }
 
 function doResolve() {
@@ -550,7 +560,7 @@ function doResolve() {
   G.battle.lastEnemyAction = G.battle.eAction;
   refreshBars();
 
-  setTimeout(() => {
+  runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
     const deathCtx = battleRuntime.runDeathCheckPhase();
     if (deathCtx.outcome === BATTLE_OUTCOME.WIN) {
       endBattle(true);
@@ -561,17 +571,22 @@ function doResolve() {
       return;
     }
     nextRound();
-  }, 620);
+  });
 }
 
 function applyRoundStartEffects() {
   if (!G.battle) return false;
   const phaseCtx = battleRuntime.runRoundStartPhase();
-  if (phaseCtx.battleEnded) {
-    if (phaseCtx.outcome === BATTLE_OUTCOME.WIN) endBattle(true);
-    else if (phaseCtx.outcome === BATTLE_OUTCOME.LOSE) endBattle(false);
+  if (phaseCtx.outcome === BATTLE_OUTCOME.WIN) {
+    endBattle(true);
+    return true;
   }
-  return phaseCtx.battleEnded;
+  if (phaseCtx.outcome === BATTLE_OUTCOME.LOSE) {
+    endBattle(false);
+    return true;
+  }
+  if (phaseCtx.battleEnded) return true;
+  return false;
 }
 
 function nextRound() {
@@ -625,6 +640,16 @@ function endBattle(win) {
     box.className = 'overlay-box red';
     title.textContent = '战斗失败';
     body.textContent = '你的生命归零，旅途就此结束...';
+  }
+
+  const logDetails = $('ov-battle-log-details');
+  const logSnapshot = $('ov-battle-log-snapshot');
+  const battleLog = $('battle-log');
+  if (logDetails && logSnapshot) {
+    logDetails.open = false;
+    logSnapshot.innerHTML = (battleLog && battleLog.innerHTML)
+      ? battleLog.innerHTML
+      : '<div class="log-item">暂无日志。</div>';
   }
 
   G.enemy = null;

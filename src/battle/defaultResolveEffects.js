@@ -26,6 +26,18 @@ export function registerDefaultResolveEffects(engine) {
   });
 
   engine.registerEffect({
+    effectId: 'system.log_applied_damage',
+    phase: PHASES.APPLY_DAMAGE,
+    actorScope: ACTOR_SCOPE.SYSTEM,
+    order: DAMAGE_ORDER.SYSTEM_APPLY_HP_CHANGE + 1,
+    condition: (ctx) => !!ctx.result,
+    apply: (ctx) => {
+      if ((ctx.result.pdmg || 0) > 0) pushLog(ctx, 'log-dmg', `玩家受到 ${ctx.result.pdmg} 点伤害！`);
+      if ((ctx.result.edmg || 0) > 0) pushLog(ctx, 'log-dmg', `敌方受到 ${ctx.result.edmg} 点伤害！`);
+    },
+  });
+
+  engine.registerEffect({
     effectId: 'player.relic_possible_reunion_charge',
     phase: PHASES.DAMAGE_RESOLVE,
     actorScope: ACTOR_SCOPE.PLAYER,
