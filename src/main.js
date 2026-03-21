@@ -1,6 +1,6 @@
 import { aiDecide } from './ai.js';
 import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
-import { SHOP_ITEMS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, COMMON_ABILITY_DEFS, SHOP_ITEMS, getAbilityDefsForClass } from './data.js';
 import {
   calcDamage,
   describeAttack,
@@ -572,6 +572,82 @@ function confirmBackToMenu() {
   showScreen('menu');
 }
 
+// ── Intro overlay ─────────────────────────────────────────────────────────────
+function openIntro(startKey) {
+  const classKeys = Object.keys(CLASS_DEFS);
+
+  function renderIntroContent(key) {
+    const cls = CLASS_DEFS[key];
+
+    // Tab strip
+    $('intro-tabs').innerHTML = classKeys.map((k) => {
+      const c = CLASS_DEFS[k];
+      return `<button class="intro-tab${k === key ? ' active' : ''}" data-intro-class="${k}">${c.icon} ${c.name}</button>`;
+    }).join('');
+    $('intro-tabs').querySelectorAll('.intro-tab').forEach((btn) => {
+      btn.addEventListener('click', () => renderIntroContent(btn.dataset.introClass));
+    });
+
+    // Class header
+    let html = `
+      <div class="intro-class-header">
+        <div class="intro-class-icon">${cls.icon}</div>
+        <div>
+          <div class="intro-class-title">${cls.name}</div>
+          <div class="intro-class-meta">❤ ${cls.baseHp} 血 · +${cls.baseJiRate} Ji/回</div>
+          ${cls.trait ? `<span class="class-trait">${cls.trait}</span>` : ''}
+        </div>
+      </div>`;
+
+    // Passive
+    if (cls.passiveDesc) {
+      html += `<div class="intro-section">
+        <div class="intro-section-title">被 动</div>
+        <div class="intro-passive-box">${cls.passiveDesc}</div>
+      </div>`;
+    }
+
+    // Special skill
+    if (cls.spDesc) {
+      html += `<div class="intro-section">
+        <div class="intro-section-title">专属技能</div>
+        <div class="intro-passive-box sp">${cls.spDesc}</div>
+      </div>`;
+    }
+
+    // Class abilities
+    html += `<div class="intro-section"><div class="intro-section-title">专属能力</div>`;
+    html += cls.abilityDefs.map((ab) => `
+      <div class="intro-ability">
+        <div class="intro-ability-icon">${ab.icon}</div>
+        <div class="intro-ability-body">
+          <div class="intro-ability-name">${ab.name}<span class="intro-ability-cost">✨ ${ab.cost}</span></div>
+          <div class="intro-ability-desc">${ab.desc}</div>
+        </div>
+      </div>`).join('');
+    html += `</div>`;
+
+    // Common abilities
+    html += `<div class="intro-common-divider">── 通用能力（所有职业可购买）──</div>
+      <div class="intro-section">`;
+    html += COMMON_ABILITY_DEFS.map((ab) => `
+      <div class="intro-ability">
+        <div class="intro-ability-icon">${ab.icon}</div>
+        <div class="intro-ability-body">
+          <div class="intro-ability-name">${ab.name}<span class="intro-ability-cost">✨ ${ab.cost}</span></div>
+          <div class="intro-ability-desc">${ab.desc}</div>
+        </div>
+      </div>`).join('');
+    html += `</div>`;
+
+    $('intro-content').innerHTML = html;
+  }
+
+  renderIntroContent(startKey || classKeys[0]);
+  openOverlay('ov-intro');
+}
+function closeIntro() { closeOverlay('ov-intro'); }
+
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
   $('btn-hard-start')?.addEventListener('click', startHardGame);
@@ -591,6 +667,8 @@ function bindStaticEvents() {
   $('btn-to-menu-battle')?.addEventListener('click', openSettings);
   $('btn-settings-close')?.addEventListener('click', closeSettings);
   $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
+  $('btn-intro')?.addEventListener('click', () => openIntro());
+  $('btn-intro-close')?.addEventListener('click', closeIntro);
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 

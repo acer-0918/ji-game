@@ -35,6 +35,9 @@ export const CLASS_DEFS = {
     name: '刺客',
     baseHp: 3,
     baseJiRate: 3,
+    trait: '高输出 · 速攻流',
+    passiveDesc: null,
+    spDesc: null,
     abilityDefs: [
       {key:'fireBlade',    icon:'💥',  name:'暴击',     cost:1, desc:'当你的攻击比对手的防御或攻击等级高出至少 3 级时，本次攻击造成的伤害 +1。'},
       {key:'savedByBlade', icon:'🗡️', name:'名刀司命', cost:1, desc:'全局仅一次，当你死亡时，回复至 1 生命且继续本局游戏。'},
@@ -47,6 +50,9 @@ export const CLASS_DEFS = {
     name: '坦克',
     baseHp: 10,
     baseJiRate: 1,
+    trait: '高血量 · 稳健流',
+    passiveDesc: null,
+    spDesc: null,
     abilityDefs: [
       {key:'popcorn',     icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
       {key:'smallPotion', icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
@@ -59,6 +65,9 @@ export const CLASS_DEFS = {
     name: '法师',
     baseHp: 3,
     baseJiRate: 2,
+    trait: '闪电球 · 技能流',
+    passiveDesc: '每次使用防御时获得 1 个【闪电球】；累积至 5 个时可释放【一重释放】，免除 Ji 费用。闪电球跨战斗保留。',
+    spDesc: '⚡⚡ 一重释放 — 消耗 5 闪电球，发动等级 5 攻击造成 1 伤（集中 +1 伤，电动力学命中后 +3 球）。',
     abilityDefs: [
       {key:'focus',          icon:'🎯', name:'集中',     cost:1, desc:'如果【一重释放】命中了敌人，则造成伤害 +1。'},
       {key:'storm',          icon:'⛈️', name:'雷暴',     cost:1, desc:'每场战斗开始时获得 2 闪电球。'},
@@ -71,6 +80,9 @@ export const CLASS_DEFS = {
     name: 'nsyc',
     baseHp: 4,
     baseJiRate: 1,
+    trait: '傻逼积累 · 厄介流',
+    passiveDesc: '每回合开始自动累计 1 层【傻逼】（羊宫妃那解锁后 +1，共 2 层）；满 3 层可在特殊区释放【厄介】。',
+    spDesc: '💢 厄介 — 消耗 3 层傻逼，本回合待机防御（防御值 3），下回合开始必定命中敌方造成 1 伤（反田叶月 +1 伤）。',
     abilityDefs: [
       {key:'mitsuna', icon:'🐏', name:'羊宫妃那', cost:2, desc:'哎呀，主唱又忘词了，每回合额外累计一层【傻逼】层数。'},
       {key:'haruna',  icon:'🐱', name:'青木阳菜', cost:1, desc:'太子！获得两点血量上限，Ji回复效率+1。'},

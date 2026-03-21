@@ -644,6 +644,68 @@ body {
 .overlay-body  { color: var(--text-mid); margin-bottom: 22px; font-size: .92em; line-height: 1.8; }
 .overlay-btns  { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+/* ── Intro overlay ───────────────────────────────── */
+.intro-box {
+  max-width: 500px; width: 93%; padding: 28px 28px 22px;
+  text-align: left; max-height: 88vh; display: flex; flex-direction: column;
+}
+.intro-box .overlay-title { text-align: center; }
+.intro-tabs {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-bottom: 16px; flex-shrink: 0;
+}
+.intro-tab {
+  padding: 5px 14px; border-radius: var(--r-pill);
+  border: 1.5px solid var(--card-border);
+  background: var(--card-bg); cursor: pointer; font-family: inherit;
+  font-size: .82em; font-weight: 700; color: var(--text-mid);
+  transition: all .18s;
+}
+.intro-tab:hover  { border-color: var(--purple); color: var(--purple); }
+.intro-tab.active { border-color: var(--purple); background: var(--purple-l); color: var(--purple); }
+.intro-content { flex: 1; overflow-y: auto; padding-right: 4px; }
+.intro-class-header {
+  display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+  padding-bottom: 14px; border-bottom: 1.5px solid var(--card-border);
+}
+.intro-class-icon { font-size: 2.4em; line-height: 1; }
+.intro-class-title { font-size: 1.1em; font-weight: 900; color: var(--text); margin-bottom: 3px; }
+.intro-class-meta  { font-size: .75em; color: var(--text-mid); margin-bottom: 5px; }
+.intro-section { margin-bottom: 14px; }
+.intro-section-title {
+  font-size: .68em; font-weight: 800; color: var(--purple);
+  letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+}
+.intro-passive-box {
+  background: var(--purple-l); border-radius: var(--r-sm);
+  padding: 9px 12px; font-size: .82em; color: var(--text-mid);
+  line-height: 1.55; border-left: 3px solid var(--purple);
+}
+.intro-passive-box.sp {
+  background: rgba(224,144,16,0.08); border-left-color: var(--gold);
+}
+.intro-ability {
+  display: flex; gap: 10px; padding: 8px 10px;
+  border-radius: var(--r-sm); background: var(--bg);
+  margin-bottom: 6px; align-items: flex-start;
+}
+.intro-ability-icon { font-size: 1.3em; flex-shrink: 0; min-width: 24px; text-align: center; }
+.intro-ability-body { flex: 1; }
+.intro-ability-name {
+  font-size: .85em; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+}
+.intro-ability-cost {
+  font-size: .72em; color: var(--gold); font-weight: 700;
+  background: rgba(224,144,16,0.12); border-radius: var(--r-pill);
+  padding: 1px 6px;
+}
+.intro-ability-desc { font-size: .76em; color: var(--text-mid); margin-top: 3px; line-height: 1.45; }
+.intro-common-divider {
+  font-size: .68em; color: var(--text-lt); text-align: center;
+  margin: 12px 0 8px; letter-spacing: 1px;
+}
+
 /* ── Ability tree / shop ─────────────────────────── */
 .ab-node-card, .shop-item-card {
   border: 1.5px solid var(--card-border); padding: 12px 14px; margin-bottom: 8px;
