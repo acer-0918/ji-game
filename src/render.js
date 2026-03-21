@@ -31,6 +31,7 @@ export function getPassiveBadges() {
     if (G.abilities[ab.key]) {
       let name = ab.name;
       if (ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed) name += '（已用）';
+      if (ab.key === 'amane') name += ` (${(G.player.jiSpentTotal || 0) % 8}/8)`;
       arr.push({icon:ab.icon, name});
     }
   });
