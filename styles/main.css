@@ -684,6 +684,17 @@ body {
   color: var(--purple);
 }
 
+#ov-battle-relic-options {
+  max-height: 34vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.relic-choice-card {
+  border: 1.5px solid rgba(224,144,16,0.45);
+  background: var(--gold-l);
+}
+
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
