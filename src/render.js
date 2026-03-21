@@ -44,6 +44,7 @@ export function getPassiveBadges() {
     if (G.powerRelics && G.powerRelics[item.key]) arr.push({icon:item.icon, name:item.name});
   });
   if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`});
+  if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`});
   if (G.player.classKey === 'nsyc') {
     arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`});
     if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发'});
@@ -259,6 +260,14 @@ export function refreshActionLabels() {
     const stacks = G.player.shaBiStacks || 0;
     if (spHint) spHint.textContent = `傻逼${stacks}层`;
     setSubCardLabel(sp2, `3🤬`, '厄介', `持有${stacks}层`);
+  } else if (G.player.classKey === 'dog') {
+    if (specialMain) specialMain.style.display = '';
+    if (specialPanel) specialPanel.style.display = '';
+    if (sp1) sp1.style.display = '';
+    if (sp2) sp2.style.display = 'none';
+    const luck = G.player.luck || 0;
+    if (spHint) spHint.textContent = `幸运值 ${luck}`;
+    setSubCardLabel(sp1, '🍀', '幸运值', `当前${luck}`);
   } else {
     if (specialMain) specialMain.style.display = 'none';
     if (specialPanel) specialPanel.style.display = 'none';
@@ -346,6 +355,10 @@ export function updateSubButtons() {
     specialMain.disabled = !canEkai;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = !canEkai;
+  } else if (G.player.classKey === 'dog') {
+    specialMain.disabled = true;
+    if (sp1Btn) sp1Btn.disabled = true;
+    if (sp2Btn) sp2Btn.disabled = true;
   } else {
     specialMain.disabled = true;
     if (sp1Btn) sp1Btn.disabled = true;

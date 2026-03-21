@@ -4,6 +4,7 @@ import {
   G,
   allOrbsGenerated,
   ensureFaultRobotState,
+  getDogLuckChance,
   getEnemyStandardChargeGain,
   getPlayerDefenseBonus,
   getPlayerJiRate,
@@ -160,6 +161,15 @@ export function resolveAction(side, key) {
 
   if (base.type === 'ji') {
     actor.ji += base.gain;
+    if (side === 'player' && actor.classKey === 'dog') {
+      const chance = getDogLuckChance() / 2;
+      if (Math.random() * 100 < chance) {
+        actor.ji *= 2;
+        logs.push(`🐶 幸运蓄力：判定半幸运值 ${chance}%，Ji 翻倍至 ${actor.ji}。`);
+      } else {
+        logs.push(`🐶 幸运蓄力：判定半幸运值 ${chance}%，本次未触发翻倍。`);
+      }
+    }
   } else if (base.type === 'gufu_charge') {
     const gain = actor.chargeValue || 1;
     actor.ji += gain;
@@ -389,9 +399,18 @@ function applyMageElectrodynamicsOnHit(ctx) {
   ctx.triggers.push('电动力学——一重释放命中后，获得 3 闪电球');
 }
 
+function applyDogHardWorkLuckOnHit(ctx) {
+  if (ctx.side !== 'player') return;
+  if (!G.player || G.player.classKey !== 'dog') return;
+  if (!G.abilities.hardWorkLuck) return;
+  G.player.luck = Math.max(0, (G.player.luck || 0) + 1);
+  ctx.triggers.push('七分打拼——命中后，幸运值 +1');
+}
+
 HIT_HOOKS.push(applyDefaultDamageEventOnHit);
 HIT_HOOKS.push(applyEnhancedDaggerOnHit);
 HIT_HOOKS.push(applyMageElectrodynamicsOnHit);
+HIT_HOOKS.push(applyDogHardWorkLuckOnHit);
 DAMAGE_EVENT_HOOKS.push(applyDefaultDamagePoint);
 DAMAGE_EVENT_HOOKS.push(applyActionDamageBonus);
 DAMAGE_TOTAL_HOOKS.push(applyFireBladeBonus);

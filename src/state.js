@@ -33,7 +33,8 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
       lightningOrbs: 0,
       shaBiStacks: 0,
       jiSpentTotal: 0,
-      fragments: 7,
+      luck: 0,
+      fragments: 0,
     },
     abilities: createAbilityState(cls.key),
     powerRelics: createPowerRelicState(),
@@ -51,6 +52,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
     hardMode: false,
     devMode: false,
   };
+  G.player.luck = cls.key === 'dog' ? 50 : 0;
 }
 
 export function ensureFaultRobotState(enemy) {
@@ -80,6 +82,20 @@ export function getPlayerJiRate() {
   return (G.player.baseJiRate || 0)
     + (G.abilities.oneVsFour ? 1 : 0)
     + (G.abilities.haruna ? 1 : 0);
+}
+
+export function getDogLuckValue() {
+  if (!G.player || G.player.classKey !== 'dog') return 0;
+  let luck = Number(G.player.luck || 0);
+  if (G.abilities && G.abilities.openMind) {
+    luck = Math.floor(Math.random() * 101);
+    G.player.luck = luck;
+  }
+  return Math.max(0, luck);
+}
+
+export function getDogLuckChance() {
+  return Math.min(100, getDogLuckValue());
 }
 
 export function getPlayerDefenseBonus() {

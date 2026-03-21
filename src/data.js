@@ -90,6 +90,22 @@ export const CLASS_DEFS = {
       {key:'amane',   icon:'🐍', name:'进藤天音', cost:1, desc:'隐太子，八岐大蛇来了，每当你消耗八点Ji，自动额外释放一次【厄介】。'},
     ],
   },
+  dog: {
+    key: 'dog',
+    icon: '🐶',
+    name: '小狗',
+    baseHp: 3,
+    baseJiRate: 1,
+    trait: '幸运成长 · 波动流',
+    passiveDesc: '拥有【幸运值】资源（初始 50）。受到伤害时按伤害量提升幸运值，并有幸运值%概率回复 1 生命；每次蓄力后有一半幸运值%的概率将当前 Ji 翻倍。',
+    spDesc: '🍀 幸运值会被多种效果调用；部分能力可改变其增长与取值方式。',
+    abilityDefs: [
+      {key:'goodLuck', icon:'🍀', name:'强运', cost:2, desc:'增加 20 点幸运值。'},
+      {key:'hardWorkLuck', icon:'💪', name:'七分打拼', cost:1, desc:'命中敌人时，获得 1 点幸运值。'},
+      {key:'openMind', icon:'🎲', name:'想得开', cost:-2, desc:'你的幸运值改为 0~100 的随机整数，每次调用幸运值时都会变化。'},
+      {key:'standFirm', icon:'🦴', name:'挺得住', cost:1, desc:'受到伤害时获得的幸运值翻倍。'},
+    ],
+  },
 };
 
 export const DEFAULT_CLASS_KEY = 'assassin';
@@ -119,7 +135,13 @@ export function getAbilityDefsForClass(classKey) {
 }
 
 export const MAP_TEMPLATE = [
+  {type:'enemy', icon:'👹', label:'普通敌人 I', reward:1, enemy:{id:'enemyNormal1', name:'普通敌人', emoji:'👹', hp:3, maxHp:3, ji:0, jiRate:1}},
+  {type:'enemy', icon:'👹', label:'普通敌人 II', reward:1, enemy:{id:'enemyNormal2', name:'普通敌人', emoji:'👹', hp:3, maxHp:3, ji:0, jiRate:2}},
+  {type:'enemy', icon:'👹', label:'普通敌人 III', reward:1, enemy:{id:'enemyNormal3', name:'普通敌人', emoji:'👹', hp:5, maxHp:5, ji:0, jiRate:2}},
+  {type:'elite', icon:'⚔️', label:'精英敌人 I', reward:2, enemy:{id:'enemyElite1', name:'精英敌人', emoji:'⚔️', hp:10, maxHp:10, ji:0, jiRate:2}},
+  {type:'elite', icon:'⚔️', label:'精英敌人 II', reward:2, enemy:{id:'enemyElite2', name:'精英敌人', emoji:'⚔️', hp:12, maxHp:12, ji:0, jiRate:2}},
   {type:'shop', icon:'🛒', label:'商店'},
+  {type:'camp', icon:'🔥', label:'篝火'},
   {type:'boss', icon:'🕶️', label:'Boss I', reward:0, dropPowerRelic:true, enemy:{id:'jiaxu', name:'贾诩', emoji:'🕶️', hp:10, maxHp:10, ji:0, jiRate:3, hideJi:true}},
   {type:'boss', icon:'👑', label:'Boss II', reward:0, enemy:{id:'gufu', name:'古夫大帝', emoji:'👑', hp:10, maxHp:10, ji:0, jiRate:3, chargeValue:1}},
   {type:'boss', icon:'🤖', label:'Boss III', reward:0, finalBoss:true, enemy:{id:'faultRobot', name:'故障机器人', emoji:'🤖', hp:15, maxHp:15, ji:0, jiRate:3, orbs:{plasma:0,frost:0,lightning:0,dark:0,glass:0}}},

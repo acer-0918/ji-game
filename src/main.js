@@ -21,7 +21,7 @@ import {
   renderShop,
   resetRoundUI,
 } from './render.js';
-import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot, allOrbsGenerated } from './state.js';
+import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot, allOrbsGenerated, getDogLuckChance } from './state.js';
 import { clone, randomChoice } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -204,6 +204,9 @@ function unlockAbility(key) {
     G.player.maxHp += 2;
     G.player.hp += 2;
   }
+  if (key === 'goodLuck' && G.player.classKey === 'dog') {
+    G.player.luck = Math.max(0, (G.player.luck || 0) + 20);
+  }
   keepDeveloperResources();
   renderAbilityTree();
   renderMap();
@@ -292,11 +295,6 @@ async function startHardGame() {
   updateHardBadge(true);
   showScreen('map');
   renderMap();
-  setTimeout(() => {
-    if (G.nodeIdx === 0 && G.nodes[0] && G.nodes[0].type === 'shop') {
-      enterNode(0);
-    }
-  }, 0);
 }
 
 function updateHardBadge(show) {
@@ -318,6 +316,19 @@ function enterNode(index) {
     renderShop();
     renderMap();
     openOverlay('ov-shop');
+    return;
+  }
+  if (node.type === 'camp') {
+    const heal = 3;
+    const before = G.player.hp;
+    G.player.hp = Math.min(G.player.maxHp, G.player.hp + heal);
+    if (!G.devMode) {
+      G.nodes[G.nodeIdx].done = true;
+      G.nodeIdx += 1;
+    }
+    renderMap();
+    const actual = G.player.hp - before;
+    window.alert(`🔥 篝火休整：回复 ${actual} 点生命。`);
     return;
   }
   G.currentNode = clone(node);
@@ -404,6 +415,7 @@ function startBattle(node, keepSnapshot=false) {
   if (G.abilities.smallPotion) addLog('log-ab', '🧪 小血瓶触发：战斗开始时回复 1 生命。');
   if (G.player.classKey === 'mage' && G.abilities.storm) addLog('log-ab', '⛈️ 雷暴触发：战斗开始时获得 2 闪电球。');
   if (G.player.classKey === 'nsyc') addLog('log-ab', '🤬 傻逼被动：每回合开始自动累计【傻逼】层数，满4层可释放【厄介】。');
+  if (G.player.classKey === 'dog') addLog('log-ab', `🐶 小狗出战：当前幸运值 ${G.player.luck || 0}。`);
   if (G.enemy.id === 'jiaxu') {
     addLog('log-ab', '🌫️ 贾诩展开了【无知之幕】：双方 Ji 数量都被隐藏。');
   } else if (G.enemy.id === 'gufu') {
@@ -545,6 +557,21 @@ function doResolve() {
   if (result.pdmg > 0) {
     G.roomFlags.playerDamagedInBattle = true;
     if (G.abilities.popcorn) G.battle.popcornPending = true;
+    if (G.player.classKey === 'dog') {
+      const gainBase = result.pdmg;
+      const gain = gainBase * (G.abilities.standFirm ? 2 : 1);
+      G.player.luck = Math.max(0, (G.player.luck || 0) + gain);
+      addLog('log-ab', `🐶 小狗被动：受伤后幸运值 +${gain}（当前 ${G.player.luck}）。`);
+      const chance = getDogLuckChance();
+      if (Math.random() * 100 < chance) {
+        const before = p.hp;
+        p.hp = Math.min(p.maxHp, p.hp + 1);
+        if (p.hp > before) addLog('log-ab', `🍀 幸运回复触发（${chance}%）：回复 1 点生命。`);
+        else addLog('log-ab', `🍀 幸运回复触发（${chance}%）：已满血，回复未生效。`);
+      } else {
+        addLog('log-ab', `🍀 幸运回复未触发（${chance}%）。`);
+      }
+    }
   }
   result.msgs.forEach((msg) => addLog(result.edmg > 0 || result.pdmg > 0 ? 'log-dmg' : 'log-blk', msg));
   result.triggers.forEach((trigger) => addLog('log-ab', `✨ ${trigger}`));

@@ -51,7 +51,7 @@ function buildAiContext(enemy) {
     lastEnemyAction: G.battle.lastEnemyAction,
     playerClass,
     playerLightningOrbs,
-    playerIsGeneralClass: playerClass === 'assassin' || playerClass === 'tank',
+    playerIsGeneralClass: playerClass === 'assassin' || playerClass === 'tank' || playerClass === 'dog',
     playerIsMage: playerClass === 'mage',
     mageCanRelease: playerClass === 'mage' && playerLightningOrbs >= 5,
   };
