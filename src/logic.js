@@ -118,7 +118,7 @@ export function getActionSubText(action) {
   if (action.type === 'ji' || action.type === 'gufu_charge') return `+${action.gain}Ji`;
   if (action.type === 'fault_orb') return '0Ji | 随机生成充能球';
   if (action.type === 'orb_buff') return '充能完成';
-  if (action.type === 'ekai') return '消耗4层【傻逼】 | 下回合必定命中';
+  if (action.type === 'ekai') return '消耗4层【傻逼】 | 本回合待机 | 下回合必定命中';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
     const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
@@ -198,8 +198,8 @@ export function resolveAction(side, key) {
   } else if (base.type === 'ekai') {
     actor.shaBiStacks = Math.max(0, (actor.shaBiStacks || 0) - (base.stackCost || 3));
     G.battle.ekaiPending = true;
-    logs.push('💢 厄介蓄势：你在本回合待机防御，下回合将必定命中敌方！');
-    action = { type:'defense', cost:0, def:3, atk:0, name:'厄介·待机', emoji:'💢', hits:0, damage:0 };
+    logs.push('💢 厄介蓄势：本回合待机蓄力，下回合将必定命中敌方！');
+    action = { type:'orb_buff', cost:0, def:0, atk:0, name:'厄介·待机', emoji:'💢', hits:0, damage:0 };
   } else {
     if (side === 'player' && base.isMageRelease) {
       actor.lightningOrbs = Math.max(0, (actor.lightningOrbs || 0) - (base.orbCost || 0));

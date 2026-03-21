@@ -621,10 +621,11 @@ function applyRoundStartEffects() {
 
   // nsyc: 厄介 deferred damage fires at round start
   if (G.player.classKey === 'nsyc' && G.battle.ekaiPending) {
-    const dmg = 1 + (G.abilities.hazuki ? 1 : 0);
+    const dmg = 1 + (G.abilities.hazuki ? 1 : 0) + (G.equippedGear === 'powerEquip' ? 1 : 0);
     G.battle.ekaiPending = false;
     G.enemy.hp = Math.max(0, G.enemy.hp - dmg);
-    addLog('log-dmg', `💢 厄介发动！必定命中，对敌方造成 ${dmg} 点伤害！`);
+    const dmgNote = dmg > 1 ? `（基础1${G.abilities.hazuki ? '+反田叶月1' : ''}${G.equippedGear === 'powerEquip' ? '+磨刀石1' : ''}）` : '';
+    addLog('log-dmg', `💢 厄介发动！必定命中，对敌方造成 ${dmg} 点伤害！${dmgNote}`);
     refreshBars();
     if (G.enemy.hp <= 0) {
       endBattle(true);
