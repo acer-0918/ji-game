@@ -559,6 +559,23 @@ body {
 .sub-card.sp-card:hover:not(:disabled) { border-color: var(--gold); box-shadow: 0 0 10px rgba(224,144,16,0.25); }
 .sub-card.sp-card.sel { border-color: var(--gold); box-shadow: 0 0 12px rgba(224,144,16,0.35); }
 
+/* Sub card keyboard hint badge (top-right corner) */
+.sub-card-key {
+  position: absolute; top: 4px; right: 4px;
+  width: 16px; height: 16px; border-radius: 3px;
+  background: rgba(100,80,140,0.12);
+  border: 1px solid rgba(100,80,140,0.2);
+  font-size: .52em; font-weight: 700; color: var(--text-lt);
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+/* Inline key hint inside confirm button */
+.key-hint-inline {
+  font-size: .72em; opacity: .75; margin-left: 4px;
+  font-weight: 400; vertical-align: middle;
+}
+
 /* Sub card cost badge */
 .sub-card-cost {
   position: absolute; top: 4px; left: 4px;

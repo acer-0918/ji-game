@@ -848,8 +848,62 @@ function bindStaticEvents() {
   });
 }
 
+// ── 键盘快捷键 ─────────────────────────────────────────────────────────────────
+function handleKeydown(e) {
+  // 只在战斗选牌阶段响应；忽略文本输入等场景
+  if (!$('screen-battle').classList.contains('active')) return;
+  if (!G.battle || G.battle.phase !== 'select') return;
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  const key = e.key;
+
+  // Enter → 确认出牌
+  if (key === 'Enter') {
+    e.preventDefault();
+    const btn = $('btn-confirm');
+    if (btn && !btn.disabled) confirmAction();
+    return;
+  }
+
+  // Escape → 关闭子面板（回到主卡选择状态）
+  if (key === 'Escape') {
+    document.querySelectorAll('.sub-panel').forEach((p) => p.classList.remove('show'));
+    document.querySelectorAll('.action-card-btn').forEach((b) => b.classList.remove('sel'));
+    G.ui.mainSel = null;
+    return;
+  }
+
+  // 主卡快捷键
+  if (key === 'j' || key === 'J') { e.preventDefault(); mainSelect('ji');  return; }
+  if (key === 'd' || key === 'D') { e.preventDefault(); mainSelect('def'); return; }
+  if (key === 'a' || key === 'A') { e.preventDefault(); mainSelect('atk'); return; }
+  if (key === 's' || key === 'S') { e.preventDefault(); mainSelect('sp');  return; }
+
+  // 数字键 → 选择当前展开面板中的子卡
+  const num = parseInt(key, 10);
+  if (isNaN(num) || num < 1 || num > 7) return;
+  const openPanel = document.querySelector('.sub-panel.show');
+  if (!openPanel) return;
+  e.preventDefault();
+  if (openPanel.id === 'sp-def') {
+    const map = {1:'defense_0', 2:'defense_1', 3:'defense_2'};
+    if (map[num]) subSelect(map[num]);
+  } else if (openPanel.id === 'sp-atk') {
+    subSelect(`attack_${num}`);
+  } else if (openPanel.id === 'sp-special') {
+    if (num === 1) {
+      const visibleSp = ['sb-sp1','sb-sp2'].find((id) => {
+        const el = $(id); return el && el.style.display !== 'none';
+      });
+      if (visibleSp) subSelect($(visibleSp).dataset.action);
+    }
+  }
+}
+
 function bootstrap() {
   bindStaticEvents();
+  document.addEventListener('keydown', handleKeydown);
   initGame();
   applyDeveloperModeToGameState();
   refreshDeveloperModeButton();

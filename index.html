@@ -226,26 +226,26 @@
     <!-- 4 个主行动卡牌 -->
     <div class="main-cards-row">
       <button class="action-card-btn charge-card" id="mb-ji" data-main="ji">
-        <div class="acb-cost-badge charge-badge">-</div>
+        <div class="acb-cost-badge charge-badge">J</div>
         <!-- 主卡面接口：加 has-art 类，设 acb-img 的 src -->
         <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚡</span></div>
         <div class="acb-name">蓄力</div>
         <div class="acb-hint" id="ji-rate-hint">+3 Ji</div>
       </button>
       <button class="action-card-btn def-card" id="mb-def" data-main="def">
-        <div class="acb-cost-badge def-badge">▾</div>
+        <div class="acb-cost-badge def-badge">D</div>
         <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">🛡</span></div>
         <div class="acb-name">防御</div>
         <div class="acb-hint">0~2 Ji</div>
       </button>
       <button class="action-card-btn atk-card" id="mb-atk" data-main="atk">
-        <div class="acb-cost-badge atk-badge">▾</div>
+        <div class="acb-cost-badge atk-badge">A</div>
         <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">⚔</span></div>
         <div class="acb-name">攻击</div>
         <div class="acb-hint">1~7 Ji</div>
       </button>
       <button class="action-card-btn sp-main-card" id="mb-sp" data-main="sp">
-        <div class="acb-cost-badge sp-badge">▾</div>
+        <div class="acb-cost-badge sp-badge">S</div>
         <div class="acb-artwork"><img class="acb-img" src="" alt=""><span class="acb-emoji">✨</span></div>
         <div class="acb-name">特殊</div>
         <div class="acb-hint" id="sp-hint">职业技能</div>
@@ -255,20 +255,20 @@
     <!-- 子面板（防御） -->
     <div class="sub-panel" id="sp-def">
       <button class="sub-card" id="sb-d0" data-action="defense_0">
-        <div class="sub-card-cost">0</div>
+        <div class="sub-card-cost">0</div><div class="sub-card-key">1</div>
         <!-- 卡面接口：给 sub-card 加 has-art 类，并在 sub-card-img 上设 src 即可替换 emoji -->
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡</div>
         <div class="sub-card-name">防御</div>
         <div class="sub-card-hint">防御3</div>
       </button>
       <button class="sub-card" id="sb-d1" data-action="defense_1">
-        <div class="sub-card-cost">1</div>
+        <div class="sub-card-cost">1</div><div class="sub-card-key">2</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡🛡</div>
         <div class="sub-card-name">超防</div>
         <div class="sub-card-hint">防御6</div>
       </button>
       <button class="sub-card" id="sb-d2" data-action="defense_2">
-        <div class="sub-card-cost">2</div>
+        <div class="sub-card-cost">2</div><div class="sub-card-key">3</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">🛡🛡🛡</div>
         <div class="sub-card-name">无敌防</div>
         <div class="sub-card-hint">防御7</div>
@@ -278,43 +278,43 @@
     <!-- 子面板（攻击） -->
     <div class="sub-panel" id="sp-atk">
       <button class="sub-card atk1" id="sb-a1" data-action="attack_1">
-        <div class="sub-card-cost">1</div>
+        <div class="sub-card-cost">1</div><div class="sub-card-key">1</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
         <div class="sub-card-name">攻击1</div>
         <div class="sub-card-hint">等级1</div>
       </button>
       <button class="sub-card atk1" id="sb-a2" data-action="attack_2">
-        <div class="sub-card-cost">2</div>
+        <div class="sub-card-cost">2</div><div class="sub-card-key">2</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
         <div class="sub-card-name">攻击2</div>
         <div class="sub-card-hint">等级2</div>
       </button>
       <button class="sub-card atk1" id="sb-a3" data-action="attack_3">
-        <div class="sub-card-cost">3</div>
+        <div class="sub-card-cost">3</div><div class="sub-card-key">3</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔</div>
         <div class="sub-card-name">攻击3</div>
         <div class="sub-card-hint">等级3</div>
       </button>
       <button class="sub-card atk2" id="sb-a4" data-action="attack_4">
-        <div class="sub-card-cost">4</div>
+        <div class="sub-card-cost">4</div><div class="sub-card-key">4</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
         <div class="sub-card-name">攻击4</div>
         <div class="sub-card-hint">等级4</div>
       </button>
       <button class="sub-card atk2" id="sb-a5" data-action="attack_5">
-        <div class="sub-card-cost">5</div>
+        <div class="sub-card-cost">5</div><div class="sub-card-key">5</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
         <div class="sub-card-name">攻击5</div>
         <div class="sub-card-hint">等级5</div>
       </button>
       <button class="sub-card atk2" id="sb-a6" data-action="attack_6">
-        <div class="sub-card-cost">6</div>
+        <div class="sub-card-cost">6</div><div class="sub-card-key">6</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔</div>
         <div class="sub-card-name">攻击6</div>
         <div class="sub-card-hint">等级6</div>
       </button>
       <button class="sub-card atk3" id="sb-a7" data-action="attack_7">
-        <div class="sub-card-cost">7</div>
+        <div class="sub-card-cost">7</div><div class="sub-card-key">7</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚔⚔⚔</div>
         <div class="sub-card-name">攻击7</div>
         <div class="sub-card-hint">等级7</div>
@@ -325,14 +325,14 @@
     <div class="sub-panel" id="sp-special">
       <!-- 法师专属 -->
       <button class="sub-card sp-card" id="sb-sp1" data-action="mage_release">
-        <div class="sub-card-cost orb">5⚡</div>
+        <div class="sub-card-cost orb">5⚡</div><div class="sub-card-key">1</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚡⚡</div>
         <div class="sub-card-name">一重释放</div>
         <div class="sub-card-hint">等级5攻击</div>
       </button>
       <!-- nsyc 专属 -->
       <button class="sub-card sp-card" id="sb-sp2" data-action="ekai" style="display:none">
-        <div class="sub-card-cost">3🤬</div>
+        <div class="sub-card-cost">3🤬</div><div class="sub-card-key">1</div>
         <img class="sub-card-img" src="" alt=""><div class="sub-card-art">💢</div>
         <div class="sub-card-name">厄介</div>
         <div class="sub-card-hint">下回合必定命中</div>
@@ -342,7 +342,7 @@
     <!-- 确认行 -->
     <div class="confirm-row">
       <div class="sel-preview">已选：<em id="sel-preview-text">未选择</em></div>
-      <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓</button>
+      <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓ <span class="key-hint-inline">↵</span></button>
     </div>
 
   </div><!-- /action-area -->
