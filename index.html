@@ -345,6 +345,11 @@
       <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓ <span class="key-hint-inline">↵</span></button>
     </div>
 
+    <!-- 战技库按钮 -->
+    <div class="tech-lib-row">
+      <button class="btn btn-outline btn-tech-lib-open" id="btn-tech-lib">⚔ 战技库</button>
+    </div>
+
   </div><!-- /action-area -->
 
 </div><!-- /screen-battle -->
@@ -461,6 +466,18 @@
     <div class="intro-content" id="intro-content"></div>
     <div class="overlay-btns" style="margin-top:16px">
       <button class="btn btn-outline" id="btn-intro-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 战技库覆盖层 -->
+<div class="overlay" id="ov-tech-lib">
+  <div class="overlay-box tech-lib-box">
+    <div class="overlay-title">⚔ 战技库</div>
+    <div class="tech-lib-desc-hint">战技替换对应槽位的基础攻击，带有特殊效果。</div>
+    <div class="tech-lib-slots" id="tech-lib-slots"></div>
+    <div class="overlay-btns" style="margin-top:16px">
+      <button class="btn btn-outline" id="btn-tech-lib-close">关闭</button>
     </div>
   </div>
 </div>

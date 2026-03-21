@@ -1,5 +1,6 @@
 import { CLASS_DEFS, DEFAULT_CLASS_KEY, MAP_TEMPLATE, ORB_KEYS, POWER_RELIC_DEFS, getAbilityDefsForClass } from './data.js';
 import { clone } from './utils.js';
+import { createTechniquesState, createTechCounters } from './battleTechniques.js';
 
 export let G = {};
 
@@ -43,9 +44,10 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
     nodeIdx: 0,
     currentNode: null,
     enemy: null,
-    battle: {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null},
+    battle: {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, techCounters: createTechCounters(), enemyFrostLockThisRound: false},
     ui: {mainSel:null, actionKey:null},
     roomFlags: {playerDamagedInBattle:false},
+    techniques: createTechniquesState(),
     equippedGear: null,
     battleEntrySnapshot: null,
     pendingPowerRelicOptions: [],
@@ -120,6 +122,11 @@ export function resetRoomJi() {
   G.player.shaBiStacks = 0;
   G.player.jiSpentTotal = 0;
   if (G.enemy) G.enemy.ji = 0;
+  // Reset per-battle technique counters
+  if (G.battle) {
+    G.battle.techCounters = createTechCounters();
+    G.battle.enemyFrostLockThisRound = false;
+  }
 }
 
 export function restoreFromBattleSnapshot(snapshot) {

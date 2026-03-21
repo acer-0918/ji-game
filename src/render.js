@@ -1,6 +1,7 @@
 import { CLASS_DEFS, COMMON_ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
+import { TECH_DEFS, getTechDefsForSlot } from './battleTechniques.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -48,6 +49,14 @@ export function getPassiveBadges() {
   if (G.player.classKey === 'nsyc') {
     arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`});
     if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发'});
+  }
+  // 已装备战技
+  if (G.techniques) {
+    for (let slot = 1; slot <= 7; slot++) {
+      const id = G.techniques[slot];
+      const def = id && TECH_DEFS[id];
+      if (def) arr.push({icon: def.emoji, name: `${def.name}（${slot}）`});
+    }
   }
   return arr;
 }
@@ -249,7 +258,8 @@ export function refreshActionLabels() {
   ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
     const btn = $(`sb-a${idx + 1}`);
-    setSubCardLabel(btn, `${action.cost}`, action.name, `等级${action.atk}`);
+    const hintText = action.def > 0 ? `等级${action.atk}·防${action.def}` : `等级${action.atk}`;
+    setSubCardLabel(btn, `${action.cost}`, action.name, hintText);
   });
 
   const specialMain = $('mb-sp');
@@ -442,4 +452,79 @@ export function addLog(cls, text) {
   div.textContent = text;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
+}
+
+/** 渲染战技库覆盖层 */
+export function renderTechniqueLibrary() {
+  const container = $('tech-lib-slots');
+  if (!container) return;
+  container.innerHTML = '';
+
+  for (let slot = 1; slot <= 7; slot++) {
+    const equippedId = G.techniques ? G.techniques[slot] : null;
+    const techs = getTechDefsForSlot(slot);
+
+    const section = document.createElement('div');
+    section.className = 'tech-lib-section';
+
+    const head = document.createElement('div');
+    head.className = 'tech-lib-slot-title';
+    head.textContent = `攻击${slot} 槽位`;
+    section.appendChild(head);
+
+    if (techs.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'tag-placeholder';
+      empty.textContent = '（暂无战技）';
+      section.appendChild(empty);
+    }
+
+    techs.forEach((tech) => {
+      const isEquipped = equippedId === tech.id;
+      const card = document.createElement('div');
+      card.className = `tech-lib-card${isEquipped ? ' equipped' : ''}`;
+
+      // Art interface: 标准路径 assets/cards/tech/{id}.png，加载失败自动 fallback 到 emoji
+      const stdArt = `assets/cards/tech/${tech.id}.png`;
+      const artHtml = `<img class="tech-art" src="${stdArt}" alt="${tech.name}"
+        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="tech-art-emoji" style="display:none">${tech.emoji}</div>`;
+
+      const devBtn = G.devMode
+        ? `<div class="tech-lib-action">${isEquipped
+            ? `<button class="btn btn-outline tech-dev-btn" data-unequip-slot="${tech.slot}">卸下</button>`
+            : `<button class="btn btn-outline tech-dev-btn" data-equip-tech="${tech.id}">装备</button>`
+          }</div>`
+        : '';
+      card.innerHTML = `
+        <div class="tech-art-wrap">${artHtml}
+        </div>
+        <div class="tech-lib-info">
+          <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${tech.name}${isEquipped ? '（已装备）' : ''}</div>
+          <div class="tech-lib-desc">${tech.desc}</div>
+        </div>${devBtn}`;
+      section.appendChild(card);
+    });
+
+    // Show base attack if nothing equipped
+    const equippedName = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId].name : '基础攻击';
+    const statusDiv = document.createElement('div');
+    statusDiv.className = 'tech-lib-slot-status';
+    statusDiv.textContent = `当前槽位：${equippedName}`;
+    section.appendChild(statusDiv);
+
+    container.appendChild(section);
+  }
+}
+
+/** 在被动标签中显示已装备战技 */
+export function getTechBadges() {
+  const arr = [];
+  if (!G.techniques) return arr;
+  for (let slot = 1; slot <= 7; slot++) {
+    const id = G.techniques[slot];
+    const def = id && TECH_DEFS[id];
+    if (def) arr.push({ icon: def.emoji, name: `${def.name}（${slot}）` });
+  }
+  return arr;
 }

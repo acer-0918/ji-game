@@ -10,6 +10,7 @@ import {
   getPlayerJiRate,
   orbCount,
 } from './state.js';
+import { getTechForSlot, TECH_DEFS } from './battleTechniques.js';
 
 export function getActionData(key, side='player', actorOverride=null) {
   const actor = actorOverride || (side === 'player' ? G.player : G.enemy);
@@ -62,17 +63,43 @@ export function getActionData(key, side='player', actorOverride=null) {
     base.gain = side === 'player' ? getPlayerJiRate() : getEnemyStandardChargeGain(actor);
   }
 
-  if (side === 'player' && key === 'attack_5' && G.shop.enhancedBlade) {
+  // ── 战技覆盖：为攻击动作应用已装备战技的名称/表情/费用覆盖 ──
+  if (side === 'player' && base.type === 'attack' && key.startsWith('attack_')) {
+    const slot = parseInt(key.replace('attack_', ''), 10);
+    const tech = getTechForSlot(G, slot);
+    if (tech) {
+      base.techId = tech.id;
+      base.name = `${tech.name}（${slot}）`;
+      base.emoji = tech.emoji;
+      // 冰之盾：附带 6 防御等级
+      if (tech.id === 'atk_3_d') base.def = 6;
+      // 鬼头刀：费用改为 4
+      if (tech.costOverride !== undefined) base.cost = tech.costOverride;
+      // 连珠箭：连续5回合 → 0 费
+      if (tech.id === 'atk_1_e') {
+        const streak = G.battle && G.battle.techCounters ? (G.battle.techCounters.renzhuJian_streak || 0) : 0;
+        if (streak >= 5) base.cost = 0;
+      }
+    }
+  }
+
+  // 保存 enemy action 的原始 key（供重击判定用）
+  if (side === 'enemy' && base.type === 'attack') {
+    base.actionKey = key;
+  }
+
+  // Shop overrides only apply if no technique is equipped for that slot
+  if (side === 'player' && key === 'attack_5' && G.shop.enhancedBlade && !base.techId) {
     base.cost = 4;
     base.name = '强化鬼刀';
     base.emoji = '👻⚔';
   }
-  if (side === 'player' && key === 'attack_1' && G.shop.enhancedDagger) {
+  if (side === 'player' && key === 'attack_1' && G.shop.enhancedDagger && !base.techId) {
     base.name = '强化小刀';
     base.emoji = '🗡✨';
     base.onHitGainJi = 1;
   }
-  if (side === 'player' && key === 'attack_3' && G.shop.enhancedIceBlade) {
+  if (side === 'player' && key === 'attack_3' && G.shop.enhancedIceBlade && !base.techId) {
     base.name = '强化冰刀';
     base.emoji = '❄️🗡';
     base.damage += 1;
@@ -125,6 +152,7 @@ export function getActionSubText(action) {
     const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
     const parts = [`等级${action.atk}`, `${action.damage}伤害`, costText];
     if ((action.hits || 1) > 1) parts.splice(1, 0, `${action.hits}次`);
+    if (action.def > 0) parts.push(`防御${action.def}`); // 冰之盾
     return parts.join(' | ');
   }
   return '';

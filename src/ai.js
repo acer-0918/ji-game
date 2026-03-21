@@ -69,11 +69,19 @@ function applyGeneralClassDefenseDiscipline(ctx, weights) {
   }
 }
 
+const ATTACK_KEYS = ['attack_1','attack_2','attack_3','attack_4','attack_5','attack_6','attack_7'];
+
 function getBlockedActions(ctx) {
-  if (!ctx.playerIsGeneralClass) return [];
-  if (ctx.pJi < 6) return ['defense_1', 'defense_2'];
-  if (ctx.pJi < 7) return ['defense_2'];
-  return [];
+  const blocked = [];
+  if (ctx.playerIsGeneralClass) {
+    if (ctx.pJi < 6) blocked.push('defense_1', 'defense_2');
+    else if (ctx.pJi < 7) blocked.push('defense_2');
+  }
+  // 冰霜新星：本回合敌方无法发动任何攻击
+  if (G.battle && G.battle.enemyFrostLockThisRound) {
+    ATTACK_KEYS.forEach((k) => blocked.push(k));
+  }
+  return blocked;
 }
 
 function aiJiaxu(enemy) {
@@ -218,9 +226,13 @@ function aiBasic(enemy) {
 
 export function aiDecide(enemy) {
   if (!enemy) return 'ji';
+  const frostLocked = !!(G.battle && G.battle.enemyFrostLockThisRound);
   // Hard mode: blend MDP (70%) with heuristic (30%) for strategic variety
   const mdpAction = mdpDecide(enemy);
-  if (mdpAction !== null && Math.random() < 0.70) return mdpAction;
+  // If frost locked, reject any MDP attack suggestions
+  if (mdpAction !== null && Math.random() < 0.70) {
+    if (!frostLocked || !ATTACK_KEYS.includes(mdpAction)) return mdpAction;
+  }
   // Heuristic fallback (also sole path in normal mode)
   if (enemy.id === 'jiaxu') return aiJiaxu(enemy);
   if (enemy.id === 'gufu') return aiGufu(enemy);

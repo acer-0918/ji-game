@@ -4,6 +4,7 @@ import { registerDefaultCombatEffects } from './battle/defaultCombatEffects.js';
 import { registerDefaultDeathEffects } from './battle/defaultDeathEffects.js';
 import { registerDefaultRoundStartEffects } from './battle/defaultRoundStartEffects.js';
 import { registerDefaultResolveEffects } from './battle/defaultResolveEffects.js';
+import { registerTechEffects } from './battle/techEffects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
 import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
@@ -23,9 +24,11 @@ import {
   renderMap,
   renderPassiveTags,
   renderShop,
+  renderTechniqueLibrary,
   resetRoundUI,
 } from './render.js';
 import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
+import { equipTechnique, unequipTechniqueSlot } from './battleTechniques.js';
 import { clone, randomChoice } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -43,6 +46,7 @@ registerDefaultCombatEffects(battleEngine);
 registerDefaultRoundStartEffects(battleEngine);
 registerDefaultResolveEffects(battleEngine);
 registerDefaultDeathEffects(battleEngine);
+registerTechEffects(battleEngine);
 const battleRuntime = createBattleRuntime({
   engine: battleEngine,
   addLog,
@@ -770,6 +774,12 @@ function openIntro(startKey) {
 }
 function closeIntro() { closeOverlay('ov-intro'); }
 
+function openTechLibrary() {
+  renderTechniqueLibrary();
+  openOverlay('ov-tech-lib');
+}
+function closeTechLibrary() { closeOverlay('ov-tech-lib'); }
+
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
   $('btn-hard-start')?.addEventListener('click', startHardGame);
@@ -792,6 +802,22 @@ function bindStaticEvents() {
   $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
   $('btn-intro')?.addEventListener('click', () => openIntro());
   $('btn-intro-close')?.addEventListener('click', closeIntro);
+  $('btn-tech-lib')?.addEventListener('click', openTechLibrary);
+  $('btn-tech-lib-close')?.addEventListener('click', closeTechLibrary);
+
+  // Dev mode: equip/unequip techniques from the library
+  $('tech-lib-slots')?.addEventListener('click', (event) => {
+    if (!G.devMode) return;
+    const equipBtn = event.target.closest('button[data-equip-tech]');
+    const unequipBtn = event.target.closest('button[data-unequip-slot]');
+    if (equipBtn) {
+      const techId = equipBtn.dataset.equipTech;
+      if (techId) { equipTechnique(G, techId); renderTechniqueLibrary(); refreshActionLabels(); }
+    } else if (unequipBtn) {
+      const slot = parseInt(unequipBtn.dataset.unequipSlot, 10);
+      if (slot) { unequipTechniqueSlot(G, slot); renderTechniqueLibrary(); refreshActionLabels(); }
+    }
+  });
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);
 

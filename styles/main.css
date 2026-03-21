@@ -777,6 +777,68 @@ body {
   background: var(--gold-l);
 }
 
+/* ── 战技库 Tech Library ─────────────────────────── */
+.tech-lib-box {
+  max-width: 500px; width: 93%; padding: 28px 28px 22px;
+  text-align: left; max-height: 88vh; display: flex; flex-direction: column;
+}
+.tech-lib-box .overlay-title { text-align: center; }
+.tech-lib-desc-hint {
+  text-align: center; font-size: .82em; color: var(--text-lt);
+  margin-bottom: 12px; flex-shrink: 0;
+}
+.tech-lib-slots {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
+}
+.tech-lib-section {
+  background: var(--bg2); border-radius: var(--r-md);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+}
+.tech-lib-slot-title {
+  font-size: .8em; font-weight: 700; color: var(--purple);
+  letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px;
+}
+.tech-lib-slot-status {
+  font-size: .75em; color: var(--text-lt); margin-top: 2px;
+}
+.tech-lib-card {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: var(--card-bg); border-radius: var(--r-sm);
+  border: 1.5px solid var(--card-border); padding: 10px 12px;
+  transition: border-color .15s;
+}
+.tech-lib-card.equipped {
+  border-color: var(--purple); background: var(--purple-l);
+}
+.tech-art-wrap {
+  flex-shrink: 0; width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: var(--r-sm); overflow: hidden;
+  background: var(--bg3);
+}
+.tech-art { width: 100%; height: 100%; object-fit: cover; }
+.tech-art-emoji { font-size: 1.5em; line-height: 1; }
+.tech-lib-info { flex: 1; min-width: 0; }
+.tech-lib-name {
+  font-size: .9em; font-weight: 700; color: var(--text);
+  margin-bottom: 3px;
+}
+.tech-lib-card.equipped .tech-lib-name { color: var(--purple); }
+.tech-lib-desc { font-size: .78em; color: var(--text-mid); line-height: 1.5; }
+.tech-lib-action {
+  flex-shrink: 0; display: flex; align-items: center;
+}
+.tech-dev-btn {
+  font-size: .72em; padding: 3px 10px; white-space: nowrap;
+}
+.tech-lib-row {
+  text-align: center; padding: 6px 0 2px;
+}
+.btn-tech-lib-open {
+  font-size: .8em; padding: 5px 16px; opacity: .75;
+}
+.btn-tech-lib-open:hover { opacity: 1; }
+
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
