@@ -128,12 +128,20 @@ export function renderEquipSlots(id) {
   if (!wrap) return;
   wrap.innerHTML = '';
   const allowUnequip = id === 'map-equip-slots';
+  const compactMode = id === 'battle-equip-slots';
   for (let slotIndex = 0; slotIndex < 2; slotIndex++) {
     const equipmentId = getEquipmentIdInSlot(G, slotIndex);
     const def = equipmentId ? getEquipmentDef(equipmentId) : null;
     const slot = document.createElement('div');
     const filled = !!def;
-    slot.className = `equip-slot${filled ? ` filled${allowUnequip ? ' clickable' : ''}` : ''}${filled ? ' detail-target' : ''}`;
+    const cls = ['equip-slot'];
+    if (compactMode) cls.push('compact-battle');
+    if (filled) {
+      cls.push('filled');
+      if (allowUnequip) cls.push('clickable');
+      cls.push('detail-target');
+    }
+    slot.className = cls.join(' ');
     slot.dataset.slotIndex = String(slotIndex);
     if (!filled) {
       slot.textContent = `装备槽${slotIndex + 1}｜空`;
@@ -141,19 +149,24 @@ export function renderEquipSlots(id) {
       continue;
     }
 
-    const tagLine = getEquipmentTagText(G, equipmentId);
     const tagDef = getEquipmentTagDefForItem(G, equipmentId);
     const detail = tagDef
       ? `${def.desc}\n当前词条：${tagDef.name}\n词条效果：${tagDef.desc}`
       : `${def.desc}\n当前词条：无`;
     slot.dataset.detailTitle = `${def.icon} ${def.name}`;
     slot.dataset.detail = detail;
-    const artPath = getEquipmentCardArtPath(equipmentId);
-    slot.innerHTML = `
-      <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
-      <span class="equip-slot-fallback" style="display:none">${def.icon}</span>
-      <span class="equip-slot-name">${def.name}</span>
-      <span class="equip-slot-tag">${tagLine}</span>`;
+    if (compactMode) {
+      slot.innerHTML = `
+        <span class="equip-slot-emoji">${def.icon}</span>
+        <span class="equip-slot-name">${def.name}</span>`;
+    } else {
+      const artPath = getEquipmentCardArtPath(equipmentId);
+      slot.innerHTML = `
+        <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+        <span class="equip-slot-fallback" style="display:none">${def.icon}</span>
+        <span class="equip-slot-name">${def.name}</span>
+        <span class="equip-slot-tag">${tagLine}</span>`;
+    }
     wrap.appendChild(slot);
   }
 }
@@ -606,6 +619,43 @@ export function refreshBars() {
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
   renderEquipSlots('battle-equip-slots');
+  updateBattleCompactShortcuts();
+}
+
+function updateBattleCompactShortcuts() {
+  const passiveWrap = $('battle-passive-tags');
+  const equipWrap = $('battle-equip-slots');
+  const shortcutWrap = $('battle-compact-shortcuts');
+  const abilityBtn = $('btn-battle-abilities-detail');
+  const equipBtn = $('btn-battle-equip-detail');
+  if (!passiveWrap || !equipWrap || !shortcutWrap || !abilityBtn || !equipBtn) return;
+  const enabled = document.body.classList.contains('narrow-battle-optimized')
+    && window.matchMedia('(max-width: 680px)').matches;
+  if (!enabled) {
+    passiveWrap.style.display = '';
+    equipWrap.style.display = '';
+    shortcutWrap.style.display = 'none';
+    if (abilityBtn) abilityBtn.style.display = '';
+    if (equipBtn) equipBtn.style.display = '';
+    return;
+  }
+
+  const passiveDetails = getPassiveBadges()
+    .map((item) => `${item.icon} ${item.name}${item.detail ? `\n${item.detail}` : ''}`)
+    .join('\n\n');
+  passiveWrap.innerHTML = '';
+  const summaryBtn = document.createElement('button');
+  summaryBtn.type = 'button';
+  summaryBtn.className = 'battle-state-inline-btn detail-target';
+  summaryBtn.dataset.detailTitle = '🎒 当前背包';
+  summaryBtn.dataset.detail = passiveDetails || '当前无能力。';
+  summaryBtn.textContent = '🎒 查看背包';
+  passiveWrap.appendChild(summaryBtn);
+  passiveWrap.style.display = 'flex';
+  equipWrap.style.display = 'grid';
+  shortcutWrap.style.display = 'none';
+  if (abilityBtn) abilityBtn.style.display = 'none';
+  if (equipBtn) equipBtn.style.display = 'none';
 }
 
 export function resetRoundUI() {

@@ -9,11 +9,7 @@ import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
 import { CLASS_DEFS, POWER_RELIC_DEFS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
-import {
-  describeAttack,
-  getActionData,
-  getActionSubText,
-} from './logic.js';
+import { getActionData } from './logic.js';
 import {
   addLog,
   refreshBars,
@@ -58,9 +54,25 @@ import {
 } from './map/index.js';
 import { getMapEventArtPath } from './map/art.js';
 
+function getPlayedCardSubText(action) {
+  if (!action) return '';
+  if (action.type === 'ji' || action.type === 'gufu_charge') return `+${action.gain}Ji`;
+  if (action.type === 'attack') {
+    const hitsText = (action.hits || 1) > 1 ? ` ×${action.hits}` : '';
+    const levelText = Number.isFinite(action.atk) ? `等级${action.atk}` : '攻击';
+    return `${levelText}${hitsText}`;
+  }
+  if (action.type === 'defense') return `防御${action.def}`;
+  if (action.type === 'ekai' || action.type === 'dev_kill' || action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom') {
+    return Number.isFinite(action.atk) ? `等级${action.atk}` : '特殊';
+  }
+  return '特殊';
+}
+
 const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
+const NARROW_BATTLE_UI_LS_KEY = 'ji_game_narrow_battle_ui';
 const DEV_FRAGMENTS = 999999999;
 const DEV_GOLD = 999999999;
 const FEEDBACK_URL = 'https://v.wjx.cn/vm/hhxTGwR.aspx#';
@@ -70,6 +82,7 @@ const BATTLE_TIMINGS = {
   OUTCOME_DELAY_MS: 0,
 };
 let developerModeEnabled = false;
+let narrowBattleUiEnabled = false;
 const battleEngine = createBattleEngine();
 registerDefaultCombatEffects(battleEngine);
 registerDefaultRoundStartEffects(battleEngine);
@@ -90,10 +103,23 @@ try {
 } catch (_) {
   developerModeEnabled = false;
 }
+try {
+  narrowBattleUiEnabled = window.localStorage.getItem(NARROW_BATTLE_UI_LS_KEY) === '1';
+} catch (_) {
+  narrowBattleUiEnabled = false;
+}
 
 function persistDeveloperMode() {
   try {
     window.localStorage.setItem(DEV_MODE_LS_KEY, developerModeEnabled ? '1' : '0');
+  } catch (_) {
+    // ignore storage failures
+  }
+}
+
+function persistNarrowBattleUi() {
+  try {
+    window.localStorage.setItem(NARROW_BATTLE_UI_LS_KEY, narrowBattleUiEnabled ? '1' : '0');
   } catch (_) {
     // ignore storage failures
   }
@@ -111,6 +137,16 @@ function refreshDeveloperModeButton() {
   btn.textContent = `开发者模式：${developerModeEnabled ? '开启' : '关闭'}`;
 }
 
+function applyNarrowBattleUiClass() {
+  document.body.classList.toggle('narrow-battle-optimized', !!narrowBattleUiEnabled);
+}
+
+function refreshNarrowBattleUiButton() {
+  const btn = $('btn-toggle-narrow-ui');
+  if (!btn) return;
+  btn.textContent = `窄屏战斗界面优化：${narrowBattleUiEnabled ? '开启' : '关闭'}`;
+}
+
 function applyDeveloperModeToGameState() {
   G.devMode = developerModeEnabled;
   keepDeveloperResources();
@@ -124,6 +160,14 @@ function toggleDeveloperMode() {
   if ($('screen-map').classList.contains('active')) renderMap();
   if ($('ov-shop').classList.contains('show')) renderShop();
   if (G.enemy) refreshBars();
+}
+
+function toggleNarrowBattleUi() {
+  narrowBattleUiEnabled = !narrowBattleUiEnabled;
+  persistNarrowBattleUi();
+  applyNarrowBattleUiClass();
+  refreshNarrowBattleUiButton();
+  if ($('screen-battle').classList.contains('active') && G.enemy) refreshBars();
 }
 
 function getRoundBlockedSet() {
@@ -903,6 +947,10 @@ function mainSelect(category) {
   const btnMap   = {ji:'mb-ji', def:'mb-def', atk:'mb-atk', a1:'mb-atk', a2:'mb-atk', a3:'mb-atk', sp:'mb-sp'};
 
   if (category === 'ji') {
+    if (G.ui.actionKey === 'ji') {
+      confirmAction();
+      return;
+    }
     if (isActionBlockedForRound('ji')) return;
     G.ui.mainSel = 'ji';
     G.ui.actionKey = 'ji';
@@ -910,11 +958,11 @@ function mainSelect(category) {
     $('mb-ji').classList.add('sel');
     document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
     document.querySelectorAll('.sub-btn').forEach((btn) => btn.classList.remove('sel'));
-    const action = getActionData('ji', 'player');
-    $('pc-emoji').textContent = action.emoji;
-    $('pc-main').textContent = action.name;
-    $('pc-sub').textContent = `+${action.gain}Ji`;
-    $('sel-preview-text').textContent = `⚡ 蓄力 (+${action.gain}Ji)`;
+  const action = getActionData('ji', 'player');
+  $('pc-emoji').textContent = action.emoji;
+  $('pc-main').textContent = action.name;
+  $('pc-sub').textContent = `+${action.gain}Ji`;
+  $('sel-preview-text').textContent = `⚡ 蓄力 (+${action.gain}Ji)`;
     $('btn-confirm').disabled = false;
     hideHuntRhythmPanel(true);
     return;
@@ -948,6 +996,11 @@ function subSelect(key) {
   if (isActionBlockedForRound(key)) return;
   const action = getActionData(key, 'player');
   if (!action || action.disabledByOrbs || action.cost > G.player.ji) return;
+  if (G.ui.actionKey === key) {
+    if (isActionBlockedForRound(key) || action.disabledByOrbs || action.cost > G.player.ji) return;
+    confirmAction();
+    return;
+  }
   G.ui.actionKey = key;
 
   document.querySelectorAll('.sub-card, .sub-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -956,16 +1009,9 @@ function subSelect(key) {
 
   $('pc-emoji').textContent = action.emoji;
   $('pc-main').textContent = action.name;
-  if (action.type === 'defense') $('pc-sub').textContent = `防御${action.def} | 耗${action.cost}Ji`;
-  else if (action.type === 'ekai') $('pc-sub').textContent = getActionSubText(action);
-  else $('pc-sub').textContent = describeAttack(action);
-
-  const costLabel = action.isMageRelease ? `${action.orbCost}闪电球` : action.type === 'ekai' ? `4层傻逼` : `${action.cost}Ji`;
-  let preview = `${action.emoji} ${action.name} (${costLabel})`;
-  if (action.type === 'defense') preview += ` 防御${action.def}`;
-  if (action.type === 'attack') preview += ` 攻击${action.atk} / ${action.damage}伤害`;
-  if (action.type === 'ekai') preview += ` 消耗4层傻逼·下回合必定命中`;
-  $('sel-preview-text').textContent = preview;
+  const playedSubText = getPlayedCardSubText(action);
+  $('pc-sub').textContent = playedSubText;
+  $('sel-preview-text').textContent = `${action.emoji} ${action.name}${playedSubText ? ` (${playedSubText})` : ''}`;
   $('btn-confirm').disabled = false;
   updateHuntRhythmPanelForAction(key);
 }
@@ -986,8 +1032,9 @@ function confirmAction() {
 function doReveal() {
   const enemyAction = getActionData(G.battle.eAction, 'enemy');
   const enemyCard = $('enemy-card');
+  const enemySubText = getPlayedCardSubText(enemyAction);
   enemyCard.className = 'reveal-card revealed-enemy';
-  enemyCard.innerHTML = `<div class="ac-emoji">${enemyAction.emoji}</div><div class="ac-name">${enemyAction.name}</div><div class="ac-sub">${getActionSubText(enemyAction)}</div>`;
+  enemyCard.innerHTML = `<div class="ac-emoji">${enemyAction.emoji}</div><div class="ac-name">${enemyAction.name}</div><div class="ac-sub">${enemySubText}</div>`;
   $('player-card').className = 'reveal-card revealed-player';
   $('round-phase').textContent = '结算中...';
   runAfter(BATTLE_TIMINGS.RESOLVE_DELAY_MS, doResolve);
@@ -1302,10 +1349,23 @@ function setupDetailPopover() {
   }, true);
 
   document.addEventListener('click', (event) => {
+    const directTarget = event.target.closest('.detail-target[data-detail]');
+    if (directTarget) {
+      touchLocked = true;
+      showFor(directTarget);
+      return;
+    }
     if (!touchLocked) return;
     if (event.target.closest('.detail-target[data-detail]') || event.target.closest('#detail-popover')) return;
     touchLocked = false;
     hide(true);
+  });
+
+  document.addEventListener('dblclick', (event) => {
+    const target = event.target.closest('.detail-target[data-detail]');
+    if (!target) return;
+    touchLocked = true;
+    showFor(target);
   });
 }
 
@@ -1339,6 +1399,7 @@ function bindStaticEvents() {
   $('btn-to-menu-battle')?.addEventListener('click', openSettings);
   $('btn-settings-close')?.addEventListener('click', closeSettings);
   $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
+  $('btn-toggle-narrow-ui')?.addEventListener('click', toggleNarrowBattleUi);
   $('btn-intro')?.addEventListener('click', () => openIntro());
   $('btn-intro-battle')?.addEventListener('click', () => openIntro(G.player.classKey));
   $('btn-intro-close')?.addEventListener('click', closeIntro);
@@ -1404,6 +1465,11 @@ function bindStaticEvents() {
       lastY = event.clientY;
     });
   }
+
+  window.addEventListener('resize', () => {
+    applyNarrowBattleUiClass();
+    if ($('screen-battle').classList.contains('active') && G.enemy) refreshBars();
+  });
 
   $('abtree-nodes').addEventListener('click', (event) => {
     const button = event.target.closest('button[data-unlock]');
@@ -1543,7 +1609,9 @@ function bootstrap() {
   document.addEventListener('keydown', handleKeydown);
   initGame();
   applyDeveloperModeToGameState();
+  applyNarrowBattleUiClass();
   refreshDeveloperModeButton();
+  refreshNarrowBattleUiButton();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
