@@ -5,10 +5,11 @@ import { registerDefaultDeathEffects } from './battle/defaultDeathEffects.js';
 import { registerDefaultRoundStartEffects } from './battle/defaultRoundStartEffects.js';
 import { registerDefaultResolveEffects } from './battle/defaultResolveEffects.js';
 import { registerTechEffects } from './battle/techEffects.js';
+import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
 import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
-import { CLASS_DEFS, COMMON_ABILITY_DEFS, POWER_RELIC_DEFS, SHOP_ITEMS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
+import { CLASS_DEFS, POWER_RELIC_DEFS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
 import {
   describeAttack,
   getActionData,
@@ -24,17 +25,41 @@ import {
   renderMap,
   renderPassiveTags,
   renderShop,
+  renderEquipmentLibrary,
   renderTechniqueLibrary,
   resetRoundUI,
 } from './render.js';
 import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
 import { equipTechnique, unequipTechniqueSlot } from './battleTechniques.js';
 import { clone, randomChoice } from './utils.js';
+import { getEquipmentDef } from './equipment/defs.js';
+import {
+  applyOnWinEquipmentRewards,
+  applyPostBattleTagModifiers,
+  clearEquipmentShopOffers,
+  createBattleEquipmentState,
+  equipEquipment,
+  getEquipmentIdInSlot,
+  getEquippedEquipmentIds,
+  unequipEquipment,
+} from './equipment/runtime.js';
+import {
+  buildBattleRewardOptions,
+  completeMapRoom,
+  createShopInventoryForRoom,
+  enterMapRoom,
+  formatRewardPickText,
+  getEventViewModel,
+  getRoomById,
+  resolveEventChoice,
+} from './map/index.js';
+import { getMapEventArtPath } from './map/art.js';
 
 const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
 const DEV_FRAGMENTS = 999999999;
+const FEEDBACK_URL = 'https://v.wjx.cn/vm/hhxTGwR.aspx#';
 const BATTLE_TIMINGS = {
   REVEAL_DELAY_MS: 120,
   RESOLVE_DELAY_MS: 180,
@@ -47,6 +72,7 @@ registerDefaultRoundStartEffects(battleEngine);
 registerDefaultResolveEffects(battleEngine);
 registerDefaultDeathEffects(battleEngine);
 registerTechEffects(battleEngine);
+registerEquipmentEffects(battleEngine);
 const battleRuntime = createBattleRuntime({
   engine: battleEngine,
   addLog,
@@ -111,6 +137,7 @@ function getPlayerActionKeysForSilence() {
   const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
   if (G.player.classKey === 'mage') keys.push('mage_release');
   if (G.player.classKey === 'nsyc') keys.push('ekai');
+  if (G.devMode) keys.push('dev_kill');
   return keys;
 }
 
@@ -138,6 +165,104 @@ function clearRelicChoiceUI() {
   if (options) options.innerHTML = '';
   if (wrap) wrap.style.display = 'none';
   G.pendingPowerRelicOptions = [];
+}
+
+function clearEventRelicChoiceUI() {
+  const wrap = $('event-relic-wrap');
+  const options = $('event-relic-options');
+  if (options) options.innerHTML = '';
+  if (wrap) wrap.style.display = 'none';
+  G.pendingEventRelicOptions = [];
+  G.pendingEventRelicSelectedKey = null;
+}
+
+function renderEventRelicChoiceUI(options) {
+  const wrap = $('event-relic-wrap');
+  const container = $('event-relic-options');
+  const skipBtn = $('btn-event-relic-skip');
+  if (!wrap || !container) return;
+  container.innerHTML = '';
+  const selectedKey = G.pendingEventRelicSelectedKey;
+  const hasSelected = !!selectedKey;
+  if (!Array.isArray(options) || options.length <= 0) {
+    const empty = document.createElement('div');
+    empty.className = 'tag-placeholder';
+    empty.textContent = '当前没有可选择的遗物。';
+    container.appendChild(empty);
+    if (skipBtn) skipBtn.disabled = false;
+    wrap.style.display = '';
+    return;
+  }
+  options.forEach((item) => {
+    const isSelected = selectedKey === item.key;
+    const isLocked = hasSelected && !isSelected;
+    const card = document.createElement('div');
+    card.className = `ab-node-card relic-choice-card${isSelected ? ' selected' : ''}${isLocked ? ' locked' : ''}`;
+    card.innerHTML = `
+      <div class="ab-icon">${item.icon}</div>
+      <div class="ab-info">
+        <div class="ab-name">${item.name}</div>
+        <div class="ab-desc">${item.desc}</div>
+      </div>
+      <div class="ab-action">
+        <button class="btn-unlock" data-event-relic="${item.key}" ${hasSelected ? 'disabled' : ''}>${isSelected ? '已选择' : '选择'}</button>
+      </div>`;
+    container.appendChild(card);
+  });
+  if (skipBtn) skipBtn.disabled = hasSelected;
+  wrap.style.display = '';
+}
+
+function chooseEventRelic(key) {
+  if (G.pendingEventRelicSelectedKey) return;
+  const def = getPowerRelicDef(key);
+  if (!def || G.powerRelics[key]) return;
+  G.powerRelics[key] = true;
+  G.pendingEventRelicSelectedKey = key;
+  addLog('log-ab', `🧿 事件馈赠：获得强大遗物 ${def.name}。`);
+  renderEventRelicChoiceUI(G.pendingEventRelicOptions);
+  renderMap();
+  if (G.enemy) refreshBars();
+}
+
+function clearBattleRewardUI() {
+  const wrap = $('ov-battle-reward-wrap');
+  const tip = $('ov-battle-reward-tip');
+  const options = $('ov-battle-reward-options');
+  if (tip) tip.textContent = '';
+  if (options) options.innerHTML = '';
+  if (wrap) wrap.style.display = 'none';
+}
+
+function renderBattleRewardUI() {
+  const wrap = $('ov-battle-reward-wrap');
+  const tip = $('ov-battle-reward-tip');
+  const optionsWrap = $('ov-battle-reward-options');
+  if (!wrap || !tip || !optionsWrap) return;
+  const reward = G.pendingBattleReward;
+  const options = Array.isArray(reward && reward.options) ? reward.options : [];
+  const pickCount = Math.max(0, Number(reward && reward.pickCount ? reward.pickCount : 0));
+  if (pickCount <= 0 || options.length <= 0) {
+    clearBattleRewardUI();
+    return;
+  }
+
+  const selected = new Set(Array.isArray(reward.selectedOptionIds) ? reward.selectedOptionIds : []);
+  const remain = Math.max(0, pickCount - selected.size);
+  tip.textContent = `还可选择 ${remain} 项。`;
+
+  optionsWrap.innerHTML = '';
+  options.forEach((item) => {
+    const checked = selected.has(item.optionId);
+    const disabled = !checked && selected.size >= pickCount;
+    const row = document.createElement('label');
+    row.className = `reward-option-row${checked ? ' selected' : ''}${disabled ? ' disabled' : ''}`;
+    row.innerHTML = `
+      <input type="checkbox" data-reward-option="${item.optionId}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      <span class="reward-option-text">${formatRewardPickText(item)}</span>`;
+    optionsWrap.appendChild(row);
+  });
+  wrap.style.display = '';
 }
 
 function renderRelicChoiceUI(options) {
@@ -188,6 +313,60 @@ function closeOverlay(id) {
   $(id).classList.remove('show');
 }
 
+function openEventRoom(room) {
+  const model = getEventViewModel(room, G);
+  $('event-title').textContent = `事件：${model.title}`;
+  const eventArt = $('event-art');
+  if (eventArt) {
+    const eventId = room && room.payload ? room.payload.eventId : '';
+    eventArt.style.display = '';
+    eventArt.src = getMapEventArtPath(eventId || 'default');
+  }
+  $('event-body').textContent = model.intro;
+  const choicesWrap = $('event-choices');
+  choicesWrap.innerHTML = '';
+  model.choices.forEach((choice) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-outline';
+    btn.dataset.eventChoice = choice.key;
+    btn.style.margin = '4px';
+    btn.textContent = `${choice.key}. ${choice.text}`;
+    choicesWrap.appendChild(btn);
+  });
+  $('btn-event-confirm').disabled = true;
+  clearEventRelicChoiceUI();
+  openOverlay('ov-event');
+}
+
+function applyPickedRewards(picks) {
+  const out = [];
+  (Array.isArray(picks) ? picks : []).forEach((picked) => {
+    if (!picked) return;
+    if (picked.kind === 'fragment') {
+      G.player.fragments += picked.amount || 1;
+      out.push(picked);
+      return;
+    }
+    if (picked.kind === 'technique' && picked.id) {
+      equipTechnique(G, picked.id);
+      addLog('log-ab', `📘 获得战技：${picked.id}（已自动装备到对应攻击槽）。`);
+      out.push(picked);
+    }
+  });
+  return out;
+}
+
+function finalizeBattleRewards() {
+  const reward = G.pendingBattleReward;
+  if (!reward) return [];
+  const selected = new Set(Array.isArray(reward.selectedOptionIds) ? reward.selectedOptionIds : []);
+  const picked = (Array.isArray(reward.options) ? reward.options : []).filter((item) => selected.has(item.optionId));
+  const out = applyPickedRewards(picked);
+  G.pendingBattleReward = null;
+  clearBattleRewardUI();
+  return out;
+}
+
 function setLoadingText(text) {
   const tip = $('loading-tip');
   if (tip) tip.textContent = text || '加载中...';
@@ -224,9 +403,10 @@ function closeAbilityTree() {
 function unlockAbility(key) {
   const ab = getAbilityDefsForClass(G.player.classKey).find((item) => item.key === key);
   if (!ab || G.abilities[key] || (!G.devMode && G.player.fragments < ab.cost)) return;
-  // Linear prerequisite check: class abilities must be unlocked in order
+  // Ability tree prerequisite check: linear by default, optional free-pick per class
   const classDef = CLASS_DEFS[G.player.classKey];
-  if (classDef) {
+  const isLinearTree = !classDef || classDef.abilityTreeLinear !== false;
+  if (classDef && isLinearTree) {
     const idx = classDef.abilityDefs.findIndex((a) => a.key === key);
     if (idx > 0 && !G.devMode) {
       const prevKey = classDef.abilityDefs[idx - 1].key;
@@ -235,10 +415,6 @@ function unlockAbility(key) {
   }
   if (!G.devMode) G.player.fragments -= ab.cost;
   G.abilities[key] = true;
-  if (key === 'mango') {
-    G.player.maxHp += 5;
-    G.player.hp += 5;
-  }
   if (key === 'haruna') {
     G.player.maxHp += 2;
     G.player.hp += 2;
@@ -251,43 +427,102 @@ function unlockAbility(key) {
   renderMap();
 }
 
-function buyShopItem(key) {
-  const item = SHOP_ITEMS.find((entry) => entry.key === key);
-  if (!item || G.shop[key] || (!G.devMode && G.player.fragments < item.cost)) return;
-  if (item.slot === 'gear' && G.equippedGear && G.equippedGear !== key) return;
-  if (!G.devMode) G.player.fragments -= item.cost;
-  G.shop[key] = true;
-  if (item.slot === 'gear') G.equippedGear = key;
+function buyShopInventoryItem(kind, id) {
+  const room = G.currentNode;
+  const inventory = room && room.payload ? room.payload.shopInventory : null;
+  if (!inventory) return;
+  const allItems = [...inventory.equipment, ...inventory.techniques, inventory.fragment].filter(Boolean);
+  const item = allItems.find((x) => x.kind === kind && x.id === id);
+  if (!item || item.purchased) return;
+  if ((G.player.gold || 0) < item.price) return;
+
+  if (kind === 'equipment') {
+    const equippedIds = getEquippedEquipmentIds(G);
+    if (equippedIds.length >= 2 && !equippedIds.includes(id)) return;
+    const result = equipEquipment(G, id);
+    if (!result.ok) return;
+  } else if (kind === 'technique') {
+    const ok = equipTechnique(G, id);
+    if (!ok) return;
+  } else if (kind === 'fragment') {
+    G.player.fragments += item.amount || 1;
+  }
+
+  G.player.gold -= item.price;
+  item.purchased = true;
   keepDeveloperResources();
   renderShop();
   renderMap();
-  if (G.enemy) refreshBars();
 }
 
-function unequipGear() {
-  const equippedKey = G.equippedGear;
-  if (!equippedKey) return;
-  const item = SHOP_ITEMS.find((entry) => entry.key === equippedKey);
-  const itemName = item ? item.name : '当前装备';
+function unequipEquipmentSlot(slotIndex) {
+  if (G.enemy) return;
+  const equipmentId = getEquipmentIdInSlot(G, slotIndex);
+  if (!equipmentId) return;
+  const def = getEquipmentDef(equipmentId);
+  const itemName = def ? def.name : '当前装备';
   const ok = window.confirm(`是否卸下【${itemName}】？卸下后需要重新购买才能再次装备。`);
   if (!ok) return;
-  G.shop[equippedKey] = false;
-  G.equippedGear = null;
+  const result = unequipEquipment(G, slotIndex);
+  if (!result.ok) return;
   renderMap();
   if ($('ov-shop').classList.contains('show')) renderShop();
   if (G.enemy) refreshBars();
 }
 
 function leaveShop() {
+  clearEquipmentShopOffers(G);
+  if (G.currentNode && G.currentNode.id) {
+    completeMapRoom(G.map, G.currentNode.id);
+  }
   if (G.devMode) {
     closeOverlay('ov-shop');
     renderMap();
     return;
   }
   resetRoomJi();
-  G.nodes[G.nodeIdx].done = true;
-  G.nodeIdx += 1;
   closeOverlay('ov-shop');
+  renderMap();
+}
+
+function chooseEventOption(choiceKey) {
+  if (!G.currentNode || G.currentNode.type !== 'event') return;
+  const result = resolveEventChoice(G, G.currentNode, choiceKey, { addLog });
+  $('event-body').textContent = result.text;
+  $('event-choices').innerHTML = '';
+  $('btn-event-confirm').disabled = !result.leave;
+  clearEventRelicChoiceUI();
+  if (!result.leave) {
+    const hint = document.createElement('div');
+    hint.className = 'tag-placeholder';
+    hint.textContent = '当前操作未完成，可重新选择。';
+    $('event-choices').appendChild(hint);
+    const model = getEventViewModel(G.currentNode, G);
+    model.choices.forEach((choice) => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-outline';
+      btn.dataset.eventChoice = choice.key;
+      btn.style.margin = '4px';
+      btn.textContent = `${choice.key}. ${choice.text}`;
+      $('event-choices').appendChild(btn);
+    });
+  } else {
+    const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
+    if (eventId === 'event_2') {
+      const options = getPowerRelicOptions(2);
+      G.pendingEventRelicOptions = options;
+      renderEventRelicChoiceUI(options);
+    }
+  }
+  renderMap();
+}
+
+function confirmLeaveEvent() {
+  if (G.currentNode && G.currentNode.id) {
+    completeMapRoom(G.map, G.currentNode.id);
+  }
+  clearEventRelicChoiceUI();
+  closeOverlay('ov-event');
   renderMap();
 }
 
@@ -308,7 +543,7 @@ function startGame() {
   if (!selectedClassKey) return;
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
   clearMDPPolicies();
-  initGame(selectedClassKey);
+  initGame(selectedClassKey, false);
   applyDeveloperModeToGameState();
   updateHardBadge(false);
   showScreen('map');
@@ -328,7 +563,7 @@ async function startHardGame() {
     closeLoading();
     if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
   }
-  initGame(selectedClassKey);
+  initGame(selectedClassKey, true);
   applyDeveloperModeToGameState();
   G.hardMode = true;
   updateHardBadge(true);
@@ -346,32 +581,40 @@ function restartRun() {
   else startGame();
 }
 
-function enterNode(index) {
-  const node = G.nodes[index];
+function enterNode(roomId) {
+  const node = getRoomById(G.map, roomId);
   if (!node) return;
-  if (!G.devMode && (node.done || index !== G.nodeIdx)) return;
+  if (!G.devMode && !(G.map.availableRoomIds || []).includes(roomId)) return;
+  const room = enterMapRoom(G.map, roomId);
+  if (!room) return;
+  G.currentNode = room;
+
   resetRoomJi();
-  if (node.type === 'shop') {
+  if (room.type === 'shop') {
+    if (!room.payload.shopInventory) room.payload.shopInventory = createShopInventoryForRoom(G);
     renderShop();
     renderMap();
     openOverlay('ov-shop');
     return;
   }
-  if (node.type === 'camp') {
+
+  if (room.type === 'camp') {
     const heal = 3;
     const before = G.player.hp;
     G.player.hp = Math.min(G.player.maxHp, G.player.hp + heal);
-    if (!G.devMode) {
-      G.nodes[G.nodeIdx].done = true;
-      G.nodeIdx += 1;
-    }
+    completeMapRoom(G.map, room.id);
     renderMap();
     const actual = G.player.hp - before;
     window.alert(`🔥 篝火休整：回复 ${actual} 点生命。`);
     return;
   }
-  G.currentNode = clone(node);
-  startBattle(node);
+
+  if (room.type === 'event') {
+    openEventRoom(room);
+    return;
+  }
+
+  startBattle(room);
 }
 
 function restartBattle() {
@@ -383,7 +626,9 @@ function restartBattle() {
 }
 
 function startBattle(node, keepSnapshot=false) {
-  G.currentNode = clone(node);
+  G.currentNode = node;
+  G.pendingBattleReward = null;
+  clearBattleRewardUI();
   let tigerTriggered = false;
   if (!keepSnapshot && G.abilities.tigerTank && node.type === 'boss') {
     G.player.maxHp += 3;
@@ -394,7 +639,7 @@ function startBattle(node, keepSnapshot=false) {
     G.battleEntrySnapshot = clone(G);
   }
 
-  G.enemy = clone(node.enemy);
+  G.enemy = clone(node.payload.enemy);
   ensureFaultRobotState(G.enemy);
   resetRoomJi();
   G.enemy.ji = 0;
@@ -411,6 +656,7 @@ function startBattle(node, keepSnapshot=false) {
     roundDisabledActions:[],
     reunionDamageBonus:0,
     killedByDestinedFirstSight:false,
+    equipment:createBattleEquipmentState(),
   };
   G.ui = {mainSel:null, actionKey:null};
 
@@ -500,8 +746,9 @@ function mainSelect(category) {
   if (category === 'def' && isDefenseForbiddenByRelic()) return;
 
   if (category === 'sp') {
-    if (G.player.classKey !== 'mage' && G.player.classKey !== 'nsyc') return;
-    if (isActionBlockedForRound('mage_release')) return;
+    const hasClassSpecial = G.player.classKey === 'mage' || G.player.classKey === 'nsyc' || G.player.classKey === 'dog';
+    if (!hasClassSpecial && !G.devMode) return;
+    if (G.player.classKey === 'mage' && !G.devMode && isActionBlockedForRound('mage_release')) return;
   }
 
   document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -619,7 +866,9 @@ function endBattle(win) {
   // 清空上次结算文案，避免跨房间复用旧 Boss 名字
   body.innerHTML = '';
   clearRelicChoiceUI();
+  clearBattleRewardUI();
   G.pendingPowerRelicOptions = [];
+  G.pendingBattleReward = null;
 
   resetRoomJi();
 
@@ -627,22 +876,27 @@ function endBattle(win) {
     box.className = 'overlay-box green';
     title.textContent = '战斗胜利！';
     const node = G.currentNode;
-    const reward = node.reward || 0;
-    G.player.fragments += reward;
-    G.nodes[G.nodeIdx].done = true;
-    G.nodeIdx += 1;
-    if (G.equippedGear === 'vitalityEquip' && !G.roomFlags.playerDamagedInBattle) {
-      G.player.maxHp += 1;
-      G.player.hp += 1;
-      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>🩹 无伤通过战斗，<strong style="color:#8bd48b">生命上限 +1</strong>。`;
-    }
-    if (node.finalBoss) {
-      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！`;
+    const reward = buildBattleRewardOptions(G, node);
+    G.player.gold = (G.player.gold || 0) + reward.gold;
+    applyOnWinEquipmentRewards(G, node && node.payload && node.payload.enemy ? node.payload.enemy.maxHp : 0, { addLog });
+    applyPostBattleTagModifiers(G, { addLog });
+    G.pendingBattleReward = {
+      pickCount: Math.max(0, Number(reward.pickCount || 0)),
+      options: Array.isArray(reward.options) ? reward.options : [],
+      selectedOptionIds: [],
+    };
+    renderBattleRewardUI();
+
+    const completeInfo = completeMapRoom(G.map, node.id);
+    if (completeInfo.isRunCompleted) G.runWon = true;
+
+    if (node.payload && node.payload.finalBoss) {
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.payload.enemy.name}</strong>！`;
     } else if (!body.innerHTML) {
-      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.enemy.name}</strong>！<br>继续前进，后面还有更强的敌人。`;
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.payload.enemy.name}</strong>！<br>获得金币 +${reward.gold}。`;
     }
 
-    if (node.dropPowerRelic) {
+    if (node.payload && node.payload.dropPowerRelic) {
       const options = getPowerRelicOptions(2);
       if (options.length > 0) {
         G.pendingPowerRelicOptions = options;
@@ -652,6 +906,7 @@ function endBattle(win) {
   } else {
     box.className = 'overlay-box red';
     title.textContent = '战斗失败';
+    applyPostBattleTagModifiers(G, { addLog });
     body.textContent = '你的生命归零，旅途就此结束...';
   }
 
@@ -670,13 +925,13 @@ function endBattle(win) {
 }
 
 function closeBattleOverlay() {
+  finalizeBattleRewards();
   closeOverlay('ov-battle');
   if (G.player.hp <= 0) {
     showScreen('gameover');
     return;
   }
-  const prev = G.nodes[G.nodeIdx - 1];
-  if (prev && prev.finalBoss) {
+  if (G.runWon) {
     showScreen('victory');
     return;
   }
@@ -698,21 +953,22 @@ function confirmBackToMenu() {
   showScreen('menu');
 }
 
+function openFeedbackForm() {
+  window.open(FEEDBACK_URL, '_blank', 'noopener,noreferrer');
+}
+
 // ── Intro overlay ─────────────────────────────────────────────────────────────
 function openIntro(startKey) {
-  const classKeys = Object.keys(CLASS_DEFS);
+  const fallbackKey = Object.keys(CLASS_DEFS)[0];
+  const singleKey = startKey || selectedClassKey || (G.player && G.player.classKey) || fallbackKey;
 
   function renderIntroContent(key) {
     const cls = CLASS_DEFS[key];
+    if (!cls) return;
 
-    // Tab strip
-    $('intro-tabs').innerHTML = classKeys.map((k) => {
-      const c = CLASS_DEFS[k];
-      return `<button class="intro-tab${k === key ? ' active' : ''}" data-intro-class="${k}">${c.icon} ${c.name}</button>`;
-    }).join('');
-    $('intro-tabs').querySelectorAll('.intro-tab').forEach((btn) => {
-      btn.addEventListener('click', () => renderIntroContent(btn.dataset.introClass));
-    });
+    // Single-class mode: hide tabs, only show current class
+    $('intro-tabs').innerHTML = '';
+    $('intro-tabs').style.display = 'none';
 
     // Class header
     let html = `
@@ -753,23 +1009,10 @@ function openIntro(startKey) {
       </div>`).join('');
     html += `</div>`;
 
-    // Common abilities
-    html += `<div class="intro-common-divider">── 通用能力（所有职业可购买）──</div>
-      <div class="intro-section">`;
-    html += COMMON_ABILITY_DEFS.map((ab) => `
-      <div class="intro-ability">
-        <div class="intro-ability-icon">${ab.icon}</div>
-        <div class="intro-ability-body">
-          <div class="intro-ability-name">${ab.name}<span class="intro-ability-cost">✨ ${ab.cost}</span></div>
-          <div class="intro-ability-desc">${ab.desc}</div>
-        </div>
-      </div>`).join('');
-    html += `</div>`;
-
     $('intro-content').innerHTML = html;
   }
 
-  renderIntroContent(startKey || classKeys[0]);
+  renderIntroContent(singleKey);
   openOverlay('ov-intro');
 }
 function closeIntro() { closeOverlay('ov-intro'); }
@@ -779,6 +1022,11 @@ function openTechLibrary() {
   openOverlay('ov-tech-lib');
 }
 function closeTechLibrary() { closeOverlay('ov-tech-lib'); }
+function openEquipLibrary() {
+  renderEquipmentLibrary();
+  openOverlay('ov-equip-lib');
+}
+function closeEquipLibrary() { closeOverlay('ov-equip-lib'); }
 
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
@@ -795,15 +1043,20 @@ function bindStaticEvents() {
   $('btn-confirm').addEventListener('click', confirmAction);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
   $('btn-restart-run-from-victory').addEventListener('click', restartRun);
+  $('btn-feedback-gameover')?.addEventListener('click', openFeedbackForm);
+  $('btn-feedback-victory')?.addEventListener('click', openFeedbackForm);
   // Settings placeholder
   $('btn-to-menu-map')?.addEventListener('click', openSettings);
   $('btn-to-menu-battle')?.addEventListener('click', openSettings);
   $('btn-settings-close')?.addEventListener('click', closeSettings);
   $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
   $('btn-intro')?.addEventListener('click', () => openIntro());
+  $('btn-intro-battle')?.addEventListener('click', () => openIntro(G.player.classKey));
   $('btn-intro-close')?.addEventListener('click', closeIntro);
   $('btn-tech-lib')?.addEventListener('click', openTechLibrary);
   $('btn-tech-lib-close')?.addEventListener('click', closeTechLibrary);
+  $('btn-equip-lib')?.addEventListener('click', openEquipLibrary);
+  $('btn-equip-lib-close')?.addEventListener('click', closeEquipLibrary);
 
   // Dev mode: equip/unequip techniques from the library
   $('tech-lib-slots')?.addEventListener('click', (event) => {
@@ -832,9 +1085,31 @@ function bindStaticEvents() {
   $('nodes-wrap').addEventListener('click', (event) => {
     const node = event.target.closest('.map-node.available');
     if (!node) return;
-    const index = Number(node.dataset.nodeIndex);
-    enterNode(index);
+    const roomId = node.dataset.roomId;
+    if (!roomId) return;
+    enterNode(roomId);
   });
+
+  const mapViewport = $('map-tree-viewport');
+  if (mapViewport) {
+    let dragging = false;
+    let lastY = 0;
+    mapViewport.addEventListener('mousedown', (event) => {
+      dragging = true;
+      lastY = event.clientY;
+      mapViewport.classList.add('dragging');
+    });
+    window.addEventListener('mouseup', () => {
+      dragging = false;
+      mapViewport.classList.remove('dragging');
+    });
+    window.addEventListener('mousemove', (event) => {
+      if (!dragging) return;
+      const dy = event.clientY - lastY;
+      mapViewport.scrollTop -= dy;
+      lastY = event.clientY;
+    });
+  }
 
   $('abtree-nodes').addEventListener('click', (event) => {
     const button = event.target.closest('button[data-unlock]');
@@ -843,10 +1118,28 @@ function bindStaticEvents() {
   });
 
   $('shop-items').addEventListener('click', (event) => {
-    const button = event.target.closest('button[data-buy]');
-    if (!button) return;
-    buyShopItem(button.dataset.buy);
+    const btn = event.target.closest('button[data-shop-buy]');
+    if (!btn) return;
+    const payload = btn.dataset.shopBuy || '';
+    const [kind, id] = payload.split(':');
+    if (!kind || !id) return;
+    buyShopInventoryItem(kind, id);
   });
+
+  $('event-choices')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-event-choice]');
+    if (!btn) return;
+    chooseEventOption(btn.dataset.eventChoice);
+  });
+  $('event-relic-options')?.addEventListener('click', (event) => {
+    const btn = event.target.closest('button[data-event-relic]');
+    if (!btn) return;
+    chooseEventRelic(btn.dataset.eventRelic);
+  });
+  $('btn-event-relic-skip')?.addEventListener('click', () => {
+    clearEventRelicChoiceUI();
+  });
+  $('btn-event-confirm')?.addEventListener('click', confirmLeaveEvent);
 
   $('ov-battle-relic-options')?.addEventListener('click', (event) => {
     const btn = event.target.closest('button[data-choose-relic]');
@@ -854,12 +1147,30 @@ function bindStaticEvents() {
     choosePowerRelic(btn.dataset.chooseRelic);
   });
 
-  ['map-equip-slots', 'battle-equip-slots'].forEach((id) => {
+  ['map-equip-slots'].forEach((id) => {
     $(id).addEventListener('click', (event) => {
-      const slot = event.target.closest('.equip-slot[data-slot="gear"].filled');
+      const slot = event.target.closest('.equip-slot.filled');
       if (!slot) return;
-      unequipGear();
+      const slotIndex = Number(slot.dataset.slotIndex);
+      if (!Number.isFinite(slotIndex)) return;
+      unequipEquipmentSlot(slotIndex);
     });
+  });
+
+  $('ov-battle-reward-options')?.addEventListener('change', (event) => {
+    const input = event.target.closest('input[data-reward-option]');
+    if (!input || !G.pendingBattleReward) return;
+    const optionId = input.dataset.rewardOption;
+    const selected = new Set(Array.isArray(G.pendingBattleReward.selectedOptionIds) ? G.pendingBattleReward.selectedOptionIds : []);
+    if (input.checked) selected.add(optionId);
+    else selected.delete(optionId);
+    const limit = Math.max(0, Number(G.pendingBattleReward.pickCount || 0));
+    if (selected.size > limit) {
+      input.checked = false;
+      return;
+    }
+    G.pendingBattleReward.selectedOptionIds = [...selected];
+    renderBattleRewardUI();
   });
 
   document.querySelectorAll('.class-btn[data-class]').forEach((btn) => {
@@ -918,12 +1229,11 @@ function handleKeydown(e) {
   } else if (openPanel.id === 'sp-atk') {
     subSelect(`attack_${num}`);
   } else if (openPanel.id === 'sp-special') {
-    if (num === 1) {
-      const visibleSp = ['sb-sp1','sb-sp2'].find((id) => {
-        const el = $(id); return el && el.style.display !== 'none';
-      });
-      if (visibleSp) subSelect($(visibleSp).dataset.action);
-    }
+    const options = ['sb-sp1', 'sb-sp2', 'sb-sp-dev']
+      .map((id) => $(id))
+      .filter((el) => el && el.style.display !== 'none');
+    const picked = options[num - 1];
+    if (picked) subSelect(picked.dataset.action);
   }
 }
 

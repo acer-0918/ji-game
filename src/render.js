@@ -1,7 +1,16 @@
-import { CLASS_DEFS, COMMON_ABILITY_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS, SHOP_ITEMS } from './data.js';
+import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
 import { TECH_DEFS, getTechDefsForSlot } from './battleTechniques.js';
+import { getEquipmentCardArtPath } from './equipment/art.js';
+import { EQUIPMENT_DEFS, getEquipmentDef } from './equipment/defs.js';
+import { getMapNodeArtPath } from './map/art.js';
+import {
+  getEquipmentIdInSlot,
+  getEquipmentTagDefForItem,
+  getEquipmentTagText,
+  getEquippedEquipmentIds,
+} from './equipment/runtime.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,7 +36,7 @@ export function renderBadgeList(id, badges, emptyText='暂无') {
 export function getPassiveBadges() {
   const arr = [];
   const classDef = CLASS_DEFS[G.player.classKey];
-  const allAbilities = [...(classDef ? classDef.abilityDefs : []), ...COMMON_ABILITY_DEFS];
+  const allAbilities = classDef ? [...classDef.abilityDefs] : [];
   allAbilities.forEach((ab) => {
     if (G.abilities[ab.key]) {
       let name = ab.name;
@@ -36,8 +45,13 @@ export function getPassiveBadges() {
       arr.push({icon:ab.icon, name});
     }
   });
-  if (G.equippedGear === 'powerEquip') arr.push({icon:'🧰', name:'磨刀石'});
-  if (G.equippedGear === 'vitalityEquip') arr.push({icon:'❤️‍🩹', name:'不朽馈赠'});
+  getEquippedEquipmentIds(G).forEach((equipmentId) => {
+    const def = getEquipmentDef(equipmentId);
+    if (!def) return;
+    const tagDef = getEquipmentTagDefForItem(G, equipmentId);
+    const tagText = tagDef ? ` · ${tagDef.name}` : '';
+    arr.push({ icon: def.icon, name: `${def.name}${tagText}` });
+  });
   if (G.shop.enhancedDagger) arr.push({icon:'🗡✨', name:'强化小刀'});
   if (G.shop.enhancedIceBlade) arr.push({icon:'❄️🗡', name:'强化冰刀'});
   if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
@@ -93,66 +107,146 @@ export function renderEquipSlots(id) {
   const wrap = $(id);
   if (!wrap) return;
   wrap.innerHTML = '';
-  const gearMeta = {
-    powerEquip: {icon:'🧰', name:'磨刀石'},
-    vitalityEquip: {icon:'❤️‍🩹', name:'不朽馈赠'},
-  };
-  const equipped = G.equippedGear ? gearMeta[G.equippedGear] : null;
-  const slot = document.createElement('div');
-  const filled = !!equipped;
-  slot.className = `equip-slot${filled ? ' filled clickable' : ''}`;
-  slot.dataset.slot = 'gear';
-  slot.textContent = filled ? `装备槽｜${equipped.icon} ${equipped.name}` : '装备槽｜空';
-  wrap.appendChild(slot);
+  const allowUnequip = id === 'map-equip-slots';
+  for (let slotIndex = 0; slotIndex < 2; slotIndex++) {
+    const equipmentId = getEquipmentIdInSlot(G, slotIndex);
+    const def = equipmentId ? getEquipmentDef(equipmentId) : null;
+    const slot = document.createElement('div');
+    const filled = !!def;
+    slot.className = `equip-slot${filled ? ` filled${allowUnequip ? ' clickable' : ''}` : ''}`;
+    slot.dataset.slotIndex = String(slotIndex);
+    if (!filled) {
+      slot.textContent = `装备槽${slotIndex + 1}｜空`;
+      wrap.appendChild(slot);
+      continue;
+    }
+
+    const tagLine = getEquipmentTagText(G, equipmentId);
+    const artPath = getEquipmentCardArtPath(equipmentId);
+    slot.innerHTML = `
+      <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+      <span class="equip-slot-fallback" style="display:none">${def.icon}</span>
+      <span class="equip-slot-name">${def.name}</span>
+      <span class="equip-slot-tag">${tagLine}</span>`;
+    wrap.appendChild(slot);
+  }
 }
 
 export function renderMap() {
   const p = G.player;
-  const devMode = !!G.devMode;
+  const map = G.map;
   $('map-name').textContent = `${p.classIcon || '🧙'} ${p.name}`;
   $('map-hp').textContent = p.hp;
   $('map-maxhp').textContent = p.maxHp;
   $('map-ji').textContent = p.ji;
   $('map-frags').textContent = p.fragments;
+  $('map-gold').textContent = p.gold || 0;
   $('map-rate').textContent = getPlayerJiRate();
 
   renderPassiveTags('map-passive-tags');
   renderEquipSlots('map-equip-slots');
 
   const wrap = $('nodes-wrap');
+  const svg = $('map-tree-lines');
+  const viewport = $('map-tree-viewport');
   wrap.innerHTML = '';
+  if (svg) svg.innerHTML = '';
+  if (!map || !Array.isArray(map.floors)) return;
 
-  G.nodes.forEach((node, i) => {
-    if (i > 0) {
-      const line = document.createElement('div');
-      line.className = 'node-line';
-      wrap.appendChild(line);
-    }
+  const X_GAP = 210;
+  const Y_GAP = 150;
+  const MARGIN_X = 160;
+  const MARGIN_Y = 100;
+  const coords = {};
 
+  map.floors.forEach((floorDef, floorIdx) => {
+    const roomIds = floorDef.roomIds || [];
+    const rowWidth = Math.max(1, roomIds.length - 1) * X_GAP;
+    const baseX = Math.max(70, MARGIN_X + (380 - rowWidth) / 2);
+    const y = MARGIN_Y + floorIdx * Y_GAP;
+    roomIds.forEach((roomId, idx) => {
+      coords[roomId] = { x: baseX + idx * X_GAP, y };
+    });
+  });
+
+  const maxX = Math.max(...Object.values(coords).map((c) => c.x), 760) + 240;
+  const maxY = Math.max(...Object.values(coords).map((c) => c.y), 900) + 220;
+  wrap.style.width = `${maxX}px`;
+  wrap.style.minHeight = `${maxY}px`;
+  if (svg) {
+    svg.setAttribute('width', `${maxX}`);
+    svg.setAttribute('height', `${maxY}`);
+  }
+
+  // Draw connecting lines
+  if (svg) {
+    Object.values(map.roomsById).forEach((room) => {
+      const from = coords[room.id];
+      if (!from) return;
+      room.connections.forEach((childId) => {
+        const to = coords[childId];
+        if (!to) return;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        const c1x = from.x;
+        const c1y = from.y + 58;
+        const c2x = to.x;
+        const c2y = to.y - 58;
+        path.setAttribute('d', `M ${from.x} ${from.y} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${to.x} ${to.y}`);
+        path.setAttribute('stroke', 'rgba(156,111,222,0.35)');
+        path.setAttribute('stroke-width', '2');
+        path.setAttribute('fill', 'none');
+        svg.appendChild(path);
+      });
+    });
+  }
+
+  Object.values(map.roomsById).forEach((node) => {
+    const pos = coords[node.id];
+    if (!pos) return;
     const div = document.createElement('div');
     let cls = 'map-node';
     if (node.type === 'boss') cls += ' boss-node';
     if (node.type === 'shop') cls += ' shop-node';
-    if (!devMode && node.done) cls += ' done';
-    else if (devMode || i === G.nodeIdx) cls += ' available';
+    if (node.cleared) cls += ' done';
+    else if (G.devMode || (map.availableRoomIds || []).includes(node.id)) cls += ' available';
     div.className = cls;
-    div.dataset.nodeIndex = String(i);
+    div.dataset.roomId = node.id;
+    div.style.position = 'absolute';
+    div.style.left = `${pos.x}px`;
+    div.style.top = `${pos.y}px`;
+    div.style.transform = 'translate(-50%, -50%)';
 
-    const hint = devMode
+    const hint = G.devMode
       ? '开发者模式：点击进入'
-      : node.done
+      : node.cleared
         ? '✓ 已完成'
-        : i === G.nodeIdx
+        : (map.availableRoomIds || []).includes(node.id)
           ? '点击进入'
           : '🔒 未解锁';
-    const enemyTip = node.enemy ? ` · ${node.enemy.emoji}${node.enemy.name}` : '';
+    const enemyTip = node.payload && node.payload.enemy ? ` · ${node.payload.enemy.emoji}${node.payload.enemy.name}` : '';
+    const icon = node.type === 'battle' ? '👹'
+      : node.type === 'elite' ? '⚔️'
+      : node.type === 'event' ? '❓'
+      : node.type === 'camp' ? '🔥'
+      : node.type === 'shop' ? '🛒'
+      : node.type === 'boss' ? '👑'
+      : '❔';
+    const artPath = getMapNodeArtPath(node.type);
     div.innerHTML = `
-      <div class="node-icon">${node.icon}</div>
+      <div class="node-icon-wrap">
+        <img class="node-art" src="${artPath}" alt="${node.label}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+        <div class="node-icon" style="display:none">${icon}</div>
+      </div>
       <div class="node-name">${node.label}${enemyTip}</div>
       <div class="node-hint">${hint}</div>`;
 
     wrap.appendChild(div);
   });
+
+  if (viewport && !viewport.dataset.scrolledToStart) {
+    viewport.scrollTop = 0;
+    viewport.dataset.scrolledToStart = '1';
+  }
 }
 
 export function renderAbilityTree() {
@@ -162,23 +256,17 @@ export function renderAbilityTree() {
   $('abtree-frags').textContent = G.player.fragments;
   const container = $('abtree-nodes');
   container.innerHTML = '';
-  const sections = [
-    {title:`${classDef ? classDef.name : '职业'}专属能力`, defs: classDef ? classDef.abilityDefs : []},
-    {title:'通用能力', defs: COMMON_ABILITY_DEFS},
-  ];
+  const defs = classDef ? classDef.abilityDefs : [];
+  const isLinearTree = !classDef || classDef.abilityTreeLinear !== false;
+  const head = document.createElement('div');
+  head.className = 'ab-section-title';
+  head.textContent = `${classDef ? classDef.name : '职业'}能力`;
+  container.appendChild(head);
 
-  sections.forEach((section) => {
-    const head = document.createElement('div');
-    head.className = 'ab-section-title';
-    head.textContent = section.title;
-    container.appendChild(head);
-
-    section.defs.forEach((ab, idx) => {
+  defs.forEach((ab, idx) => {
     const unlocked = G.abilities[ab.key];
     const canAfford = G.player.fragments >= ab.cost;
-    // Linear prerequisite: only for class-specific section (not common abilities)
-    const isClassSection = section === sections[0];
-    const prevLocked = isClassSection && idx > 0 && !G.abilities[section.defs[idx - 1].key];
+    const prevLocked = isLinearTree && idx > 0 && !G.abilities[defs[idx - 1].key];
     const locked = !unlocked && prevLocked;
     const card = document.createElement('div');
     card.className = `ab-node-card${unlocked ? ' unlocked' : ''}${!unlocked && !canAfford && !locked ? ' cant-afford' : ''}${locked ? ' cant-afford' : ''}`;
@@ -203,35 +291,88 @@ export function renderAbilityTree() {
       </div>
       <div class="ab-action">${actionHtml}</div>`;
     container.appendChild(card);
-    });
   });
 }
 
 export function renderShop() {
-  $('shop-frags').textContent = G.player.fragments;
+  $('shop-gold').textContent = G.player.gold || 0;
   const container = $('shop-items');
   container.innerHTML = '';
-  SHOP_ITEMS.forEach((item) => {
-    const owned = G.shop[item.key];
-    const canAfford = G.player.fragments >= item.cost;
-    const blockedByGearSlot = item.slot === 'gear' && !!G.equippedGear && G.equippedGear !== item.key;
+  const room = G.currentNode;
+  const inventory = room && room.payload ? room.payload.shopInventory : null;
+  if (!inventory) {
+    const empty = document.createElement('div');
+    empty.className = 'tag-placeholder';
+    empty.textContent = '当前商店暂无货物。';
+    container.appendChild(empty);
+    return;
+  }
+
+  const equippedIds = getEquippedEquipmentIds(G);
+  const fullSlots = equippedIds.length >= 2;
+  const allItems = [
+    ...inventory.equipment,
+    ...inventory.techniques,
+    inventory.fragment,
+  ].filter(Boolean);
+
+  allItems.forEach((item) => {
     const card = document.createElement('div');
-    card.className = `shop-item-card${owned ? ' owned' : ''}${!owned && (!canAfford || blockedByGearSlot) ? ' cant-afford' : ''}`;
-    const canBuy = !owned && canAfford && !blockedByGearSlot;
-    const costText = owned
-      ? '✓ 已购买'
-      : blockedByGearSlot
-        ? '装备栏已满（请先卸下当前装备）'
-        : `售价 ${item.cost} ✨碎片${canAfford ? '' : `（当前 ${G.player.fragments}）`}`;
+    const canAfford = (G.player.gold || 0) >= item.price;
+    const canBuy = !item.purchased && canAfford;
+    card.className = `shop-item-card${item.purchased ? ' owned' : ''}${!item.purchased && !canAfford ? ' cant-afford' : ''}`;
+
+    if (item.kind === 'equipment') {
+      const def = getEquipmentDef(item.id);
+      if (!def) return;
+      const tagLine = getEquipmentTagText(G, item.id);
+      const tagDef = getEquipmentTagDefForItem(G, item.id);
+      const equipBlocked = fullSlots && !equippedIds.includes(item.id);
+      const allowed = canBuy && !equipBlocked;
+      card.innerHTML = `
+        <div class="ab-icon equip-shop-icon">
+          <img class="shop-equip-art" src="${getEquipmentCardArtPath(item.id)}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+          <span class="shop-equip-fallback" style="display:none">${def.icon}</span>
+        </div>
+        <div class="ab-info">
+          <div class="ab-name">${def.name}</div>
+          <div class="ab-desc">${def.desc}</div>
+          <div class="ab-desc">${tagLine}${tagDef ? `（${tagDef.desc}）` : ''}</div>
+          <div class="ab-cost">售价 ${item.price} 金币${canAfford ? '' : `（当前 ${G.player.gold || 0}）`}${equipBlocked ? ' · 装备栏已满' : ''}</div>
+        </div>
+        <div class="ab-action">
+          ${item.purchased ? '<span class="ab-unlocked-mark">✓ 已购买</span>' : `<button class="btn-buy" data-shop-buy="${item.kind}:${item.id}" ${allowed ? '' : 'disabled'}>购买</button>`}
+        </div>`;
+      container.appendChild(card);
+      return;
+    }
+
+    if (item.kind === 'technique') {
+      const def = TECH_DEFS[item.id];
+      if (!def) return;
+      card.innerHTML = `
+        <div class="ab-icon">${def.emoji}</div>
+        <div class="ab-info">
+          <div class="ab-name">${def.name}</div>
+          <div class="ab-desc">${def.desc}</div>
+          <div class="ab-cost">售价 ${item.price} 金币${canAfford ? '' : `（当前 ${G.player.gold || 0}）`}</div>
+        </div>
+        <div class="ab-action">
+          ${item.purchased ? '<span class="ab-unlocked-mark">✓ 已购买</span>' : `<button class="btn-buy" data-shop-buy="${item.kind}:${item.id}" ${canBuy ? '' : 'disabled'}>购买</button>`}
+        </div>`;
+      container.appendChild(card);
+      return;
+    }
+
     card.innerHTML = `
-      <div class="ab-icon">${item.icon}</div>
+      <div class="ab-icon">✨</div>
       <div class="ab-info">
-        <div class="ab-name">${item.name}</div>
-        <div class="ab-desc">${item.desc}</div>
-        <div class="ab-cost">${costText}</div>
+        <div class="ab-name">能力碎片</div>
+        <div class="ab-desc">用于能力树解锁。</div>
+        <div class="ab-cost">售价 ${item.price} 金币${canAfford ? '' : `（当前 ${G.player.gold || 0}）`}</div>
       </div>
       <div class="ab-action">
-        ${owned ? '<span class="ab-unlocked-mark">✓ 已拥有</span>' : `<button class="btn-buy" data-buy="${item.key}" ${canBuy ? '' : 'disabled'}>购买</button>`}
+        ${item.purchased ? '<span class="ab-unlocked-mark">✓ 已购买</span>' : `<button class="btn-buy" data-shop-buy="${item.kind}:${item.id}" ${canBuy ? '' : 'disabled'}>购买</button>`}
       </div>`;
     container.appendChild(card);
   });
@@ -267,35 +408,52 @@ export function refreshActionLabels() {
   const spHint = $('sp-hint');
   const sp1 = $('sb-sp1');
   const sp2 = $('sb-sp2');
+  const spDev = $('sb-sp-dev');
+  const showDevSpecial = !!G.devMode;
   if (G.player.classKey === 'mage') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const release = getActionData('mage_release', 'player');
     if (spHint) spHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
     setSubCardLabel(sp1, `${release.orbCost}⚡`, release.name, `等级${release.atk}·持有${G.player.lightningOrbs || 0}`);
+    if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else if (G.player.classKey === 'nsyc') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = 'none';
     if (sp2) sp2.style.display = '';
+    if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const stacks = G.player.shaBiStacks || 0;
     if (spHint) spHint.textContent = `傻逼${stacks}层`;
     setSubCardLabel(sp2, `3🤬`, '厄介', `持有${stacks}层`);
+    if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else if (G.player.classKey === 'dog') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const luck = G.player.luck || 0;
     if (spHint) spHint.textContent = `幸运值 ${luck}`;
     setSubCardLabel(sp1, '🍀', '幸运值', `当前${luck}`);
+    if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
+  } else if (showDevSpecial) {
+    if (specialMain) specialMain.style.display = '';
+    if (specialPanel) specialPanel.style.display = '';
+    if (sp1) sp1.style.display = 'none';
+    if (sp2) sp2.style.display = 'none';
+    if (spDev) spDev.style.display = '';
+    if (spHint) spHint.textContent = '开发者行动';
+    setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else {
     if (specialMain) specialMain.style.display = 'none';
     if (specialPanel) specialPanel.style.display = 'none';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spDev) spDev.style.display = 'none';
     if (spHint) spHint.textContent = '职业技能';
   }
 }
@@ -366,24 +524,26 @@ export function updateSubButtons() {
   const specialMain = $('mb-sp');
   const sp1Btn = $('sb-sp1');
   const sp2Btn = $('sb-sp2');
+  const spDevBtn = $('sb-sp-dev');
+  if (spDevBtn) spDevBtn.disabled = !G.devMode;
   if (G.player.classKey === 'mage') {
     const release = getActionData('mage_release', 'player');
     const canRelease = !!release && !release.disabledByOrbs && !blocked.has('mage_release');
-    specialMain.disabled = !canRelease;
+    specialMain.disabled = !canRelease && !G.devMode;
     if (sp1Btn) sp1Btn.disabled = !canRelease;
     if (sp2Btn) sp2Btn.disabled = true;
   } else if (G.player.classKey === 'nsyc') {
     const ekai = getActionData('ekai', 'player');
     const canEkai = !!ekai && !ekai.disabledByOrbs;
-    specialMain.disabled = !canEkai;
+    specialMain.disabled = !canEkai && !G.devMode;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = !canEkai;
   } else if (G.player.classKey === 'dog') {
-    specialMain.disabled = true;
+    specialMain.disabled = !G.devMode;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = true;
   } else {
-    specialMain.disabled = true;
+    specialMain.disabled = !G.devMode;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = true;
   }
@@ -515,6 +675,35 @@ export function renderTechniqueLibrary() {
 
     container.appendChild(section);
   }
+}
+
+export function renderEquipmentLibrary() {
+  const container = $('equip-lib-list');
+  if (!container) return;
+  container.innerHTML = '';
+  const equipped = new Set(getEquippedEquipmentIds(G));
+
+  EQUIPMENT_DEFS.forEach((item) => {
+    const card = document.createElement('div');
+    const isEquipped = equipped.has(item.id);
+    card.className = `tech-lib-card${isEquipped ? ' equipped' : ''}`;
+    const tagText = isEquipped ? getEquipmentTagText(G, item.id) : '未装备';
+    const tagDef = isEquipped ? getEquipmentTagDefForItem(G, item.id) : null;
+    const tagDetail = tagDef ? `${tagDef.name}：${tagDef.desc}` : (isEquipped ? '无词条效果' : '—');
+    card.innerHTML = `
+      <div class="tech-art-wrap equip-lib-art-wrap">
+        <img class="tech-art" src="${getEquipmentCardArtPath(item.id)}" alt="${item.name}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+        <div class="tech-art-emoji" style="display:none">${item.icon}</div>
+      </div>
+      <div class="tech-lib-info">
+        <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${item.name}${isEquipped ? '（已装备）' : ''}</div>
+        <div class="tech-lib-desc">${item.desc}</div>
+        <div class="tech-lib-slot-status">词条：${tagText}</div>
+        <div class="tech-lib-desc">词条效果：${tagDetail}</div>
+      </div>`;
+    container.appendChild(card);
+  });
 }
 
 /** 在被动标签中显示已装备战技 */

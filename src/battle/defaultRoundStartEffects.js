@@ -1,6 +1,7 @@
 import { PHASES, ACTOR_SCOPE, BATTLE_OUTCOME } from './constants.js';
 import { ROUND_START_ORDER } from './order.js';
 import { G } from '../state.js';
+import { clampPlayerJiByEquipment, hasEquippedEquipment } from '../equipment/runtime.js';
 
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
@@ -43,21 +44,9 @@ export function registerDefaultRoundStartEffects(engine) {
     order: ROUND_START_ORDER.POPCORN_GAIN,
     condition: () => !!(G.battle && G.abilities.popcorn && G.battle.popcornPending),
     apply: (ctx) => {
-      G.player.ji += 2;
+      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + 2);
       G.battle.popcornPending = false;
       pushLog(ctx, 'log-ab', '🍿 爆米：上回合你受到了伤害，本回合开始获得 2 Ji。');
-    },
-  });
-
-  engine.registerEffect({
-    effectId: 'player.happy_flower_gain',
-    phase: PHASES.ROUND_START,
-    actorScope: ACTOR_SCOPE.PLAYER,
-    order: ROUND_START_ORDER.HAPPY_FLOWER_GAIN,
-    condition: () => !!(G.battle && G.abilities.happyFlower && G.battle.round % 3 === 0),
-    apply: (ctx) => {
-      G.player.ji += 1;
-      pushLog(ctx, 'log-ab', `🌼 开心小花：第 ${G.battle.round} 回合开始，获得 1 Ji。`);
     },
   });
 
@@ -69,10 +58,10 @@ export function registerDefaultRoundStartEffects(engine) {
     condition: () => !!(G.battle && G.powerRelics && G.powerRelics.lever),
     apply: (ctx) => {
       if (Math.random() < 0.5) {
-        G.player.ji *= 2;
+        G.player.ji = clampPlayerJiByEquipment(G, G.player.ji * 2);
         pushLog(ctx, 'log-ab', `🪜 杠杆：本回合开始，Ji 翻倍至 ${G.player.ji}。`);
       } else {
-        G.player.ji = 2;
+        G.player.ji = clampPlayerJiByEquipment(G, 2);
         pushLog(ctx, 'log-ab', '🪜 杠杆：本回合开始，Ji 被重置为 2。');
       }
     },
@@ -95,7 +84,7 @@ export function registerDefaultRoundStartEffects(engine) {
         ? ctx.sampleDistinctKeys(actionKeys, disableCount)
         : sampleDistinctKeysLocal(actionKeys, disableCount);
       G.battle.roundDisabledActions = disabled;
-      G.player.ji += disableCount;
+      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + disableCount);
       pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合禁用 ${disableCount} 个行动（${disabled.join('、')}），并获得 ${disableCount} Ji。`);
     },
   });
@@ -107,10 +96,15 @@ export function registerDefaultRoundStartEffects(engine) {
     order: ROUND_START_ORDER.NSYC_EKAI_PENDING_DAMAGE,
     condition: () => !!(G.battle && G.player.classKey === 'nsyc' && G.battle.ekaiPending),
     apply: (ctx) => {
-      const dmg = 1 + (G.abilities.hazuki ? 1 : 0) + (G.equippedGear === 'powerEquip' ? 1 : 0);
+      const bloodArmorBonus = hasEquippedEquipment(G, 'equi_2')
+        ? Math.floor((G.player.maxHp || 0) * 0.3)
+        : 0;
+      const dmg = 1 + (G.abilities.hazuki ? 1 : 0) + bloodArmorBonus;
       G.battle.ekaiPending = false;
       G.enemy.hp = Math.max(0, G.enemy.hp - dmg);
-      const dmgNote = dmg > 1 ? `（基础1${G.abilities.hazuki ? '+反田叶月1' : ''}${G.equippedGear === 'powerEquip' ? '+磨刀石1' : ''}）` : '';
+      const dmgNote = dmg > 1
+        ? `（基础1${G.abilities.hazuki ? '+反田叶月1' : ''}${bloodArmorBonus > 0 ? `+霸王血铠${bloodArmorBonus}` : ''}）`
+        : '';
       pushLog(ctx, 'log-dmg', `💢 厄介发动！必定命中，对敌方造成 ${dmg} 点伤害！${dmgNote}`);
       if (typeof ctx.refreshBars === 'function') ctx.refreshBars();
       if (G.enemy.hp <= 0) {

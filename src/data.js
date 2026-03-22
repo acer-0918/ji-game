@@ -22,17 +22,12 @@ export const ORB_META = {
 
 export const ORB_KEYS = Object.keys(ORB_META);
 
-export const COMMON_ABILITY_DEFS = [
-  {key:'mango',       icon:'🥭',  name:'芒果',       cost:1, desc:'生命值上限 +5，且当前生命同步 +5。'},
-  {key:'happyFlower', icon:'🌼',  name:'开心小花',   cost:1, desc:'每三个回合开始时，获得 1 Ji。'},
-  {key:'smoothStone', icon:'🪨',  name:'光滑的石头', cost:1, desc:'你在使用任何等级的防御时，获得防御等级 +2。'},
-];
-
 export const CLASS_DEFS = {
   assassin: {
     key: 'assassin',
     icon: '🗡️',
     name: '刺客',
+    abilityTreeLinear: true,
     baseHp: 3,
     baseJiRate: 3,
     trait: '高输出 · 速攻流',
@@ -48,6 +43,7 @@ export const CLASS_DEFS = {
     key: 'tank',
     icon: '🛡️',
     name: '坦克',
+    abilityTreeLinear: true,
     baseHp: 10,
     baseJiRate: 1,
     trait: '高血量 · 稳健流',
@@ -63,6 +59,7 @@ export const CLASS_DEFS = {
     key: 'mage',
     icon: '🔮',
     name: '法师',
+    abilityTreeLinear: true,
     baseHp: 3,
     baseJiRate: 2,
     trait: '闪电球 · 技能流',
@@ -78,11 +75,12 @@ export const CLASS_DEFS = {
     key: 'nsyc',
     icon: '🎤',
     name: 'nsyc',
+    abilityTreeLinear: false,
     baseHp: 4,
     baseJiRate: 1,
     trait: '傻逼积累 · 厄介流',
     passiveDesc: '每回合开始自动累计 1 层【傻逼】（羊宫妃那解锁后 +1，共 2 层）；满 4 层可在特殊区释放【厄介】。',
-    spDesc: '💢 厄介 — 消耗 4 层傻逼，本回合待机蓄力（无防御），下回合开始必定命中敌方造成 1 伤（反田叶月/磨刀石各 +1 伤）。',
+    spDesc: '💢 厄介 — 消耗 4 层傻逼，本回合待机蓄力（无防御），下回合开始必定命中敌方造成 1 伤（可被相关增伤效果强化）。',
     abilityDefs: [
       {key:'mitsuna', icon:'🐏', name:'羊宫妃那', cost:2, desc:'哎呀，主唱又忘词了，每回合额外累计一层【傻逼】层数。'},
       {key:'haruna',  icon:'🐱', name:'青木阳菜', cost:1, desc:'太子！获得两点血量上限，Ji回复效率+1。'},
@@ -94,6 +92,7 @@ export const CLASS_DEFS = {
     key: 'dog',
     icon: '🐶',
     name: '小狗',
+    abilityTreeLinear: false,
     baseHp: 3,
     baseJiRate: 1,
     trait: '幸运成长 · 波动流',
@@ -114,8 +113,6 @@ export const SHOP_ITEMS = [
   {key:'enhancedDagger',  icon:'🗡✨', name:'强化小刀',       cost:2, desc:'替换攻击 1。强化小刀命中时，获得 1 Ji。', slot:'weapon'},
   {key:'enhancedIceBlade', icon:'❄️🗡', name:'强化冰刀',       cost:2, desc:'替换攻击 3。强化冰刀命中时造成伤害 +1。', slot:'weapon'},
   {key:'enhancedBlade',    icon:'👻⚔', name:'强化鬼刀',       cost:2, desc:'替换攻击 5。攻击等级仍为 5，但只消耗 4 Ji。', slot:'weapon'},
-  {key:'powerEquip',       icon:'🧰',  name:'磨刀石',   cost:2, desc:'装备。造成任何伤害时，伤害 +1。', slot:'gear'},
-  {key:'vitalityEquip',    icon:'❤️‍🩹', name:'不朽馈赠', cost:2, desc:'装备。若通过战斗房间且未受到伤害，生命上限 +1 且当前生命 +1。', slot:'gear'},
 ];
 
 export const POWER_RELIC_DEFS = [
@@ -131,7 +128,7 @@ export function getPowerRelicDef(key) {
 
 export function getAbilityDefsForClass(classKey) {
   const selected = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
-  return [...selected.abilityDefs, ...COMMON_ABILITY_DEFS];
+  return [...selected.abilityDefs];
 }
 
 export const MAP_TEMPLATE = [

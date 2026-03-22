@@ -59,7 +59,10 @@
   <div class="map-topbar">
     <button class="btn-ghost" id="btn-to-menu-map">⚙ 设置</button>
     <div class="map-title-text">⚔ 试炼路径</div>
-    <button class="frag-badge" id="btn-open-abtree">✨ <span id="map-frags">0</span> 碎片 · 能力树</button>
+    <div class="map-currency-pack">
+      <span class="gold-badge">💰 <span id="map-gold">0</span> 金币</span>
+      <button class="frag-badge" id="btn-open-abtree">✨ <span id="map-frags">0</span> 碎片 · 能力树</button>
+    </div>
   </div>
 
   <div class="player-hud">
@@ -89,7 +92,11 @@
     </div>
   </div>
 
-  <div class="nodes-wrap" id="nodes-wrap"></div>
+  <div class="map-scroll-tip">滚轮/触控板可纵向浏览地图</div>
+  <div class="map-tree-viewport" id="map-tree-viewport">
+    <svg class="map-tree-lines" id="map-tree-lines"></svg>
+    <div class="nodes-wrap map-tree-wrap" id="nodes-wrap"></div>
+  </div>
 </div>
 
 <!-- ══════════════ 战斗 ══════════════ -->
@@ -337,6 +344,13 @@
         <div class="sub-card-name">厄介</div>
         <div class="sub-card-hint">下回合必定命中</div>
       </button>
+      <!-- 开发者行动：仅开发者模式显示 -->
+      <button class="sub-card sp-card" id="sb-sp-dev" data-action="dev_kill" style="display:none">
+        <div class="sub-card-cost">DEV</div><div class="sub-card-key">2</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">📣</div>
+        <div class="sub-card-name">三军听令</div>
+        <div class="sub-card-hint">敌方立刻归零</div>
+      </button>
     </div>
 
     <!-- 确认行 -->
@@ -345,9 +359,11 @@
       <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓ <span class="key-hint-inline">↵</span></button>
     </div>
 
-    <!-- 战技库按钮 -->
+    <!-- 图鉴按钮 -->
     <div class="tech-lib-row">
       <button class="btn btn-outline btn-tech-lib-open" id="btn-tech-lib">⚔ 战技库</button>
+      <button class="btn btn-outline btn-tech-lib-open" id="btn-equip-lib">🧰 装备库</button>
+      <button class="btn btn-outline btn-tech-lib-open" id="btn-intro-battle">📖 职业介绍</button>
     </div>
 
   </div><!-- /action-area -->
@@ -362,6 +378,7 @@
     <p class="result-sub">旅途在此画上了句点……</p>
     <div class="result-btns">
       <button class="btn btn-red" id="btn-restart-run-from-gameover">↺ 再来一局</button>
+      <button class="btn" id="btn-feedback-gameover">📝 参与反馈！</button>
       <button class="btn btn-outline" id="btn-menu-from-gameover">← 主菜单</button>
     </div>
   </div>
@@ -371,9 +388,10 @@
   <div class="result-wrap">
     <div class="result-icon">🏆</div>
     <div class="big-result gold-text">胜 利 ！</div>
-    <p class="result-sub">你完成了三连 Boss 试炼！</p>
+    <p class="result-sub">你完成了试炼！</p>
     <div class="result-btns">
       <button class="btn btn-green" id="btn-restart-run-from-victory">↺ 再来一局</button>
+      <button class="btn" id="btn-feedback-victory">📝 参与反馈！</button>
       <button class="btn btn-outline" id="btn-menu-from-victory">← 主菜单</button>
     </div>
   </div>
@@ -384,6 +402,10 @@
   <div class="overlay-box" id="ov-battle-box">
     <div class="overlay-title" id="ov-battle-title">战斗胜利！</div>
     <div class="overlay-body" id="ov-battle-body"></div>
+    <div id="ov-battle-reward-wrap" style="display:none">
+      <div class="overlay-body" id="ov-battle-reward-tip" style="margin-top:-6px;margin-bottom:8px;"></div>
+      <div id="ov-battle-reward-options"></div>
+    </div>
     <div id="ov-battle-relic-wrap" style="display:none">
       <div class="overlay-body" style="margin-top:-8px">力量的小小代价……</div>
       <div id="ov-battle-relic-options"></div>
@@ -403,11 +425,32 @@
   <div class="overlay-box gold">
     <div class="overlay-title">🛒 商店</div>
     <div class="overlay-body" style="margin-bottom:14px">
-      当前碎片：<strong id="shop-frags" style="color:var(--gold);font-size:1.1em">0</strong> ✨
+      当前金币：<strong id="shop-gold" style="color:var(--gold);font-size:1.1em">0</strong> 💰
     </div>
     <div id="shop-items"></div>
     <div style="margin-top:14px">
       <button class="btn btn-outline" id="btn-leave-shop">离开商店</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-event">
+  <div class="overlay-box">
+    <div class="overlay-title" id="event-title">事件</div>
+    <div class="event-art-wrap">
+      <img id="event-art" class="event-art" src="" alt="event-art" onerror="this.style.display='none'">
+    </div>
+    <div class="overlay-body" id="event-body"></div>
+    <div id="event-choices"></div>
+    <div id="event-relic-wrap" style="display:none">
+      <div class="overlay-body" style="margin-top:10px;margin-bottom:8px;">他偷偷塞给你一件可疑的强大遗物：这是测试版，不要声张。</div>
+      <div id="event-relic-options"></div>
+      <div class="overlay-btns" style="margin-top:8px;margin-bottom:6px;">
+        <button class="btn btn-outline" id="btn-event-relic-skip">不选择遗物</button>
+      </div>
+    </div>
+    <div class="overlay-btns" style="margin-top:12px">
+      <button class="btn btn-outline" id="btn-event-confirm">确认离开</button>
     </div>
   </div>
 </div>
@@ -478,6 +521,18 @@
     <div class="tech-lib-slots" id="tech-lib-slots"></div>
     <div class="overlay-btns" style="margin-top:16px">
       <button class="btn btn-outline" id="btn-tech-lib-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 装备库覆盖层 -->
+<div class="overlay" id="ov-equip-lib">
+  <div class="overlay-box tech-lib-box">
+    <div class="overlay-title">🧰 装备库</div>
+    <div class="tech-lib-desc-hint">查看当前局可出现的装备与效果。已装备项会高亮显示。</div>
+    <div class="tech-lib-slots" id="equip-lib-list"></div>
+    <div class="overlay-btns" style="margin-top:16px">
+      <button class="btn btn-outline" id="btn-equip-lib-close">关闭</button>
     </div>
   </div>
 </div>
