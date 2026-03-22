@@ -731,6 +731,11 @@ body {
   border-radius: var(--r-sm);
   background: rgba(224, 50, 74, 0.08);
 }
+.hunt-rhythm-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
 .hunt-rhythm-title {
   font-size: .74em;
   font-weight: 700;

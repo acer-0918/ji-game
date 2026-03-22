@@ -144,39 +144,27 @@ function getHuntRhythmState() {
   return G.battle.equipment;
 }
 
-function syncHuntRhythmMeta(action, pending) {
+function syncHuntRhythmMeta() {
   const meta = $('hunt-rhythm-meta');
-  const slider = $('hunt-rhythm-slider');
-  if (!meta || !slider) return;
-  const cost = pending
-    ? Math.max(1, Math.floor(pending.cost || 1))
-    : Math.max(1, Math.floor((action && action.cost) || 1));
-  const count = Math.max(0, Math.floor(Number(slider.value || 0)));
-  const spend = count * cost;
-  meta.textContent = `追加 ${count} 次（消耗 ${spend} Ji）`;
+  const addBtn = $('btn-hunt-rhythm-add');
+  if (!meta) return;
+  const pending = G.battle && G.battle.huntRhythmPending;
+  if (!pending) return;
+  const canAdd = G.player.ji >= pending.cost;
+  meta.textContent = `已追加 ${pending.extraCount} 次 · 剩余 Ji：${G.player.ji}（每次消耗 ${pending.cost}）`;
+  if (addBtn) addBtn.disabled = !canAdd;
 }
 
-function hideHuntRhythmPanel(resetPlanned = true) {
+function hideHuntRhythmPanel() {
   const panel = $('hunt-rhythm-panel');
-  const slider = $('hunt-rhythm-slider');
-  const meta = $('hunt-rhythm-meta');
   if (panel) panel.style.display = 'none';
-  if (slider) {
-    slider.min = '0';
-    slider.max = '0';
-    slider.value = '0';
-  }
-  if (meta) meta.textContent = '追加 0 次（消耗 0 Ji）';
   const confirmRow = document.querySelector('.confirm-row');
   if (confirmRow) confirmRow.style.display = '';
-  if (!resetPlanned) return;
-  const st = getHuntRhythmState();
-  if (st) st.huntRhythmPlannedExtraCount = 0;
 }
 
 function updateHuntRhythmPanelForAction(actionKey = null) {
   if (!G.battle || G.battle.phase === 'select') {
-    hideHuntRhythmPanel(false);
+    hideHuntRhythmPanel();
     return;
   }
 }
@@ -185,31 +173,37 @@ function showHuntRhythmPostHitPanel() {
   const pending = G.battle && G.battle.huntRhythmPending;
   if (!pending) return;
   const panel = $('hunt-rhythm-panel');
-  const slider = $('hunt-rhythm-slider');
-  if (!panel || !slider) return;
-  slider.min = '0';
-  slider.max = String(pending.maxExtra);
-  slider.value = '0';
+  if (!panel) return;
+  pending.extraCount = 0;
   panel.style.display = '';
+  $('action-area').style.pointerEvents = 'auto';
   const confirmRow = document.querySelector('.confirm-row');
   if (confirmRow) confirmRow.style.display = 'none';
-  syncHuntRhythmMeta(null, pending);
+  syncHuntRhythmMeta();
+}
+
+function huntRhythmAddOne() {
+  const pending = G.battle && G.battle.huntRhythmPending;
+  if (!pending || G.player.ji < pending.cost) return;
+  G.player.ji = clampPlayerJiByEquipment(G, G.player.ji - pending.cost);
+  const dmg = pending.basePerCast;
+  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - dmg);
+  pending.extraCount = (pending.extraCount || 0) + 1;
+  addLog('log-ab', `🏹 狩猎律动：第 ${pending.extraCount} 次追加，造成 ${dmg} 伤害。`);
+  refreshBars();
+  syncHuntRhythmMeta();
+  // 敌方已死亡则直接结束
+  if ((G.enemy.hp || 0) <= 0) confirmHuntRhythmExtra();
 }
 
 function confirmHuntRhythmExtra() {
   const pending = G.battle && G.battle.huntRhythmPending;
   if (!pending) return;
-  const slider = $('hunt-rhythm-slider');
-  const extraCount = Math.max(0, Math.min(pending.maxExtra, Math.floor(Number(slider?.value || 0))));
-  if (extraCount > 0) {
-    const spend = extraCount * pending.cost;
-    G.player.ji = clampPlayerJiByEquipment(G, G.player.ji - spend);
-    const extraDmg = pending.basePerCast * extraCount;
-    G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - extraDmg);
-    addLog('log-ab', `🏹 狩猎律动：追加 ${extraCount} 次同款攻击（消耗 ${spend} Ji），造成 ${extraDmg} 伤害。`);
+  if (pending.extraCount > 0) {
+    addLog('log-ab', `🏹 狩猎律动：共追加 ${pending.extraCount} 次。`);
   }
   G.battle.huntRhythmPending = null;
-  hideHuntRhythmPanel(true);
+  hideHuntRhythmPanel();
   afterHuntRhythmResolve();
 }
 
@@ -962,7 +956,7 @@ function startBattle(node, keepSnapshot=false) {
   $('round-num').textContent = '1';
   refreshActionLabels();
   resetRoundUI();
-  hideHuntRhythmPanel(true);
+  hideHuntRhythmPanel();
   refreshBars();
   showScreen('battle');
 }
@@ -986,7 +980,7 @@ function mainSelect(category) {
     $('pc-sub').textContent = `+${action.gain}Ji`;
     $('sel-preview-text').textContent = `⚡ 蓄力 (+${action.gain}Ji)`;
     $('btn-confirm').disabled = false;
-    hideHuntRhythmPanel(true);
+    hideHuntRhythmPanel();
     return;
   }
 
@@ -1003,14 +997,14 @@ function mainSelect(category) {
 
   if (G.ui.mainSel === category) {
     G.ui.mainSel = null;
-    hideHuntRhythmPanel(true);
+    hideHuntRhythmPanel();
     return;
   }
 
   G.ui.mainSel = category;
   $(btnMap[category]).classList.add('sel');
   $(panelMap[category]).classList.add('show');
-  hideHuntRhythmPanel(true);
+  hideHuntRhythmPanel();
 }
 
 function subSelect(key) {
@@ -1046,7 +1040,7 @@ function confirmAction() {
   G.battle.pAction = G.ui.actionKey;
   G.battle.eAction = aiDecide(G.enemy);
   G.battle.phase = 'reveal';
-  hideHuntRhythmPanel(false);
+  hideHuntRhythmPanel();
   $('action-area').style.pointerEvents = 'none';
   $('btn-confirm').disabled = true;
   $('round-phase').textContent = '揭示中...';
@@ -1111,7 +1105,7 @@ function nextRound() {
   addLog('rnd', `▶ 回合 ${G.battle.round}`);
   if (applyRoundStartEffects()) return;
   resetRoundUI();
-  hideHuntRhythmPanel(true);
+  hideHuntRhythmPanel();
   refreshBars();
 }
 
@@ -1123,7 +1117,7 @@ function endBattle(win) {
   body.innerHTML = '';
   clearRelicChoiceUI();
   clearBattleRewardUI();
-  hideHuntRhythmPanel(true);
+  hideHuntRhythmPanel();
   if (G.battle) G.battle.huntRhythmPending = null;
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
@@ -1397,19 +1391,7 @@ function bindStaticEvents() {
   $('btn-battle-continue').addEventListener('click', closeBattleOverlay);
   $('btn-relic-skip')?.addEventListener('click', clearRelicChoiceUI);
   $('btn-confirm').addEventListener('click', confirmAction);
-  $('hunt-rhythm-slider')?.addEventListener('input', () => {
-    const pending = G.battle && G.battle.huntRhythmPending;
-    if (pending) {
-      syncHuntRhythmMeta(null, pending);
-      return;
-    }
-    const slider = $('hunt-rhythm-slider');
-    const st = getHuntRhythmState();
-    if (!slider || !st) return;
-    st.huntRhythmPlannedExtraCount = Math.max(0, Math.floor(Number(slider.value || 0)));
-    const action = getActionData(G.ui && G.ui.actionKey, 'player');
-    syncHuntRhythmMeta(action);
-  });
+  $('btn-hunt-rhythm-add')?.addEventListener('click', huntRhythmAddOne);
   $('btn-hunt-rhythm-confirm')?.addEventListener('click', confirmHuntRhythmExtra);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
   $('btn-restart-run-from-victory').addEventListener('click', restartRun);
@@ -1431,6 +1413,23 @@ function bindStaticEvents() {
   $('btn-tech-lib-close')?.addEventListener('click', closeTechLibrary);
   $('btn-equip-lib')?.addEventListener('click', openEquipLibrary);
   $('btn-equip-lib-close')?.addEventListener('click', closeEquipLibrary);
+  $('equip-lib-list')?.addEventListener('click', (event) => {
+    if (!G.devMode) return;
+    const equipBtn = event.target.closest('[data-dev-equip-equip]');
+    const unequipBtn = event.target.closest('[data-dev-unequip-equip]');
+    if (equipBtn) {
+      const equipId = equipBtn.dataset.devEquipEquip;
+      const replaceSlot = equipBtn.dataset.devReplaceSlot;
+      if (replaceSlot !== undefined) unequipEquipment(G, parseInt(replaceSlot, 10));
+      equipEquipment(G, equipId);
+    } else if (unequipBtn) {
+      unequipEquipment(G, parseInt(unequipBtn.dataset.devUnequipEquip, 10));
+    } else return;
+    renderEquipmentLibrary();
+    renderEquipSlots('map-equip-slots');
+    renderEquipSlots('battle-equip-slots');
+    renderMap();
+  });
   $('btn-profile-battle')?.addEventListener('click', openProfile);
   $('btn-profile-battle-result')?.addEventListener('click', openProfile);
   $('btn-profile-shop')?.addEventListener('click', openProfile);
@@ -1597,7 +1596,7 @@ function handleKeydown(e) {
     document.querySelectorAll('.sub-panel').forEach((p) => p.classList.remove('show'));
     document.querySelectorAll('.action-card-btn').forEach((b) => b.classList.remove('sel'));
     G.ui.mainSel = null;
-    hideHuntRhythmPanel(true);
+    hideHuntRhythmPanel();
     return;
   }
 
