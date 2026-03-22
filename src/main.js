@@ -167,6 +167,8 @@ function hideHuntRhythmPanel(resetPlanned = true) {
     slider.value = '0';
   }
   if (meta) meta.textContent = '追加 0 次（消耗 0 Ji）';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = '';
   if (!resetPlanned) return;
   const st = getHuntRhythmState();
   if (st) st.huntRhythmPlannedExtraCount = 0;
@@ -189,6 +191,8 @@ function showHuntRhythmPostHitPanel() {
   slider.max = String(pending.maxExtra);
   slider.value = '0';
   panel.style.display = '';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = 'none';
   syncHuntRhythmMeta(null, pending);
 }
 
