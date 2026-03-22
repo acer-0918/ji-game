@@ -214,6 +214,28 @@ body {
 }
 .equip-slot-name { font-weight: 700; color: var(--text); }
 .equip-slot-tag { font-size: .82em; color: var(--text-mid); }
+.equip-slot.compact-battle {
+  min-width: 80px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-direction: row;
+}
+.equip-slot.compact-battle .equip-slot-emoji {
+  font-size: 1.1em;
+  line-height: 1;
+}
+.equip-slot.compact-battle .equip-slot-name {
+  font-size: .74em;
+  line-height: 1.2;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .equip-shop-icon {
   width: 56px; height: 56px; min-width: 56px;
   display: flex; align-items: center; justify-content: center;
@@ -418,8 +440,26 @@ body {
 .combatant-name { font-weight: 800; font-size: .9em; }
 .enemy-name  { color: var(--red); }
 .player-name { color: var(--purple); }
+.battle-state-title {
+  width: 100%;
+  color: var(--text-lt);
+  font-size: .67em;
+  font-weight: 700;
+  letter-spacing: .5px;
+  display: none;
+}
 
 .combatant-bars { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+.battle-compact-shortcuts {
+  width: 100%;
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+.compact-detail-btn {
+  font-size: .66em;
+  padding: 4px 10px;
+}
 .bar-row { display: flex; align-items: center; gap: 6px; }
 .bar-lbl  { font-size: .66em; font-weight: 700; min-width: 14px; }
 .hp-lbl   { color: var(--green); }
@@ -432,6 +472,24 @@ body {
   font-size: .7em; color: var(--text-mid);
   background: var(--bg3); border: 1px solid var(--card-border);
   border-radius: var(--r-sm); padding: 4px 10px; width: 100%; text-align: center;
+}
+.battle-state-inline-btn {
+  width: 100%;
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  font-size: .68em;
+  color: var(--text);
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.battle-state-inline-btn:hover {
+  border-color: var(--purple);
+  color: var(--purple);
+  background: var(--purple-l);
 }
 
 /* ── VS center area（出牌区）──────────────────────── */
@@ -1113,6 +1171,181 @@ body {
   .overlay-box { padding: 22px 16px; }
   .class-btn { width: 135px; }
   .map-currency-pack { flex-wrap: wrap; justify-content: flex-end; }
+
+  body.narrow-battle-optimized #screen-battle.active {
+    padding: 8px;
+    gap: 6px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .portrait-row {
+    display: none;
+  }
+  body.narrow-battle-optimized #screen-battle.active .battlefield {
+    gap: 6px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .battle-log {
+    height: 108px;
+    min-height: 108px;
+    max-height: 108px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .stat-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "player enemy"
+      "plays plays";
+    gap: 6px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side.player-side {
+    grid-area: player;
+    width: 100%;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side.enemy-side {
+    grid-area: enemy;
+    width: 100%;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side,
+  body.narrow-battle-optimized #screen-battle.active .combatant-bars {
+    width: 100%;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-bars {
+    gap: 3px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .bar-row {
+    align-items: center;
+    min-height: 22px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .bar-row,
+  body.narrow-battle-optimized #screen-battle.active .bar-row * {
+    line-height: 1;
+  }
+  body.narrow-battle-optimized #screen-battle.active .bar-track,
+  body.narrow-battle-optimized #screen-battle.active .bar-fill {
+    height: 12px;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-passive-tags,
+  body.narrow-battle-optimized #screen-battle.active #enemy-state-tags {
+    min-height: auto;
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-passive-tags,
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots,
+  body.narrow-battle-optimized #screen-battle.active #enemy-state-tags {
+    min-height: 44px;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots {
+    min-height: auto;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side.enemy-side .enemy-intent {
+    order: 10;
+    width: 100%;
+    margin: 0;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side.enemy-side .tag-wrap.compact {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    min-height: 44px;
+    align-self: center;
+  }
+  body.narrow-battle-optimized #screen-battle.active .combatant-side.enemy-side .tag-wrap.compact .tag-placeholder {
+    width: 100%;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    align-items: stretch;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots .equip-slot {
+    min-width: 0;
+    width: 100%;
+    padding: 5px 6px;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots .equip-slot-art,
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots .equip-slot-fallback {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots .equip-slot-name {
+    font-size: .7em;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-equip-slots .equip-slot-tag {
+    font-size: .6em;
+  }
+  body.narrow-battle-optimized #screen-battle.active #battle-passive-tags .battle-state-inline-btn {
+    margin: 0;
+    min-height: 0;
+    height: auto;
+    padding: 2px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  body.narrow-battle-optimized #screen-battle.active .battle-compact-shortcuts {
+    display: none;
+  }
+  body.narrow-battle-optimized #screen-battle.active .vs-center {
+    grid-area: plays;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  body.narrow-battle-optimized #screen-battle.active .vs-center .played-slot {
+    flex: 1;
+    min-width: 0;
+  }
+  body.narrow-battle-optimized #screen-battle.active .vs-center .played-slot .reveal-card {
+    width: min(88px, 100%);
+    min-height: 74px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .vs-center .vs-text {
+    margin: 0;
+    font-size: 1.25em;
+    flex: 0 0 auto;
+  }
+  body.narrow-battle-optimized #screen-battle.active .action-card-btn {
+    width: calc(50% - 7px);
+    min-height: 88px;
+    padding: 6px 4px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .tech-lib-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .tech-lib-row .btn-tech-lib-open {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 37px;
+    height: auto;
+  }
+  body.narrow-battle-optimized #screen-battle.active .acb-artwork {
+    width: 46px;
+    height: 46px;
+    margin-top: 12px;
+  }
+  body.narrow-battle-optimized #screen-battle.active .acb-emoji {
+    font-size: 1.45em;
+  }
+  body.narrow-battle-optimized #screen-battle.active .acb-name {
+    font-size: .74em;
+  }
+  body.narrow-battle-optimized #screen-battle.active .acb-hint {
+    font-size: .58em;
+  }
 }
 @media (max-width: 420px) {
   .action-card-btn { width: calc(50% - 6px); }

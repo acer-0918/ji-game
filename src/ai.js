@@ -564,6 +564,14 @@ function aiFaultRobot(enemy) {
 
 export function aiDecide(enemy) {
   if (!enemy) return 'ji';
+  if (G.abilities && G.abilities.taunt && Number(enemy.ji || 0) === 1) {
+    const attack1 = getActionData('attack_1', 'enemy', enemy);
+    const frozen = !!(G.battle && G.battle.enemyFrostLockThisRound);
+    if (attack1 && (attack1.cost || 0) <= Number(enemy.ji || 0) && !frozen) {
+      updateBossMemory('attack_1');
+      return 'attack_1';
+    }
+  }
 
   let action;
   if      (enemy.id === 'jiaxu')      action = aiJiaxu(enemy);

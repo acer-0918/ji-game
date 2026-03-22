@@ -1,9 +1,10 @@
-import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS, SHOP_ITEMS } from './data.js';
+import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
 import { TECH_DEFS, getTechDefsForSlot, getTechniqueCategoryLabel } from './battleTechniques.js';
 import { getEquipmentCardArtPath } from './equipment/art.js';
 import { EQUIPMENT_DEFS, getEquipmentDef } from './equipment/defs.js';
+import { POWER_RELIC_DEFS, hasPowerRelic } from './powerRelics/index.js';
 import { getMapNodeArtPath } from './map/art.js';
 import {
   getEquipmentIdInSlot,
@@ -72,7 +73,7 @@ export function getPassiveBadges() {
     arr.push({icon:'👻⚔', name:'强化鬼刀', detail:item ? item.desc : ''});
   }
   POWER_RELIC_DEFS.forEach((item) => {
-    if (G.powerRelics && G.powerRelics[item.key]) arr.push({icon:item.icon, name:item.name, detail:item.desc});
+    if (hasPowerRelic(G, item.key)) arr.push({icon:item.icon, name:item.name, detail:item.desc});
   });
   if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`, detail:'法师资源：用于释放一重释放。'});
   if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`, detail:'小狗资源：影响幸运回复与幸运蓄力触发率。'});
@@ -128,12 +129,20 @@ export function renderEquipSlots(id) {
   if (!wrap) return;
   wrap.innerHTML = '';
   const allowUnequip = id === 'map-equip-slots';
+  const compactMode = id === 'battle-equip-slots';
   for (let slotIndex = 0; slotIndex < 2; slotIndex++) {
     const equipmentId = getEquipmentIdInSlot(G, slotIndex);
     const def = equipmentId ? getEquipmentDef(equipmentId) : null;
     const slot = document.createElement('div');
     const filled = !!def;
-    slot.className = `equip-slot${filled ? ` filled${allowUnequip ? ' clickable' : ''}` : ''}${filled ? ' detail-target' : ''}`;
+    const cls = ['equip-slot'];
+    if (compactMode) cls.push('compact-battle');
+    if (filled) {
+      cls.push('filled');
+      if (allowUnequip) cls.push('clickable');
+      cls.push('detail-target');
+    }
+    slot.className = cls.join(' ');
     slot.dataset.slotIndex = String(slotIndex);
     if (!filled) {
       slot.textContent = `装备槽${slotIndex + 1}｜空`;
@@ -141,19 +150,24 @@ export function renderEquipSlots(id) {
       continue;
     }
 
-    const tagLine = getEquipmentTagText(G, equipmentId);
     const tagDef = getEquipmentTagDefForItem(G, equipmentId);
     const detail = tagDef
       ? `${def.desc}\n当前词条：${tagDef.name}\n词条效果：${tagDef.desc}`
       : `${def.desc}\n当前词条：无`;
     slot.dataset.detailTitle = `${def.icon} ${def.name}`;
     slot.dataset.detail = detail;
-    const artPath = getEquipmentCardArtPath(equipmentId);
-    slot.innerHTML = `
-      <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
-      <span class="equip-slot-fallback" style="display:none">${def.icon}</span>
-      <span class="equip-slot-name">${def.name}</span>
-      <span class="equip-slot-tag">${tagLine}</span>`;
+    if (compactMode) {
+      slot.innerHTML = `
+        <span class="equip-slot-emoji">${def.icon}</span>
+        <span class="equip-slot-name">${def.name}</span>`;
+    } else {
+      const artPath = getEquipmentCardArtPath(equipmentId);
+      slot.innerHTML = `
+        <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
+        <span class="equip-slot-fallback" style="display:none">${def.icon}</span>
+        <span class="equip-slot-name">${def.name}</span>
+        <span class="equip-slot-tag">${tagLine}</span>`;
+    }
     wrap.appendChild(slot);
   }
 }
@@ -294,13 +308,18 @@ export function renderAbilityTree() {
   defs.forEach((ab, idx) => {
     const unlocked = G.abilities[ab.key];
     const canAfford = G.player.fragments >= ab.cost;
+    const canToggleOffOpenMind = unlocked && G.player.classKey === 'dog' && ab.key === 'openMind';
+    const canAffordToggleOff = G.devMode || G.player.fragments >= 2;
     const prevLocked = isLinearTree && idx > 0 && !G.abilities[defs[idx - 1].key];
     const locked = !unlocked && prevLocked;
     const card = document.createElement('div');
     card.className = `ab-node-card${unlocked ? ' unlocked' : ''}${!unlocked && !canAfford && !locked ? ' cant-afford' : ''}${locked ? ' cant-afford' : ''}`;
     const usedNote = ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed ? ' <span style="color:#555;font-size:.75em">（本局已用）</span>' : '';
     let costText, actionHtml;
-    if (unlocked) {
+    if (canToggleOffOpenMind) {
+      costText = `取消点亮需 2 ✨碎片${canAffordToggleOff ? '' : `（当前 ${G.player.fragments}）`}`;
+      actionHtml = `<button class="btn-unlock" data-unlock="${ab.key}" ${canAffordToggleOff ? '' : 'disabled'}>取消点亮</button>`;
+    } else if (unlocked) {
       costText = '✓ 已解锁';
       actionHtml = '<span class="ab-unlocked-mark">✓ 已激活</span>';
     } else if (locked) {
@@ -444,51 +463,68 @@ export function refreshActionLabels() {
   const spHint = $('sp-hint');
   const sp1 = $('sb-sp1');
   const sp2 = $('sb-sp2');
+  const spCore = $('sb-sp-core');
   const spDev = $('sb-sp-dev');
+  const showCoreSpecial = hasPowerRelic(G, 'deification');
   const showDevSpecial = !!G.devMode;
   if (G.player.classKey === 'mage') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
     if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const release = getActionData('mage_release', 'player');
-    if (spHint) spHint.textContent = `持有${G.player.lightningOrbs || 0}球`;
+    if (spHint) spHint.textContent = showCoreSpecial
+      ? `持有${G.player.lightningOrbs || 0}球｜核心${Object.values(G.player.coreOrbs || {}).filter((v) => v > 0).length}/5`
+      : `持有${G.player.lightningOrbs || 0}球`;
     setSubCardLabel(sp1, `${release.orbCost}⚡`, release.name, `等级${release.atk}·持有${G.player.lightningOrbs || 0}`);
+    if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
     if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else if (G.player.classKey === 'nsyc') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = 'none';
     if (sp2) sp2.style.display = '';
+    if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
     if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const stacks = G.player.shaBiStacks || 0;
-    if (spHint) spHint.textContent = `傻逼${stacks}层`;
+    if (spHint) spHint.textContent = showCoreSpecial
+      ? `傻逼${stacks}层｜核心${Object.values(G.player.coreOrbs || {}).filter((v) => v > 0).length}/5`
+      : `傻逼${stacks}层`;
     setSubCardLabel(sp2, `3🤬`, '厄介', `持有${stacks}层`);
+    if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
     if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else if (G.player.classKey === 'dog') {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
     if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const luck = G.player.luck || 0;
-    if (spHint) spHint.textContent = `幸运值 ${luck}`;
+    if (spHint) spHint.textContent = showCoreSpecial
+      ? `幸运值 ${luck}｜核心${Object.values(G.player.coreOrbs || {}).filter((v) => v > 0).length}/5`
+      : `幸运值 ${luck}`;
     setSubCardLabel(sp1, '🍀', '幸运值', `当前${luck}`);
+    if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
     if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
-  } else if (showDevSpecial) {
+  } else if (showDevSpecial || showCoreSpecial) {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = 'none';
     if (sp2) sp2.style.display = 'none';
-    if (spDev) spDev.style.display = '';
-    if (spHint) spHint.textContent = '开发者行动';
+    if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
+    if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
+    if (spHint) spHint.textContent = showCoreSpecial ? '完美核心已启动' : '开发者行动';
+    if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
     setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else {
     if (specialMain) specialMain.style.display = 'none';
     if (specialPanel) specialPanel.style.display = 'none';
     if (sp1) sp1.style.display = '';
     if (sp2) sp2.style.display = 'none';
+    if (spCore) spCore.style.display = 'none';
     if (spDev) spDev.style.display = 'none';
     if (spHint) spHint.textContent = '职业技能';
   }
@@ -527,7 +563,7 @@ function hasAffordable(keys) {
 
 export function updateSubButtons() {
   const blocked = new Set((G.battle && G.battle.roundDisabledActions) || []);
-  const defenseForbidden = !!(G.powerRelics && G.powerRelics.possibleReunion);
+  const defenseForbidden = hasPowerRelic(G, 'possibleReunion');
   $('sb-d0').disabled = defenseForbidden || blocked.has('defense_0');
   $('sb-d1').disabled = defenseForbidden || blocked.has('defense_1') || G.player.ji < getActionData('defense_1', 'player').cost;
   $('sb-d2').disabled = defenseForbidden || blocked.has('defense_2') || G.player.ji < getActionData('defense_2', 'player').cost;
@@ -560,26 +596,34 @@ export function updateSubButtons() {
   const specialMain = $('mb-sp');
   const sp1Btn = $('sb-sp1');
   const sp2Btn = $('sb-sp2');
+  const spCoreBtn = $('sb-sp-core');
   const spDevBtn = $('sb-sp-dev');
-  if (spDevBtn) spDevBtn.disabled = !G.devMode;
+  const coreAction = getActionData('perfect_core', 'player');
+  const canCore = !!coreAction && !coreAction.disabledByOrbs && !blocked.has('perfect_core');
+  const canDev = !!G.devMode;
+  if (spCoreBtn) spCoreBtn.disabled = !canCore;
+  if (spDevBtn) spDevBtn.disabled = !canDev;
+  let canAnySpecial = canCore || canDev;
   if (G.player.classKey === 'mage') {
     const release = getActionData('mage_release', 'player');
     const canRelease = !!release && !release.disabledByOrbs && !blocked.has('mage_release');
-    specialMain.disabled = !canRelease && !G.devMode;
+    canAnySpecial = canAnySpecial || canRelease;
+    specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = !canRelease;
     if (sp2Btn) sp2Btn.disabled = true;
   } else if (G.player.classKey === 'nsyc') {
     const ekai = getActionData('ekai', 'player');
-    const canEkai = !!ekai && !ekai.disabledByOrbs;
-    specialMain.disabled = !canEkai && !G.devMode;
+    const canEkai = !!ekai && !ekai.disabledByOrbs && !blocked.has('ekai');
+    canAnySpecial = canAnySpecial || canEkai;
+    specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = !canEkai;
   } else if (G.player.classKey === 'dog') {
-    specialMain.disabled = !G.devMode;
+    specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = true;
   } else {
-    specialMain.disabled = !G.devMode;
+    specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = true;
   }
@@ -606,6 +650,43 @@ export function refreshBars() {
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
   renderEquipSlots('battle-equip-slots');
+  updateBattleCompactShortcuts();
+}
+
+function updateBattleCompactShortcuts() {
+  const passiveWrap = $('battle-passive-tags');
+  const equipWrap = $('battle-equip-slots');
+  const shortcutWrap = $('battle-compact-shortcuts');
+  const abilityBtn = $('btn-battle-abilities-detail');
+  const equipBtn = $('btn-battle-equip-detail');
+  if (!passiveWrap || !equipWrap || !shortcutWrap || !abilityBtn || !equipBtn) return;
+  const enabled = document.body.classList.contains('narrow-battle-optimized')
+    && window.matchMedia('(max-width: 680px)').matches;
+  if (!enabled) {
+    passiveWrap.style.display = '';
+    equipWrap.style.display = '';
+    shortcutWrap.style.display = 'none';
+    if (abilityBtn) abilityBtn.style.display = '';
+    if (equipBtn) equipBtn.style.display = '';
+    return;
+  }
+
+  const passiveDetails = getPassiveBadges()
+    .map((item) => `${item.icon} ${item.name}${item.detail ? `\n${item.detail}` : ''}`)
+    .join('\n\n');
+  passiveWrap.innerHTML = '';
+  const summaryBtn = document.createElement('button');
+  summaryBtn.type = 'button';
+  summaryBtn.className = 'battle-state-inline-btn detail-target';
+  summaryBtn.dataset.detailTitle = '🎒 当前背包';
+  summaryBtn.dataset.detail = passiveDetails || '当前无能力。';
+  summaryBtn.textContent = '🎒 查看背包';
+  passiveWrap.appendChild(summaryBtn);
+  passiveWrap.style.display = 'flex';
+  equipWrap.style.display = 'grid';
+  shortcutWrap.style.display = 'none';
+  if (abilityBtn) abilityBtn.style.display = 'none';
+  if (equipBtn) equipBtn.style.display = 'none';
 }
 
 export function resetRoundUI() {
@@ -774,7 +855,7 @@ export function renderProfilePanel() {
   const classDef = CLASS_DEFS[G.player.classKey];
   const unlockedAbilities = (classDef ? classDef.abilityDefs : []).filter((ab) => G.abilities[ab.key]);
   const equippedIds = getEquippedEquipmentIds(G);
-  const relics = POWER_RELIC_DEFS.filter((item) => G.powerRelics && G.powerRelics[item.key]);
+  const relics = POWER_RELIC_DEFS.filter((item) => hasPowerRelic(G, item.key));
   const resourceRows = [
     `生命：${G.player.hp}/${G.player.maxHp}`,
     `Ji：${G.player.ji}（回合回复 +${getPlayerJiRate()}）`,

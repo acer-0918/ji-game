@@ -139,6 +139,10 @@
         </div>
         <div class="tag-wrap compact" id="battle-passive-tags"></div>
         <div class="equip-slots compact" id="battle-equip-slots"></div>
+        <div class="battle-compact-shortcuts" id="battle-compact-shortcuts" style="display:none">
+          <button class="btn-ghost compact-detail-btn detail-target" id="btn-battle-abilities-detail">🎒 背包</button>
+          <button class="btn-ghost compact-detail-btn detail-target" id="btn-battle-equip-detail">🧰 装备</button>
+        </div>
       </div>
 
       <!-- 出牌区（中） -->
@@ -344,6 +348,13 @@
         <div class="sub-card-name">厄介</div>
         <div class="sub-card-hint">下回合必定命中</div>
       </button>
+      <!-- 神化遗物专属 -->
+      <button class="sub-card sp-card" id="sb-sp-core" data-action="perfect_core" style="display:none">
+        <div class="sub-card-cost">0</div><div class="sub-card-key">2</div>
+        <img class="sub-card-img" src="" alt=""><div class="sub-card-art">⚙️</div>
+        <div class="sub-card-name">完美核心</div>
+        <div class="sub-card-hint">随机充能球</div>
+      </button>
       <!-- 开发者行动：仅开发者模式显示 -->
       <button class="sub-card sp-card" id="sb-sp-dev" data-action="dev_kill" style="display:none">
         <div class="sub-card-cost">DEV</div><div class="sub-card-key">2</div>
@@ -495,6 +506,7 @@
     <div class="overlay-body">
       <div style="margin-bottom:12px;">设置功能开发中，敬请期待。</div>
       <button class="btn btn-outline" id="btn-toggle-devmode">开发者模式：关闭</button>
+      <button class="btn btn-outline" id="btn-toggle-narrow-ui" style="margin-top:8px">窄屏战斗界面优化：关闭</button>
       <button class="btn btn-danger" id="btn-home-from-settings" style="margin-top:12px;">放弃本局，回到首页</button>
     </div>
     <div class="overlay-btns">
