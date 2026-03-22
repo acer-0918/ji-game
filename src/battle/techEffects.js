@@ -8,6 +8,7 @@ import {
   registerHitHook,
   registerDamageTotalHook,
 } from '../logic.js';
+import { recordBossObservedTag } from '../ai.js';
 import { G } from '../state.js';
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
@@ -102,6 +103,7 @@ function applyFrostNovaOnHit(ctx) {
   const tc = getTechCounters();
   if (!tc) return;
   tc.frost_nova_lock = true;
+  recordBossObservedTag('enemy_attack_lock'); // Boss 记忆：玩家有冻结能力
   ctx.triggers.push('冰霜新星：敌人下回合将被冻结，无法发动攻击！');
 }
 
@@ -113,6 +115,7 @@ function applyPotCannonOnHit(ctx) {
   const tc = getTechCounters();
   if (!tc) return;
   tc.pot_cannon_pending = (tc.pot_cannon_pending || 0) + 3;
+  recordBossObservedTag('enemy_ji_drain'); // Boss 记忆：玩家有Ji压制能力
   ctx.triggers.push('壶大炮：敌人下回合开始时将失去 3 Ji！');
 }
 

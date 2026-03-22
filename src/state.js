@@ -153,6 +153,7 @@ export function resetRoomJi() {
   if (G.battle) {
     G.battle.techCounters = createTechCounters();
     G.battle.enemyFrostLockThisRound = false;
+    G.battle.bossMemory = null; // 每场战斗重置 Boss 记忆
   }
 }
 

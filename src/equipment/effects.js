@@ -15,6 +15,7 @@ import {
   ensureBattleEquipmentState,
   hasEquippedEquipment,
 } from './runtime.js';
+import { recordBossObservedTag } from '../ai.js';
 
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
@@ -137,6 +138,7 @@ export function registerEquipmentEffects(engine) {
       if (!Array.isArray(ctx.damagePackets)) ctx.damagePackets = [];
       ctx.damagePackets.push(followUpPacket);
       toResultFromPackets(ctx);
+      recordBossObservedTag('chain_attack'); // Boss 记忆：玩家有连击能力
       pushLog(ctx, 'log-ab', `🏹 狩猎律动：追加 ${extraCount} 次同款攻击（消耗 ${spend} Ji）。`);
     },
   });
