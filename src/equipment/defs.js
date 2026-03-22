@@ -13,7 +13,7 @@ export const EQUIPMENT_DEFS = [
     icon: '🛡️',
     name: '霸王血铠',
     cost: 2,
-    desc: '你的攻击与技能造成伤害时，额外造成 floor(最大生命*30%) 伤害。',
+    desc: '你的攻击与技能造成伤害时，额外造成30%最大生命值（向下取整）的伤害。',
   },
   {
     id: 'equi_3',

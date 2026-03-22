@@ -8,7 +8,8 @@ import { registerTechEffects } from './battle/techEffects.js';
 import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
-import { CLASS_DEFS, POWER_RELIC_DEFS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
+import { CLASS_DEFS, getAbilityDefsForClass } from './data.js';
+import { POWER_RELIC_DEFS, getPowerRelicDef, hasPowerRelic } from './powerRelics/index.js';
 import { getActionData } from './logic.js';
 import {
   addLog,
@@ -64,6 +65,7 @@ function getPlayedCardSubText(action) {
     return `${levelText}${hitsText}`;
   }
   if (action.type === 'defense') return `防御${action.def}`;
+  if (action.type === 'fault_orb') return '随机充能球';
   if (action.type === 'ekai' || action.type === 'dev_kill' || action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom') {
     return Number.isFinite(action.atk) ? `等级${action.atk}` : '特殊';
   }
@@ -82,6 +84,7 @@ const BATTLE_TIMINGS = {
   RESOLVE_DELAY_MS: 180,
   OUTCOME_DELAY_MS: 0,
 };
+const DELEGATION_PROBLEM_REVEAL_DELAY_MS = 800;
 let developerModeEnabled = false;
 let narrowBattleUiEnabled = false;
 const battleEngine = createBattleEngine();
@@ -176,11 +179,139 @@ function getRoundBlockedSet() {
 }
 
 function isDefenseForbiddenByRelic() {
-  return !!(G.powerRelics && G.powerRelics.possibleReunion);
+  return hasPowerRelic(G, 'possibleReunion');
+}
+
+function hasDelegationProblemRelic() {
+  return hasPowerRelic(G, 'delegationProblem');
 }
 
 function isActionBlockedForRound(key) {
+  // 开发者行动不受沉默是金影响
+  if (key === 'dev_kill') return false;
   return getRoundBlockedSet().has(key);
+}
+
+function getSpecialActionKeysForPlayer() {
+  const keys = [];
+  if (!G.player) return keys;
+  if (G.player.classKey === 'mage') keys.push('mage_release');
+  if (G.player.classKey === 'nsyc') keys.push('ekai');
+  if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
+  if (G.devMode) keys.push('dev_kill');
+  return keys;
+}
+
+function canUsePlayerActionKey(key, { ignoreRoundDisabled = false } = {}) {
+  if (!key || !G.player) return false;
+  if (!ignoreRoundDisabled && isActionBlockedForRound(key)) return false;
+  if (isDefenseForbiddenByRelic() && String(key).startsWith('defense_')) return false;
+  const action = getActionData(key, 'player');
+  if (!action || action.disabledByOrbs) return false;
+  const cost = Number(action.cost || 0);
+  return cost <= Number(G.player.ji || 0);
+}
+
+function applyDelegationProblemUiLock() {
+  if (!hasDelegationProblemRelic() || !G.battle || G.battle.phase !== 'select') return;
+  const area = $('action-area');
+  const confirmBtn = $('btn-confirm');
+  if (area) area.style.pointerEvents = 'none';
+  if (confirmBtn) confirmBtn.disabled = true;
+}
+
+function getDelegationProblemActionKey() {
+  if (!G.player) return null;
+  const pickHighest = (keys) => {
+    const sorted = [...keys].sort((a, b) => {
+      const aLv = parseInt(String(a).split('_').pop(), 10) || 0;
+      const bLv = parseInt(String(b).split('_').pop(), 10) || 0;
+      return bLv - aLv;
+    });
+    return sorted[0] || null;
+  };
+  const pickRandom = (keys) => randomChoice(keys);
+  const isFeasible = (key) => canUsePlayerActionKey(key, { ignoreRoundDisabled: true });
+
+  const feasibleRegions = [];
+  if (isFeasible('ji')) {
+    feasibleRegions.push({ regionKey: 'ji', actionKeys: ['ji'], picker: pickRandom });
+  }
+  const defenseKeys = ['defense_0', 'defense_1', 'defense_2'].filter(isFeasible);
+  if (defenseKeys.length > 0) {
+    feasibleRegions.push({ regionKey: 'def', actionKeys: defenseKeys, picker: pickHighest });
+  }
+  const attackKeys = ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].filter(isFeasible);
+  if (attackKeys.length > 0) {
+    feasibleRegions.push({ regionKey: 'atk', actionKeys: attackKeys, picker: pickHighest });
+  }
+  const specialKeys = getSpecialActionKeysForPlayer().filter(isFeasible);
+  if (specialKeys.length > 0) {
+    feasibleRegions.push({ regionKey: 'sp', actionKeys: specialKeys, picker: pickRandom });
+  }
+  if (feasibleRegions.length <= 0) return null;
+  const pickedRegion = randomChoice(feasibleRegions);
+  return pickedRegion.picker(pickedRegion.actionKeys);
+}
+
+function syncPlayerPreviewForAction(key) {
+  const action = getActionData(key, 'player');
+  if (!action) return false;
+  const mainSel = key === 'ji'
+    ? 'ji'
+    : key.startsWith('defense_')
+      ? 'def'
+      : key.startsWith('attack_')
+        ? 'atk'
+        : 'sp';
+  G.ui.mainSel = mainSel;
+  G.ui.actionKey = key;
+  document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
+  document.querySelectorAll('.sub-card, .sub-btn').forEach((btn) => btn.classList.remove('sel'));
+  document.querySelectorAll('.sub-panel').forEach((panel) => panel.classList.remove('show'));
+  const mainBtn = $(
+    mainSel === 'ji' ? 'mb-ji' :
+    mainSel === 'def' ? 'mb-def' :
+    mainSel === 'atk' ? 'mb-atk' :
+    'mb-sp'
+  );
+  if (mainBtn) mainBtn.classList.add('sel');
+  const panel = $(
+    mainSel === 'def' ? 'sp-def' :
+    mainSel === 'atk' ? 'sp-atk' :
+    mainSel === 'sp' ? 'sp-special' :
+    ''
+  );
+  if (panel) panel.classList.add('show');
+  if (key !== 'ji') {
+    const subBtn = document.querySelector(`.sub-card[data-action="${key}"], .sub-btn[data-action="${key}"]`);
+    if (subBtn) subBtn.classList.add('sel');
+  }
+  const playedSubText = getPlayedCardSubText(action);
+  $('pc-emoji').textContent = action.emoji;
+  $('pc-main').textContent = action.name;
+  $('pc-sub').textContent = playedSubText;
+  $('sel-preview-text').textContent = `${action.emoji} ${action.name}${playedSubText ? ` (${playedSubText})` : ''}`;
+  const confirmBtn = $('btn-confirm');
+  if (confirmBtn) confirmBtn.disabled = true;
+  return true;
+}
+
+function maybeAutoSubmitDelegationProblemAction() {
+  if (!hasDelegationProblemRelic() || !G.battle || G.battle.phase !== 'select') return;
+  applyDelegationProblemUiLock();
+  const key = getDelegationProblemActionKey();
+  if (!key) {
+    addLog('log-ab', '🧾 委托代理问题：代理人没找到可执行的行动，本回合选择蓄力。');
+    confirmAction({ forceActionKey: 'ji', ignoreRoundBlock: true, autoSubmitted: true });
+    return;
+  }
+  syncPlayerPreviewForAction(key);
+  const pickedAction = getActionData(key, 'player');
+  if (pickedAction) {
+    addLog('log-ab', `🧾 委托代理问题：代理人代为选择了【${pickedAction.name}】。`);
+  }
+  confirmAction({ forceActionKey: key, ignoreRoundBlock: true, autoSubmitted: true });
 }
 
 function getHuntRhythmState() {
@@ -268,7 +399,8 @@ function getPlayerActionKeysForSilence() {
   const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
   if (G.player.classKey === 'mage') keys.push('mage_release');
   if (G.player.classKey === 'nsyc') keys.push('ekai');
-  if (G.devMode) keys.push('dev_kill');
+  if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
+  // 开发者行动不参与沉默禁用
   return keys;
 }
 
@@ -285,7 +417,7 @@ function sampleDistinctKeys(pool, count) {
 }
 
 function getPowerRelicOptions(count=2) {
-  const unowned = POWER_RELIC_DEFS.filter((item) => !G.powerRelics[item.key]);
+  const unowned = POWER_RELIC_DEFS.filter((item) => !hasPowerRelic(G, item.key));
   if (!unowned.length) return [];
   return sampleDistinctKeys(unowned, Math.min(count, unowned.length));
 }
@@ -347,7 +479,7 @@ function renderEventRelicChoiceUI(options) {
 function chooseEventRelic(key) {
   if (G.pendingEventRelicSelectedKey) return;
   const def = getPowerRelicDef(key);
-  if (!def || G.powerRelics[key]) return;
+  if (!def || hasPowerRelic(G, key)) return;
   G.powerRelics[key] = true;
   G.pendingEventRelicSelectedKey = key;
   addLog('log-ab', `🧿 事件馈赠：获得强大遗物 ${def.name}。`);
@@ -449,7 +581,7 @@ function renderRelicChoiceUI(options) {
 
 function choosePowerRelic(key) {
   const def = getPowerRelicDef(key);
-  if (!def || G.powerRelics[key]) return;
+  if (!def || hasPowerRelic(G, key)) return;
   G.powerRelics[key] = true;
   if (Array.isArray(G.pendingPowerRelicOptions)) {
     G.pendingPowerRelicOptions = G.pendingPowerRelicOptions.filter((item) => item.key !== key);
@@ -664,6 +796,12 @@ function runAfter(ms, fn) {
   else fn();
 }
 
+function getRevealDelayMs() {
+  return hasDelegationProblemRelic()
+    ? DELEGATION_PROBLEM_REVEAL_DELAY_MS
+    : BATTLE_TIMINGS.REVEAL_DELAY_MS;
+}
+
 function nextPaint() {
   return new Promise((resolve) => requestAnimationFrame(() => resolve()));
 }
@@ -680,7 +818,22 @@ function closeAbilityTree() {
 
 function unlockAbility(key) {
   const ab = getAbilityDefsForClass(G.player.classKey).find((item) => item.key === key);
-  if (!ab || G.abilities[key] || (!G.devMode && G.player.fragments < ab.cost)) return;
+  if (!ab) return;
+
+  // 小狗的【想得开】允许取消点亮；取消时消耗 2 碎片
+  if (G.abilities[key]) {
+    const canToggleOffOpenMind = G.player.classKey === 'dog' && key === 'openMind';
+    if (!canToggleOffOpenMind) return;
+    if (!G.devMode && G.player.fragments < 2) return;
+    if (!G.devMode) G.player.fragments -= 2;
+    G.abilities[key] = false;
+    keepDeveloperResources();
+    renderAbilityTree();
+    renderMap();
+    return;
+  }
+
+  if (!G.devMode && G.player.fragments < ab.cost) return;
   // Ability tree prerequisite check: linear by default, optional free-pick per class
   const classDef = CLASS_DEFS[G.player.classKey];
   const isLinearTree = !classDef || classDef.abilityTreeLinear !== false;
@@ -1002,10 +1155,13 @@ function startBattle(node, keepSnapshot=false) {
   resetRoundUI();
   hideHuntRhythmPanel();
   refreshBars();
+  applyDelegationProblemUiLock();
+  runAfter(0, maybeAutoSubmitDelegationProblemAction);
   showScreen('battle');
 }
 
 function mainSelect(category) {
+  if (hasDelegationProblemRelic()) return;
   // 'atk' is the combined attack card; a1/a2/a3 kept for legacy compatibility
   const panelMap = {def:'sp-def', atk:'sp-atk', a1:'sp-atk', a2:'sp-atk', a3:'sp-atk', sp:'sp-special'};
   const btnMap   = {ji:'mb-ji', def:'mb-def', atk:'mb-atk', a1:'mb-atk', a2:'mb-atk', a3:'mb-atk', sp:'mb-sp'};
@@ -1036,8 +1192,8 @@ function mainSelect(category) {
 
   if (category === 'sp') {
     const hasClassSpecial = G.player.classKey === 'mage' || G.player.classKey === 'nsyc' || G.player.classKey === 'dog';
-    if (!hasClassSpecial && !G.devMode) return;
-    if (G.player.classKey === 'mage' && !G.devMode && isActionBlockedForRound('mage_release')) return;
+    const hasCoreSpecial = hasPowerRelic(G, 'deification');
+    if (!hasClassSpecial && !hasCoreSpecial && !G.devMode) return;
   }
 
   document.querySelectorAll('.action-card-btn').forEach((btn) => btn.classList.remove('sel'));
@@ -1056,6 +1212,7 @@ function mainSelect(category) {
 }
 
 function subSelect(key) {
+  if (hasDelegationProblemRelic()) return;
   if (isDefenseForbiddenByRelic() && key.startsWith('defense_')) return;
   if (isActionBlockedForRound(key)) return;
   const action = getActionData(key, 'player');
@@ -1080,17 +1237,24 @@ function subSelect(key) {
   updateHuntRhythmPanelForAction(key);
 }
 
-function confirmAction() {
-  if (!G.ui.actionKey || G.battle.phase !== 'select') return;
-  if (isActionBlockedForRound(G.ui.actionKey)) return;
-  G.battle.pAction = G.ui.actionKey;
+function confirmAction(options = {}) {
+  const forceActionKey = options.forceActionKey || null;
+  const ignoreRoundBlock = !!options.ignoreRoundBlock;
+  const autoSubmitted = !!options.autoSubmitted;
+  const actionKey = forceActionKey || G.ui.actionKey;
+  if (!actionKey || !G.battle || G.battle.phase !== 'select') return;
+  if (hasDelegationProblemRelic() && !autoSubmitted) return;
+  if (!canUsePlayerActionKey(actionKey, { ignoreRoundDisabled: ignoreRoundBlock })) return;
+  if (!ignoreRoundBlock && isActionBlockedForRound(actionKey)) return;
+  G.ui.actionKey = actionKey;
+  G.battle.pAction = actionKey;
   G.battle.eAction = aiDecide(G.enemy);
   G.battle.phase = 'reveal';
   hideHuntRhythmPanel();
   $('action-area').style.pointerEvents = 'none';
   $('btn-confirm').disabled = true;
   $('round-phase').textContent = '揭示中...';
-  runAfter(BATTLE_TIMINGS.REVEAL_DELAY_MS, doReveal);
+  runAfter(getRevealDelayMs(), doReveal);
 }
 
 function doReveal() {
@@ -1114,6 +1278,11 @@ function doResolve() {
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
     if (G.battle && G.battle.huntRhythmPending) {
+      if (hasDelegationProblemRelic()) {
+        addLog('log-ab', '🧾 委托代理问题：代理人放弃了狩猎律动的追加出手。');
+        confirmHuntRhythmExtra();
+        return;
+      }
       showHuntRhythmPostHitPanel();
       return;
     }
@@ -1154,6 +1323,8 @@ function nextRound() {
   resetRoundUI();
   hideHuntRhythmPanel();
   refreshBars();
+  applyDelegationProblemUiLock();
+  runAfter(0, maybeAutoSubmitDelegationProblemAction);
 }
 
 function endBattle(win) {
@@ -1644,6 +1815,7 @@ function handleKeydown(e) {
   // 只在战斗选牌阶段响应；忽略文本输入等场景
   if (!$('screen-battle').classList.contains('active')) return;
   if (!G.battle || G.battle.phase !== 'select') return;
+  if (hasDelegationProblemRelic()) return;
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   if (e.ctrlKey || e.altKey || e.metaKey) return;
 
@@ -1684,7 +1856,7 @@ function handleKeydown(e) {
   } else if (openPanel.id === 'sp-atk') {
     subSelect(`attack_${num}`);
   } else if (openPanel.id === 'sp-special') {
-    const options = ['sb-sp1', 'sb-sp2', 'sb-sp-dev']
+    const options = ['sb-sp1', 'sb-sp2', 'sb-sp-core', 'sb-sp-dev']
       .map((id) => $(id))
       .filter((el) => el && el.style.display !== 'none');
     const picked = options[num - 1];

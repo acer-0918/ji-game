@@ -1,4 +1,5 @@
-import { CLASS_DEFS, DEFAULT_CLASS_KEY, ORB_KEYS, POWER_RELIC_DEFS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, DEFAULT_CLASS_KEY, ORB_KEYS, getAbilityDefsForClass } from './data.js';
+import { POWER_RELIC_DEFS } from './powerRelics/index.js';
 import { clone } from './utils.js';
 import { createTechniquesState, createTechCounters } from './battleTechniques.js';
 import { createMapState } from './map/runtime.js';
@@ -67,7 +68,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
     hardMode: false,
     devMode: false,
   };
-  G.player.luck = cls.key === 'dog' ? 50 : 0;
+  G.player.luck = cls.key === 'dog' ? 30 : 0;
 }
 
 export function ensureFaultRobotState(enemy) {
@@ -91,6 +92,25 @@ export function orbUniqueCount(enemy) {
 
 export function allOrbsGenerated(enemy) {
   return enemy && enemy.id === 'faultRobot' && ORB_KEYS.every(k => orbCount(enemy, k) > 0);
+}
+
+export function ensurePlayerCoreState(player) {
+  if (!player) return;
+  player.coreOrbs = player.coreOrbs || {plasma:0, frost:0, lightning:0, dark:0, glass:0};
+  player.coreOverloadTriggered = !!player.coreOverloadTriggered;
+  ORB_KEYS.forEach((k) => {
+    player.coreOrbs[k] = player.coreOrbs[k] || 0;
+  });
+}
+
+export function playerCoreOrbCount(player, key) {
+  if (!player || !player.coreOrbs) return 0;
+  return player.coreOrbs[key] || 0;
+}
+
+export function allPlayerCoreOrbsGenerated(player) {
+  if (!player || !player.coreOrbs) return false;
+  return ORB_KEYS.every((k) => playerCoreOrbCount(player, k) > 0);
 }
 
 export function getPlayerJiRate() {
@@ -148,6 +168,8 @@ export function resetRoomJi() {
   G.player.lightningOrbs = 0;
   G.player.shaBiStacks = 0;
   G.player.jiSpentTotal = 0;
+  G.player.coreOrbs = {plasma:0, frost:0, lightning:0, dark:0, glass:0};
+  G.player.coreOverloadTriggered = false;
   if (G.enemy) G.enemy.ji = 0;
   // Reset per-battle technique counters
   if (G.battle) {

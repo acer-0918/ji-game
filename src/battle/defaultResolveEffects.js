@@ -6,7 +6,8 @@ import {
   TARGET,
   toResultFromPackets,
 } from './damagePipeline.js';
-import { G, allOrbsGenerated, getDogLuckChance } from '../state.js';
+import { G, allOrbsGenerated, allPlayerCoreOrbsGenerated, getDogLuckChance } from '../state.js';
+import { hasPowerRelic } from '../powerRelics/index.js';
 
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
@@ -44,7 +45,7 @@ export function registerDefaultResolveEffects(engine) {
     order: DAMAGE_ORDER.RELIC_POSSIBLE_REUNION_CHARGE,
     condition: (ctx) => !!(
       G.powerRelics &&
-      G.powerRelics.possibleReunion &&
+      hasPowerRelic(G, 'possibleReunion') &&
       G.battle &&
       G.battle.eAction === 'defense_1' &&
       ctx.result
@@ -61,8 +62,7 @@ export function registerDefaultResolveEffects(engine) {
     actorScope: ACTOR_SCOPE.PLAYER,
     order: DAMAGE_ORDER.RELIC_POSSIBLE_REUNION_BONUS_DAMAGE,
     condition: (ctx) => !!(
-      G.powerRelics &&
-      G.powerRelics.possibleReunion &&
+      hasPowerRelic(G, 'possibleReunion') &&
       ctx.result &&
       ctx.result.edmg > 0 &&
       (G.battle && (G.battle.reunionDamageBonus || 0) > 0)
@@ -87,8 +87,7 @@ export function registerDefaultResolveEffects(engine) {
     condition: (ctx) => !!(
       ctx.result &&
       ctx.result.pdmg > 0 &&
-      G.powerRelics &&
-      G.powerRelics.destinedFirstSight &&
+      hasPowerRelic(G, 'destinedFirstSight') &&
       G.battle
     ),
     apply: (ctx) => {
@@ -124,6 +123,24 @@ export function registerDefaultResolveEffects(engine) {
       } else {
         pushLog(ctx, 'log-ab', `🍀 幸运回复未触发（${chance}%）。`);
       }
+    },
+  });
+
+  engine.registerEffect({
+    effectId: 'player.relic_deification_overload_round_end',
+    phase: PHASES.ROUND_END,
+    actorScope: ACTOR_SCOPE.PLAYER,
+    order: DAMAGE_ORDER.BOSS_FAULT_ROBOT_OVERLOAD_ROUND_END - 10,
+    condition: () => !!(
+      G.enemy &&
+      hasPowerRelic(G, 'deification') &&
+      !G.player.coreOverloadTriggered &&
+      allPlayerCoreOrbsGenerated(G.player)
+    ),
+    apply: (ctx) => {
+      G.player.coreOverloadTriggered = true;
+      G.enemy.hp = 0;
+      pushLog(ctx, 'log-dmg', '☠️ 完美核心触发【过载终焉】！敌方被直接消灭。');
     },
   });
 

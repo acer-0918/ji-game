@@ -2,16 +2,14 @@ import { PHASES, ACTOR_SCOPE, BATTLE_OUTCOME } from './constants.js';
 import { ROUND_START_ORDER } from './order.js';
 import { G } from '../state.js';
 import { clampPlayerJiByEquipment, hasEquippedEquipment } from '../equipment/runtime.js';
+import { getSilenceGoldActionKeys, hasPowerRelic } from '../powerRelics/index.js';
 
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
 }
 
 function getSilenceActionKeysFromState() {
-  const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
-  if (G.player.classKey === 'mage') keys.push('mage_release');
-  if (G.player.classKey === 'nsyc') keys.push('ekai');
-  return keys;
+  return getSilenceGoldActionKeys(G);
 }
 
 function sampleDistinctKeysLocal(pool, count) {
@@ -55,7 +53,7 @@ export function registerDefaultRoundStartEffects(engine) {
     phase: PHASES.ROUND_START,
     actorScope: ACTOR_SCOPE.PLAYER,
     order: ROUND_START_ORDER.RELIC_LEVER,
-    condition: () => !!(G.battle && G.powerRelics && G.powerRelics.lever),
+    condition: () => !!(G.battle && hasPowerRelic(G, 'lever')),
     apply: (ctx) => {
       if (Math.random() < 0.5) {
         G.player.ji = clampPlayerJiByEquipment(G, G.player.ji * 2);
@@ -68,11 +66,23 @@ export function registerDefaultRoundStartEffects(engine) {
   });
 
   engine.registerEffect({
+    effectId: 'player.relic_delegation_problem_gain',
+    phase: PHASES.ROUND_START,
+    actorScope: ACTOR_SCOPE.PLAYER,
+    order: ROUND_START_ORDER.RELIC_DELEGATION_PROBLEM_GAIN,
+    condition: () => !!(G.battle && hasPowerRelic(G, 'delegationProblem')),
+    apply: (ctx) => {
+      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + 2);
+      pushLog(ctx, 'log-ab', '🧾 委托代理问题：代理人到账 +2 Ji。');
+    },
+  });
+
+  engine.registerEffect({
     effectId: 'player.relic_silence_gold',
     phase: PHASES.ROUND_START,
     actorScope: ACTOR_SCOPE.PLAYER,
     order: ROUND_START_ORDER.RELIC_SILENCE_GOLD,
-    condition: () => !!(G.battle && G.powerRelics && G.powerRelics.silenceGold),
+    condition: () => !!(G.battle && hasPowerRelic(G, 'silenceGold')),
     apply: (ctx) => {
       const actionKeys = typeof ctx.getPlayerActionKeysForSilence === 'function'
         ? ctx.getPlayerActionKeysForSilence()
@@ -81,7 +91,7 @@ export function registerDefaultRoundStartEffects(engine) {
 
       const alreadyDisabled = new Set((G.battle.roundDisabledActions || []).filter(Boolean));
       // 可能的重逢会全局禁用防守，不应被沉默是金重复抽到
-      if (G.powerRelics && G.powerRelics.possibleReunion) {
+      if (hasPowerRelic(G, 'possibleReunion')) {
         alreadyDisabled.add('defense_0');
         alreadyDisabled.add('defense_1');
         alreadyDisabled.add('defense_2');
@@ -93,16 +103,14 @@ export function registerDefaultRoundStartEffects(engine) {
         return;
       }
 
-      const maxDisable = Math.min(3, candidates.length);
-      const disableCount = 1 + Math.floor(Math.random() * maxDisable);
+      const disableCount = Math.min(4, candidates.length);
       const picked = typeof ctx.sampleDistinctKeys === 'function'
         ? ctx.sampleDistinctKeys(candidates, disableCount)
         : sampleDistinctKeysLocal(candidates, disableCount);
       const merged = [...new Set([...(G.battle.roundDisabledActions || []), ...picked])];
-      const gained = picked.length;
       G.battle.roundDisabledActions = merged;
-      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + gained);
-      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合新增禁用 ${gained} 个行动（${picked.join('、')}），并获得 ${gained} Ji。`);
+      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + 2);
+      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合禁用 4 个行动（${picked.join('、')}），并获得 2 Ji。`);
     },
   });
 

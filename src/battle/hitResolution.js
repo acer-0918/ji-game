@@ -165,8 +165,12 @@ function applyDogHardWorkLuckOnHit(ctx) {
   if (ctx.side !== 'player') return;
   if (!G.player || G.player.classKey !== 'dog') return;
   if (!G.abilities.hardWorkLuck) return;
-  G.player.luck = Math.max(0, (G.player.luck || 0) + 1);
-  ctx.triggers.push('七分打拼——命中后，幸运值 +1');
+  if (Math.random() < 0.7) {
+    G.player.luck = Math.max(0, (G.player.luck || 0) + 1);
+    ctx.triggers.push('七分打拼——触发成功（70%），幸运值 +1');
+  } else {
+    ctx.triggers.push('七分打拼——本次未触发（70%）');
+  }
 }
 
 HIT_HOOKS.push(applyDefaultDamageEventOnHit);

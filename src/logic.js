@@ -4,10 +4,12 @@ import {
   G,
   allOrbsGenerated,
   ensureFaultRobotState,
+  ensurePlayerCoreState,
   getDogLuckChance,
   getEnemyStandardChargeGain,
   getPlayerDefenseBonus,
   getPlayerJiRate,
+  playerCoreOrbCount,
   orbCount,
 } from './state.js';
 import { getTechForSlot, TECH_DEFS } from './battleTechniques.js';
@@ -16,6 +18,7 @@ import {
   countActiveTag,
   getAttackLevelTagModifier,
 } from './equipment/runtime.js';
+import { hasPowerRelic } from './powerRelics/index.js';
 
 export function getActionData(key, side='player', actorOverride=null) {
   const actor = actorOverride || (side === 'player' ? G.player : G.enemy);
@@ -23,7 +26,7 @@ export function getActionData(key, side='player', actorOverride=null) {
 
   if (side === 'player' && actor.classKey === 'mage' && key === 'mage_release') {
     const canCast = (actor.lightningOrbs || 0) >= 5;
-    const atkLevel = G.powerRelics && G.powerRelics.destinedFirstSight ? 7 : 5;
+    const atkLevel = hasPowerRelic(G, 'destinedFirstSight') ? 7 : 5;
     return {
       type:'attack',
       cost:0,
@@ -69,6 +72,11 @@ export function getActionData(key, side='player', actorOverride=null) {
     };
   }
 
+  if (side === 'player' && key === 'perfect_core') {
+    if (!hasPowerRelic(G, 'deification')) return null;
+    return {type:'fault_orb', cost:0, def:0, atk:0, hits:0, damage:0, name:'完美核心', emoji:'⚙️'};
+  }
+
   if (side === 'enemy' && actor.id === 'faultRobot' && key === 'orb_random') {
     return {type:'fault_orb', cost:0, def:0, atk:0, hits:0, damage:0, name:'随机充能球', emoji:'🧪'};
   }
@@ -94,6 +102,10 @@ export function getActionData(key, side='player', actorOverride=null) {
       if (tech.id === 'atk_3_d') base.def = 6;
       // 鬼头刀：费用改为 4
       if (tech.costOverride !== undefined) base.cost = tech.costOverride;
+      // 坦克能力【压制】：等级大于4的战技固定消耗 4 Ji
+      if (G.abilities.suppression && Number(base.atk || 0) > 4) {
+        base.cost = 4;
+      }
       // 连珠箭：连续5回合 → 0 费
       if (tech.id === 'atk_1_e') {
         const streak = G.battle && G.battle.techCounters ? (G.battle.techCounters.renzhuJian_streak || 0) : 0;
@@ -132,7 +144,7 @@ export function getActionData(key, side='player', actorOverride=null) {
   if (side === 'player' && base.type === 'attack') {
     base.atk += getAttackLevelTagModifier(G);
   }
-  if (side === 'player' && base.type === 'attack' && G.powerRelics && G.powerRelics.destinedFirstSight) {
+  if (side === 'player' && base.type === 'attack' && hasPowerRelic(G, 'destinedFirstSight')) {
     base.atk = 7;
   }
 
@@ -147,6 +159,19 @@ export function getActionData(key, side='player', actorOverride=null) {
     }
     if (base.type === 'ji') {
       base.gain = getEnemyStandardChargeGain(actor);
+    }
+  }
+  if (side === 'player' && hasPowerRelic(G, 'deification')) {
+    ensurePlayerCoreState(actor);
+    if (base.type === 'defense') {
+      base.def += playerCoreOrbCount(actor, 'frost');
+    }
+    if (base.type === 'attack') {
+      base.atk += playerCoreOrbCount(actor, 'lightning');
+      base.damage += playerCoreOrbCount(actor, 'dark');
+    }
+    if (base.type === 'ji') {
+      base.gain += playerCoreOrbCount(actor, 'plasma');
     }
   }
 
@@ -193,13 +218,46 @@ export function formatSingleAction(action) {
   return `${action.emoji}${action.name}`;
 }
 
-function resolveInstantGlassHit(actor, count) {
+function ensureCoreStateForActor(actor, side) {
+  if (side === 'player') {
+    ensurePlayerCoreState(actor);
+    return;
+  }
+  ensureFaultRobotState(actor);
+}
+
+function coreOrbCountForActor(actor, side, key) {
+  return side === 'player'
+    ? playerCoreOrbCount(actor, key)
+    : orbCount(actor, key);
+}
+
+function coreAllOrbsGeneratedForActor(actor, side) {
+  if (side === 'player') {
+    ensurePlayerCoreState(actor);
+    return ORB_KEYS.every((k) => playerCoreOrbCount(actor, k) > 0);
+  }
+  return allOrbsGenerated(actor);
+}
+
+function getOrbStoreForActor(actor, side) {
+  ensureCoreStateForActor(actor, side);
+  return side === 'player' ? actor.coreOrbs : actor.orbs;
+}
+
+function getCoreOverloadTriggered(actor, side) {
+  return side === 'player'
+    ? !!actor.coreOverloadTriggered
+    : !!actor.overloadTriggered;
+}
+
+function resolveInstantGlassHit(actor, side, count) {
   return {
     type:'attack',
     cost:0,
-    atk:1 + orbCount(actor, 'lightning'),
+    atk:1 + coreOrbCountForActor(actor, side, 'lightning'),
     hits:count,
-    damage:1 + orbCount(actor, 'dark'),
+    damage:1 + coreOrbCountForActor(actor, side, 'dark'),
     name:'玻璃充能球',
     emoji:'🔷⚔',
   };
@@ -231,29 +289,30 @@ export function resolveAction(side, key) {
     actor.chargeValue = gain + 1;
     logs.push(`👑 古夫大帝的野性之心成长了，下次将获得 +${actor.chargeValue}Ji。`);
   } else if (base.type === 'fault_orb') {
-    ensureFaultRobotState(actor);
-    if (allOrbsGenerated(actor)) {
+    const ownerName = side === 'player' ? '完美核心' : '故障机器人';
+    const orbStore = getOrbStoreForActor(actor, side);
+    if (coreAllOrbsGeneratedForActor(actor, side)) {
       action = {type:'orb_buff', cost:0, name:'过载临界', emoji:'☠️', hits:0, damage:0};
-      if (actor.overloadTriggered) logs.push('☠️ 过载终焉已发动过，本局战斗中不会再次触发。');
+      if (getCoreOverloadTriggered(actor, side)) logs.push('☠️ 过载终焉已发动过，本局战斗中不会再次触发。');
       else logs.push('☠️ 五类充能球已全部出现！过载终焉将于本回合结算后发动。');
     } else {
       const orbKey = randomChoice(ORB_KEYS);
-      actor.orbs[orbKey] = (actor.orbs[orbKey] || 0) + 1;
-      const count = actor.orbs[orbKey];
+      orbStore[orbKey] = (orbStore[orbKey] || 0) + 1;
+      const count = orbStore[orbKey];
       const meta = ORB_META[orbKey];
-      logs.push(`${meta.icon} 故障机器人生成了【${meta.name}】（当前 ${count} 个）。`);
+      logs.push(`${meta.icon} ${ownerName}生成了【${meta.name}】（当前 ${count} 个）。`);
       if (orbKey === 'plasma') {
-        logs.push(`⚡ 之后它的蓄力将额外获得 ${orbCount(actor, 'plasma')} Ji。`);
+        logs.push(`⚡ 之后它的蓄力将额外获得 ${coreOrbCountForActor(actor, side, 'plasma')} Ji。`);
       } else if (orbKey === 'frost') {
-        logs.push(`🛡 之后它的防御等级额外 +${orbCount(actor, 'frost')}。`);
+        logs.push(`🛡 之后它的防御等级额外 +${coreOrbCountForActor(actor, side, 'frost')}。`);
       } else if (orbKey === 'lightning') {
-        logs.push(`⚔ 之后它的攻击等级额外 +${orbCount(actor, 'lightning')}。`);
+        logs.push(`⚔ 之后它的攻击等级额外 +${coreOrbCountForActor(actor, side, 'lightning')}。`);
         action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
       } else if (orbKey === 'dark') {
-        logs.push(`🌑 之后它的攻击伤害额外 +${orbCount(actor, 'dark')}。`);
+        logs.push(`🌑 之后它的攻击伤害额外 +${coreOrbCountForActor(actor, side, 'dark')}。`);
         action = {type:'orb_buff', cost:0, name:meta.name, emoji:meta.icon, hits:0, damage:0};
       } else if (orbKey === 'glass') {
-        action = resolveInstantGlassHit(actor, count);
+        action = resolveInstantGlassHit(actor, side, count);
         action.name = `${meta.name}冲击`;
         action.emoji = '🔷⚔';
         logs.push(`💥 玻璃充能球在生成时立刻发动：视为发起 ${count} 次【攻击1】。`);

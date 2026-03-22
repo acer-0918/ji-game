@@ -22,6 +22,8 @@ export const ORB_META = {
 
 export const ORB_KEYS = Object.keys(ORB_META);
 
+export { POWER_RELIC_DEFS, getPowerRelicDef } from './powerRelics/index.js';
+
 export const CLASS_DEFS = {
   assassin: {
     key: 'assassin',
@@ -52,6 +54,8 @@ export const CLASS_DEFS = {
     abilityDefs: [
       {key:'popcorn',     icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
       {key:'smallPotion', icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
+      {key:'taunt',       icon:'📢', name:'嘲讽',       cost:1, desc:'当敌方 Ji 为 1 且【攻击1】合法时，敌方本回合行动只能为【攻击1】。'},
+      {key:'suppression', icon:'🧱', name:'压制',       cost:1, desc:'你的等级大于 4 的战技消耗 4 Ji。'},
       {key:'tigerTank',   icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入精英或 Boss 房间时，生命上限立刻永久 +3，且当前生命同步 +3。'},
     ],
   },
@@ -100,7 +104,7 @@ export const CLASS_DEFS = {
     spDesc: '🍀 幸运值会被多种效果调用；部分能力可改变其增长与取值方式。',
     abilityDefs: [
       {key:'goodLuck', icon:'🍀', name:'强运', cost:2, desc:'增加 20 点幸运值。'},
-      {key:'hardWorkLuck', icon:'💪', name:'七分打拼', cost:1, desc:'命中敌人时，获得 1 点幸运值。'},
+      {key:'hardWorkLuck', icon:'💪', name:'七分打拼', cost:1, desc:'命中时有 70% 概率获得 1 点幸运值。'},
       {key:'openMind', icon:'🎲', name:'想得开', cost:-2, desc:'你的幸运值改为 0~100 的随机整数，每次调用幸运值时都会变化。'},
       {key:'standFirm', icon:'🦴', name:'挺得住', cost:1, desc:'受到伤害时获得的幸运值翻倍。'},
     ],
@@ -114,17 +118,6 @@ export const SHOP_ITEMS = [
   {key:'enhancedIceBlade', icon:'❄️🗡', name:'强化冰刀',       cost:2, desc:'替换攻击 3。强化冰刀命中时造成伤害 +1。', slot:'weapon'},
   {key:'enhancedBlade',    icon:'👻⚔', name:'强化鬼刀',       cost:2, desc:'替换攻击 5。攻击等级仍为 5，但只消耗 4 Ji。', slot:'weapon'},
 ];
-
-export const POWER_RELIC_DEFS = [
-  {key:'lever', icon:'🪜', name:'杠杆', desc:'每个回合开始时随机将你的 Ji 翻倍或重置为 2。'},
-  {key:'silenceGold', icon:'🔕', name:'沉默是金', desc:'每个回合开始时随机禁用你的随机个行动，获得等量的 Ji。'},
-  {key:'destinedFirstSight', icon:'📕', name:'既定的初见', desc:'你的攻击等级固定为 7。当你受到伤害时，你死亡。'},
-  {key:'possibleReunion', icon:'🕊️', name:'可能的重逢', desc:'你无法再使用防守。敌人每使用 1 次超防，使你在这场战斗中造成的所有伤害 +1。'},
-];
-
-export function getPowerRelicDef(key) {
-  return POWER_RELIC_DEFS.find((item) => item.key === key) || null;
-}
 
 export function getAbilityDefsForClass(classKey) {
   const selected = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
