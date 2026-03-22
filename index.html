@@ -370,6 +370,7 @@
       <button class="btn btn-outline btn-tech-lib-open" id="btn-tech-lib">⚔ 战技库</button>
       <button class="btn btn-outline btn-tech-lib-open" id="btn-equip-lib">🧰 装备库</button>
       <button class="btn btn-outline btn-tech-lib-open" id="btn-intro-battle">📖 职业介绍</button>
+      <button class="btn btn-outline btn-tech-lib-open" id="btn-profile-battle">📋 档案</button>
     </div>
 
   </div><!-- /action-area -->
@@ -406,6 +407,7 @@
 <!-- ══════════════ 遮罩层 ══════════════ -->
 <div class="overlay" id="ov-battle">
   <div class="overlay-box" id="ov-battle-box">
+    <button class="btn-ghost profile-mini-btn" id="btn-profile-battle-result">📋 档案</button>
     <div class="overlay-title" id="ov-battle-title">战斗胜利！</div>
     <div class="overlay-body" id="ov-battle-body"></div>
     <div id="ov-battle-reward-wrap" style="display:none">
@@ -429,6 +431,7 @@
 
 <div class="overlay" id="ov-shop">
   <div class="overlay-box gold">
+    <button class="btn-ghost profile-mini-btn" id="btn-profile-shop">📋 档案</button>
     <div class="overlay-title">🛒 商店</div>
     <div class="overlay-body" style="margin-bottom:14px">
       当前金币：<strong id="shop-gold" style="color:var(--gold);font-size:1.1em">0</strong> 💰
@@ -442,6 +445,7 @@
 
 <div class="overlay" id="ov-event">
   <div class="overlay-box">
+    <button class="btn-ghost profile-mini-btn" id="btn-profile-event">📋 档案</button>
     <div class="overlay-title" id="event-title">事件</div>
     <div class="event-art-wrap">
       <img id="event-art" class="event-art" src="" alt="event-art" onerror="this.style.display='none'">
@@ -551,6 +555,22 @@
       <button class="btn btn-outline" id="btn-equip-lib-close">关闭</button>
     </div>
   </div>
+</div>
+
+<div class="overlay" id="ov-profile">
+  <div class="overlay-box tech-lib-box">
+    <div class="overlay-title">📋 当前档案</div>
+    <div class="tech-lib-desc-hint">可快速查看你的资源、能力、装备、战技与遗物。</div>
+    <div class="tech-lib-slots" id="profile-content"></div>
+    <div class="overlay-btns" style="margin-top:16px">
+      <button class="btn btn-outline" id="btn-profile-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div id="detail-popover" class="detail-popover" style="display:none">
+  <div class="detail-popover-title" id="detail-popover-title"></div>
+  <div class="detail-popover-body" id="detail-popover-body"></div>
 </div>
 
 <script type="module" src="./src/main.js"></script>

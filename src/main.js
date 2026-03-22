@@ -22,6 +22,7 @@ import {
   renderAbilityTree,
   renderEnemyStateTags,
   renderEquipSlots,
+  renderProfilePanel,
   renderMap,
   renderPassiveTags,
   renderShop,
@@ -340,7 +341,12 @@ function renderBattleRewardUI() {
       if (def) {
         icon = def.emoji || '⚔';
         title = `战技：${def.name}`;
-        desc = `类别：${getTechniqueCategoryLabel(def)}${def.desc ? ` · ${def.desc}` : ''}`;
+        const equippedId = G.techniques ? G.techniques[def.slot] : null;
+        const equippedDef = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId] : null;
+        const replaceHint = equippedDef
+          ? `将替换：${equippedDef.name} → ${def.name}`
+          : `将装备到攻击${def.slot}类（替换基础攻击）`;
+        desc = `类别：${getTechniqueCategoryLabel(def)} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
       } else {
         icon = '⚔';
         title = `战技：${item.id}`;
@@ -497,7 +503,7 @@ function chooseEventEquipment(equipmentId) {
     $('event-choices').innerHTML = '';
     const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
     if (eventId === 'event_2') {
-      const options = getPowerRelicOptions(2);
+      const options = getPowerRelicOptions(1);
       G.pendingEventRelicOptions = options;
       renderEventRelicChoiceUI(options);
     }
@@ -673,7 +679,7 @@ function chooseEventOption(choiceKey) {
   } else {
     const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
     if (eventId === 'event_2') {
-      const options = getPowerRelicOptions(2);
+      const options = getPowerRelicOptions(1);
       G.pendingEventRelicOptions = options;
       renderEventRelicChoiceUI(options);
     }
@@ -1077,7 +1083,8 @@ function endBattle(win) {
     if (node.payload && node.payload.finalBoss) {
       body.innerHTML = `你击败了 <strong style="color:#e07070">${node.payload.enemy.name}</strong>！`;
     } else if (!body.innerHTML) {
-      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.payload.enemy.name}</strong>！<br>获得金币 +${reward.gold}。`;
+      const goldLine = reward.gold > 0 ? `<br>获得金币 +${reward.gold}。` : '';
+      body.innerHTML = `你击败了 <strong style="color:#e07070">${node.payload.enemy.name}</strong>！${goldLine}`;
     }
 
     if (node.payload && node.payload.dropPowerRelic) {
@@ -1211,6 +1218,103 @@ function openEquipLibrary() {
   openOverlay('ov-equip-lib');
 }
 function closeEquipLibrary() { closeOverlay('ov-equip-lib'); }
+function openProfile() {
+  renderProfilePanel();
+  openOverlay('ov-profile');
+}
+function closeProfile() { closeOverlay('ov-profile'); }
+
+function setupDetailPopover() {
+  const pop = $('detail-popover');
+  const titleEl = $('detail-popover-title');
+  const bodyEl = $('detail-popover-body');
+  if (!pop || !titleEl || !bodyEl) return;
+  let activeTarget = null;
+  let touchLocked = false;
+  let longPressTimer = null;
+
+  function positionNear(target) {
+    const rect = target.getBoundingClientRect();
+    const margin = 12;
+    const width = pop.offsetWidth || 280;
+    const height = pop.offsetHeight || 120;
+    let left = rect.left + rect.width / 2 - width / 2;
+    let top = rect.bottom + 8;
+    if (left < margin) left = margin;
+    if (left + width > window.innerWidth - margin) left = window.innerWidth - width - margin;
+    if (top + height > window.innerHeight - margin) top = rect.top - height - 8;
+    if (top < margin) top = margin;
+    pop.style.left = `${Math.max(margin, left)}px`;
+    pop.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  function showFor(target) {
+    if (!target) return;
+    const detail = target.dataset.detail;
+    if (!detail) return;
+    titleEl.textContent = target.dataset.detailTitle || '详情';
+    bodyEl.textContent = detail;
+    pop.style.display = '';
+    positionNear(target);
+    activeTarget = target;
+  }
+
+  function hide(force = false) {
+    if (!force && touchLocked) return;
+    pop.style.display = 'none';
+    activeTarget = null;
+  }
+
+  document.addEventListener('mouseover', (event) => {
+    if (!window.matchMedia('(hover: hover)').matches) return;
+    const target = event.target.closest('.detail-target[data-detail]');
+    if (!target) return;
+    showFor(target);
+  });
+
+  document.addEventListener('mouseout', (event) => {
+    if (!window.matchMedia('(hover: hover)').matches) return;
+    if (!activeTarget) return;
+    const related = event.relatedTarget;
+    if (related && (related === activeTarget || activeTarget.contains(related) || pop.contains(related))) return;
+    hide(true);
+  });
+
+  document.addEventListener('pointerdown', (event) => {
+    const target = event.target.closest('.detail-target[data-detail]');
+    if (!target) {
+      touchLocked = false;
+      hide(true);
+      return;
+    }
+    if (event.pointerType !== 'touch') return;
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      touchLocked = true;
+      showFor(target);
+    }, 420);
+  });
+
+  document.addEventListener('pointerup', () => {
+    clearTimeout(longPressTimer);
+  });
+  document.addEventListener('pointermove', () => {
+    clearTimeout(longPressTimer);
+  });
+  document.addEventListener('pointercancel', () => {
+    clearTimeout(longPressTimer);
+  });
+  document.addEventListener('scroll', () => {
+    if (activeTarget && pop.style.display !== 'none') positionNear(activeTarget);
+  }, true);
+
+  document.addEventListener('click', (event) => {
+    if (!touchLocked) return;
+    if (event.target.closest('.detail-target[data-detail]') || event.target.closest('#detail-popover')) return;
+    touchLocked = false;
+    hide(true);
+  });
+}
 
 function bindStaticEvents() {
   $('btn-start').addEventListener('click', startGame);
@@ -1249,6 +1353,11 @@ function bindStaticEvents() {
   $('btn-tech-lib-close')?.addEventListener('click', closeTechLibrary);
   $('btn-equip-lib')?.addEventListener('click', openEquipLibrary);
   $('btn-equip-lib-close')?.addEventListener('click', closeEquipLibrary);
+  $('btn-profile-battle')?.addEventListener('click', openProfile);
+  $('btn-profile-battle-result')?.addEventListener('click', openProfile);
+  $('btn-profile-shop')?.addEventListener('click', openProfile);
+  $('btn-profile-event')?.addEventListener('click', openProfile);
+  $('btn-profile-close')?.addEventListener('click', closeProfile);
 
   // Dev mode: equip/unequip techniques from the library
   $('tech-lib-slots')?.addEventListener('click', (event) => {
@@ -1437,6 +1546,7 @@ function handleKeydown(e) {
 
 function bootstrap() {
   bindStaticEvents();
+  setupDetailPopover();
   document.addEventListener('keydown', handleKeydown);
   initGame();
   applyDeveloperModeToGameState();

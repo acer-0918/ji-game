@@ -1,4 +1,4 @@
-import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS } from './data.js';
+import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
 import { TECH_DEFS, getTechDefsForSlot, getTechniqueCategoryLabel } from './battleTechniques.js';
@@ -27,8 +27,12 @@ export function renderBadgeList(id, badges, emptyText='暂无') {
   }
   badges.forEach((tag) => {
     const el = document.createElement('span');
-    el.className = 'ab-tag';
+    el.className = `ab-tag${tag.detail ? ' detail-target' : ''}`;
     el.textContent = `${tag.icon} ${tag.name}`;
+    if (tag.detail) {
+      el.dataset.detailTitle = `${tag.icon} ${tag.name}`;
+      el.dataset.detail = tag.detail;
+    }
     wrap.appendChild(el);
   });
 }
@@ -42,7 +46,7 @@ export function getPassiveBadges() {
       let name = ab.name;
       if (ab.key === 'savedByBlade' && G.abilities.savedByBladeUsed) name += '（已用）';
       if (ab.key === 'amane') name += ` (${(G.player.jiSpentTotal || 0) % 8}/8)`;
-      arr.push({icon:ab.icon, name});
+      arr.push({icon:ab.icon, name, detail:ab.desc || ''});
     }
   });
   getEquippedEquipmentIds(G).forEach((equipmentId) => {
@@ -50,26 +54,42 @@ export function getPassiveBadges() {
     if (!def) return;
     const tagDef = getEquipmentTagDefForItem(G, equipmentId);
     const tagText = tagDef ? ` · ${tagDef.name}` : '';
-    arr.push({ icon: def.icon, name: `${def.name}${tagText}` });
+    const detail = tagDef
+      ? `${def.desc}\n当前词条：${tagDef.name}\n词条效果：${tagDef.desc}`
+      : `${def.desc}\n当前词条：无`;
+    arr.push({ icon: def.icon, name: `${def.name}${tagText}`, detail });
   });
-  if (G.shop.enhancedDagger) arr.push({icon:'🗡✨', name:'强化小刀'});
-  if (G.shop.enhancedIceBlade) arr.push({icon:'❄️🗡', name:'强化冰刀'});
-  if (G.shop.enhancedBlade) arr.push({icon:'👻⚔', name:'强化鬼刀'});
+  if (G.shop.enhancedDagger) {
+    const item = SHOP_ITEMS.find((x) => x.key === 'enhancedDagger');
+    arr.push({icon:'🗡✨', name:'强化小刀', detail:item ? item.desc : ''});
+  }
+  if (G.shop.enhancedIceBlade) {
+    const item = SHOP_ITEMS.find((x) => x.key === 'enhancedIceBlade');
+    arr.push({icon:'❄️🗡', name:'强化冰刀', detail:item ? item.desc : ''});
+  }
+  if (G.shop.enhancedBlade) {
+    const item = SHOP_ITEMS.find((x) => x.key === 'enhancedBlade');
+    arr.push({icon:'👻⚔', name:'强化鬼刀', detail:item ? item.desc : ''});
+  }
   POWER_RELIC_DEFS.forEach((item) => {
-    if (G.powerRelics && G.powerRelics[item.key]) arr.push({icon:item.icon, name:item.name});
+    if (G.powerRelics && G.powerRelics[item.key]) arr.push({icon:item.icon, name:item.name, detail:item.desc});
   });
-  if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`});
-  if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`});
+  if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`, detail:'法师资源：用于释放一重释放。'});
+  if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`, detail:'小狗资源：影响幸运回复与幸运蓄力触发率。'});
   if (G.player.classKey === 'nsyc') {
-    arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`});
-    if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发'});
+    arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`, detail:'nsyc 资源：用于释放厄介。'});
+    if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发', detail:'厄介已蓄势，将在下回合开始时结算伤害。'});
   }
   // 已装备战技
   if (G.techniques) {
     for (let slot = 1; slot <= 7; slot++) {
       const id = G.techniques[slot];
       const def = id && TECH_DEFS[id];
-      if (def) arr.push({icon: def.emoji, name: `${def.name}（${slot}）`});
+      if (def) arr.push({
+        icon: def.emoji,
+        name: `${def.name}（${slot}）`,
+        detail: `类别：${getTechniqueCategoryLabel(def)}\n${def.desc || ''}`,
+      });
     }
   }
   return arr;
@@ -113,7 +133,7 @@ export function renderEquipSlots(id) {
     const def = equipmentId ? getEquipmentDef(equipmentId) : null;
     const slot = document.createElement('div');
     const filled = !!def;
-    slot.className = `equip-slot${filled ? ` filled${allowUnequip ? ' clickable' : ''}` : ''}`;
+    slot.className = `equip-slot${filled ? ` filled${allowUnequip ? ' clickable' : ''}` : ''}${filled ? ' detail-target' : ''}`;
     slot.dataset.slotIndex = String(slotIndex);
     if (!filled) {
       slot.textContent = `装备槽${slotIndex + 1}｜空`;
@@ -122,6 +142,12 @@ export function renderEquipSlots(id) {
     }
 
     const tagLine = getEquipmentTagText(G, equipmentId);
+    const tagDef = getEquipmentTagDefForItem(G, equipmentId);
+    const detail = tagDef
+      ? `${def.desc}\n当前词条：${tagDef.name}\n词条效果：${tagDef.desc}`
+      : `${def.desc}\n当前词条：无`;
+    slot.dataset.detailTitle = `${def.icon} ${def.name}`;
+    slot.dataset.detail = detail;
     const artPath = getEquipmentCardArtPath(equipmentId);
     slot.innerHTML = `
       <img class="equip-slot-art" src="${artPath}" alt="${def.name}" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-flex'">
@@ -353,11 +379,17 @@ export function renderShop() {
       const def = TECH_DEFS[item.id];
       if (!def) return;
       const category = getTechniqueCategoryLabel(def);
+      const equippedId = G.techniques ? G.techniques[def.slot] : null;
+      const equippedDef = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId] : null;
+      const replaceHint = equippedDef
+        ? `购买后替换：${equippedDef.name} → ${def.name}`
+        : `购买后装备到攻击${def.slot}类（替换基础攻击）`;
       card.innerHTML = `
         <div class="ab-icon">${def.emoji}</div>
         <div class="ab-info">
           <div class="ab-name">${def.name}</div>
           <div class="ab-desc">类别：${category}</div>
+          <div class="ab-desc replace-hint">${replaceHint}</div>
           <div class="ab-desc">${def.desc}</div>
           <div class="ab-cost">售价 ${item.price} 金币${canAfford ? '' : `（当前 ${G.player.gold || 0}）`}</div>
         </div>
@@ -720,4 +752,79 @@ export function getTechBadges() {
     if (def) arr.push({ icon: def.emoji, name: `${def.name}（${slot}）` });
   }
   return arr;
+}
+
+export function renderProfilePanel() {
+  const container = $('profile-content');
+  if (!container || !G.player) return;
+  const classDef = CLASS_DEFS[G.player.classKey];
+  const unlockedAbilities = (classDef ? classDef.abilityDefs : []).filter((ab) => G.abilities[ab.key]);
+  const equippedIds = getEquippedEquipmentIds(G);
+  const relics = POWER_RELIC_DEFS.filter((item) => G.powerRelics && G.powerRelics[item.key]);
+  const resourceRows = [
+    `生命：${G.player.hp}/${G.player.maxHp}`,
+    `Ji：${G.player.ji}（回合回复 +${getPlayerJiRate()}）`,
+    `能力碎片：${G.player.fragments || 0}`,
+    `金币：${G.player.gold || 0}`,
+  ];
+  if (G.player.classKey === 'dog') resourceRows.push(`幸运值：${G.player.luck || 0}`);
+  if (G.player.classKey === 'nsyc') resourceRows.push(`傻逼层数：${G.player.shaBiStacks || 0}`);
+  if (G.player.classKey === 'mage') resourceRows.push(`闪电球：${G.player.lightningOrbs || 0}`);
+
+  const equipmentHtml = equippedIds.length > 0
+    ? equippedIds.map((id, idx) => {
+      const def = getEquipmentDef(id);
+      const tagDef = getEquipmentTagDefForItem(G, id);
+      if (!def) return '';
+      return `<div class="profile-item">
+        <strong>槽${idx + 1}：${def.icon} ${def.name}</strong>
+        <div>${def.desc}</div>
+        <div>词条：${tagDef ? `${tagDef.name}（${tagDef.desc}）` : '无'}</div>
+      </div>`;
+    }).join('')
+    : '<div class="tag-placeholder">当前未装备。</div>';
+
+  const techHtml = Array.from({ length: 7 }).map((_, i) => {
+    const slot = i + 1;
+    const id = G.techniques ? G.techniques[slot] : null;
+    const def = id && TECH_DEFS[id] ? TECH_DEFS[id] : null;
+    if (!def) return `<div class="profile-item">攻击${slot}类：基础攻击</div>`;
+    return `<div class="profile-item">
+      <strong>攻击${slot}类：${def.emoji} ${def.name}</strong>
+      <div>${def.desc}</div>
+    </div>`;
+  }).join('');
+
+  const relicHtml = relics.length > 0
+    ? relics.map((item) => `<div class="profile-item"><strong>${item.icon} ${item.name}</strong><div>${item.desc}</div></div>`).join('')
+    : '';
+
+  const abilityHtml = unlockedAbilities.length > 0
+    ? unlockedAbilities.map((ab) => `<div class="profile-item"><strong>${ab.icon} ${ab.name}</strong><div>${ab.desc}</div></div>`).join('')
+    : '<div class="tag-placeholder">当前未解锁能力。</div>';
+
+  container.innerHTML = `
+    <div class="profile-grid">
+      <section class="profile-section">
+        <div class="profile-title">基础信息</div>
+        <div class="profile-item"><strong>职业：</strong>${classDef ? `${classDef.icon} ${classDef.name}` : G.player.classKey}</div>
+        ${resourceRows.map((line) => `<div class="profile-item">${line}</div>`).join('')}
+      </section>
+      <section class="profile-section">
+        <div class="profile-title">能力树</div>
+        ${abilityHtml}
+      </section>
+      <section class="profile-section">
+        <div class="profile-title">装备</div>
+        ${equipmentHtml}
+      </section>
+      <section class="profile-section">
+        <div class="profile-title">战技列表</div>
+        ${techHtml}
+      </section>
+      ${relics.length > 0 ? `<section class="profile-section">
+        <div class="profile-title">强大遗物</div>
+        ${relicHtml}
+      </section>` : ''}
+    </div>`;
 }

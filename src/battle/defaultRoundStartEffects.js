@@ -77,15 +77,32 @@ export function registerDefaultRoundStartEffects(engine) {
       const actionKeys = typeof ctx.getPlayerActionKeysForSilence === 'function'
         ? ctx.getPlayerActionKeysForSilence()
         : getSilenceActionKeysFromState();
-      if (actionKeys.length <= 1) return;
-      const maxDisable = Math.max(1, Math.min(3, actionKeys.length - 1));
+      if (actionKeys.length <= 0) return;
+
+      const alreadyDisabled = new Set((G.battle.roundDisabledActions || []).filter(Boolean));
+      // 可能的重逢会全局禁用防守，不应被沉默是金重复抽到
+      if (G.powerRelics && G.powerRelics.possibleReunion) {
+        alreadyDisabled.add('defense_0');
+        alreadyDisabled.add('defense_1');
+        alreadyDisabled.add('defense_2');
+      }
+
+      const candidates = actionKeys.filter((key) => !alreadyDisabled.has(key));
+      if (candidates.length <= 0) {
+        pushLog(ctx, 'log-ab', '🔕 沉默是金：本回合没有可新增禁用的行动。');
+        return;
+      }
+
+      const maxDisable = Math.min(3, candidates.length);
       const disableCount = 1 + Math.floor(Math.random() * maxDisable);
-      const disabled = typeof ctx.sampleDistinctKeys === 'function'
-        ? ctx.sampleDistinctKeys(actionKeys, disableCount)
-        : sampleDistinctKeysLocal(actionKeys, disableCount);
-      G.battle.roundDisabledActions = disabled;
-      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + disableCount);
-      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合禁用 ${disableCount} 个行动（${disabled.join('、')}），并获得 ${disableCount} Ji。`);
+      const picked = typeof ctx.sampleDistinctKeys === 'function'
+        ? ctx.sampleDistinctKeys(candidates, disableCount)
+        : sampleDistinctKeysLocal(candidates, disableCount);
+      const merged = [...new Set([...(G.battle.roundDisabledActions || []), ...picked])];
+      const gained = picked.length;
+      G.battle.roundDisabledActions = merged;
+      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + gained);
+      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合新增禁用 ${gained} 个行动（${picked.join('、')}），并获得 ${gained} Ji。`);
     },
   });
 

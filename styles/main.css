@@ -187,6 +187,7 @@ body {
   border: 1.5px solid rgba(156,111,222,0.35); color: var(--purple);
   background: var(--purple-l); white-space: nowrap; font-weight: 600;
 }
+.detail-target { cursor: help; }
 .tag-placeholder { font-size: .72em; color: var(--text-lt); align-self: center; }
 .equip-slots { display: flex; gap: 6px; flex-wrap: wrap; }
 .equip-slots.compact .equip-slot { min-width: 80px; padding: 5px 8px; font-size: .66em; }
@@ -225,6 +226,10 @@ body {
   width: 100%; height: 100%;
   align-items: center; justify-content: center;
   font-size: 1.8em;
+}
+.replace-hint {
+  color: var(--green);
+  font-weight: 700;
 }
 
 /* ── Map nodes ───────────────────────────────────── */
@@ -764,6 +769,7 @@ body {
   text-align: center; min-width: 300px; max-width: 540px; width: 90%;
   border-radius: var(--r-lg); border: 2px solid var(--card-border);
   box-shadow: 0 24px 60px rgba(156,111,222,0.25);
+  position: relative;
 }
 .overlay-box.green { border-color: rgba(26,158,112,0.5); }
 .overlay-box.red   { border-color: rgba(224,50,74,0.5); }
@@ -787,6 +793,13 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.profile-mini-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  padding: 5px 10px;
+  font-size: .72em;
 }
 
 /* ── Intro overlay ───────────────────────────────── */
@@ -1014,6 +1027,53 @@ body {
 .equip-lib-art-wrap {
   width: 46px;
   height: 46px;
+}
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+.profile-section {
+  border: 1.5px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: var(--r-sm);
+  padding: 10px;
+}
+.profile-title {
+  color: var(--purple);
+  font-size: .84em;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.profile-item {
+  color: var(--text-mid);
+  font-size: .78em;
+  line-height: 1.55;
+  margin-bottom: 6px;
+}
+.profile-item strong { color: var(--text); }
+
+.detail-popover {
+  position: fixed;
+  z-index: 120;
+  max-width: min(360px, 88vw);
+  background: #fffdf8;
+  border: 1.5px solid rgba(224,144,16,0.45);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  padding: 10px 12px;
+}
+.detail-popover-title {
+  color: var(--gold);
+  font-weight: 800;
+  font-size: .78em;
+  margin-bottom: 6px;
+}
+.detail-popover-body {
+  color: var(--text-mid);
+  font-size: .76em;
+  line-height: 1.6;
+  white-space: pre-line;
 }
 
 /* ── Scrollbar ───────────────────────────────────── */
