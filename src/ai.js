@@ -232,39 +232,63 @@ function pickWeightedAction(weights, side = 'enemy', fallback = 'ji', blockedAct
   return 'defense_0';
 }
 
-function getBlockedActions() {
+/**
+ * getBlockedActions(ctx)
+ * 返回本回合 Boss 不可选的动作列表。
+ * 同时被权重池和 fallback candidateOrder 检查，确保彻底封堵。
+ */
+function getBlockedActions(ctx) {
   const blocked = [];
+
+  // 冰霜新星：本回合敌方无法发动任何攻击
   if (G.battle && G.battle.enemyFrostLockThisRound) {
     ATTACK_KEYS.forEach(k => blocked.push(k));
   }
+
+  if (ctx) {
+    // nsyc 暴露（厄介必中）→ 防御完全无用，全部封堵
+    if (ctx.nsycExposed) {
+      blocked.push('defense_0', 'defense_1', 'defense_2');
+    } else {
+      // ─── 防御等级管线：只选「刚好够用」的防御，过高等级一律封堵 ───────────
+      // 玩家有效最高攻击（含法师电球释放）
+      let effectiveMaxAtk = ctx.pMaxAtk;
+      if (ctx.mageCanRelease) effectiveMaxAtk = Math.max(effectiveMaxAtk, 5);
+
+      // 「不够用」的低防封堵：defense_0（防3）挡不住攻4+
+      if (effectiveMaxAtk >= 4) {
+        // defense_0 无法防住，不封堵（让它自然被低权重淘汰）
+        // 但法师释放时明确封堵 defense_0
+        if (ctx.mageCanRelease) blocked.push('defense_0');
+      }
+
+      // 「过剩」的高防封堵：玩家打不到那么高，出高防是浪费 Ji
+      if (effectiveMaxAtk <= 3) {
+        // defense_0（防3）足够，封堵 defense_1 和 defense_2
+        blocked.push('defense_1', 'defense_2');
+      } else if (effectiveMaxAtk <= 6) {
+        // defense_1（防6）足够，封堵 defense_2
+        blocked.push('defense_2');
+      }
+      // effectiveMaxAtk = 7：defense_2 才有意义，不封堵
+    }
+  }
+
   return blocked;
 }
 
-// ─── 核心修复：玩家无威胁时压制 Boss 防御 ──────────────────────────────────────
-
-/**
- * 法师释放攻击等级为5，defense_0（防3）完全无效。
- * 当法师可以释放时，压制 defense_0，强制选更高防御。
- */
-function suppressWeakDefenseVsMage(ctx, weights) {
-  if (!ctx.playerIsMage || !ctx.mageCanRelease) return;
-  weights.defense_0 = 0; // 防3挡不住攻5，出了等于送
-}
-
-/** 修复①：玩家无Ji且无进攻性资源 → 防御毫无意义，全部清零 */
-function suppressDefenseIfNoThreat(ctx, weights) {
-  if (!ctx.playerHasNoThreat) return;
-  weights.defense_0 = 0;
-  weights.defense_1 = 0;
-  weights.defense_2 = 0;
-}
-
-/** 修复②：连续防御 ≥ 2 次且玩家威胁不极端 → 强制出进攻/蓄力 */
+/** 连续防御 ≥ 2 次且玩家威胁不极端 → 额外压制高防（权重层，fallback 层由 blocked 管） */
 function suppressDefenseIfTooConsecutive(ctx, weights) {
   if (ctx.consecutiveBossDefense < 2 || ctx.playerUltraThreat) return;
   weights.defense_1 = 0;
   weights.defense_2 = 0;
   if (ctx.consecutiveBossDefense >= 3) weights.defense_0 = 0;
+}
+
+/** 法师可释放时 defense_0 权重清零（blocked 已封堵，此处保持权重干净） */
+function suppressWeakDefenseVsMage(ctx, weights) {
+  if (!ctx.mageCanRelease) return;
+  weights.defense_0 = 0;
 }
 
 // ─── 精英 AI ──────────────────────────────────────────────────────────────────
@@ -278,13 +302,15 @@ function aiEliteAggressive(ctx, blockedActions) {
     return pickWeightedAction(w, 'enemy', 'ji', blockedActions);
   }
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
+  if (ctx.nsycExposed) addWeight(w, 'attack_1', 5); // nsyc 暴露时低攻骚扰
   addWeight(w, 'ji', ctx.eJi <= 2 ? 4 : 1);
   if (ctx.eJi >= 2) addWeight(w, 'attack_2', 4);
   if (ctx.eJi >= 3) addWeight(w, 'attack_3', 4);
   if (ctx.eJi >= 4) addWeight(w, 'attack_4', 3);
   if (ctx.eJi >= 5) addWeight(w, 'attack_5', 3);
-  if (ctx.playerUltraThreat && ctx.eJi >= 1) addWeight(w, 'defense_0', 2);
-  suppressDefenseIfNoThreat(ctx, w);
+  // 激进型只在法师可释放时才考虑防御（且必须是高防）
+  if (ctx.mageCanRelease && ctx.eJi >= 1) addWeight(w, 'defense_1', 3);
+  suppressWeakDefenseVsMage(ctx, w);
   suppressDefenseIfTooConsecutive(ctx, w);
   return pickWeightedAction(w, 'enemy', 'attack_2', blockedActions);
 }
@@ -298,21 +324,28 @@ function aiEliteConservative(ctx, blockedActions) {
     return pickWeightedAction(w, 'enemy', 'ji', blockedActions);
   }
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 4);
+  if (ctx.nsycExposed) addWeight(w, 'attack_1', 5); // nsyc 暴露时进攻
   addWeight(w, 'ji', ctx.eJi <= 2 ? 3 : 1);
-  if (ctx.eJi >= 1 && ctx.playerHighThreat)  addWeight(w, 'defense_0', 3);
-  if (ctx.eJi >= 1 && ctx.playerHighThreat)  addWeight(w, 'defense_1', 3);
-  if (ctx.eJi >= 2 && ctx.playerUltraThreat) addWeight(w, 'defense_2', 2);
+  // 法师：只信任高防（defense_1+），不出 defense_0
+  if (ctx.mageCanRelease) {
+    if (ctx.eJi >= 1) addWeight(w, 'defense_1', 5);
+    if (ctx.eJi >= 2) addWeight(w, 'defense_2', 3);
+  } else if (!ctx.nsycExposed) {
+    if (ctx.eJi >= 1 && ctx.playerHighThreat)  addWeight(w, 'defense_0', 3);
+    if (ctx.eJi >= 1 && ctx.playerHighThreat)  addWeight(w, 'defense_1', 3);
+    if (ctx.eJi >= 2 && ctx.playerUltraThreat) addWeight(w, 'defense_2', 2);
+  }
   if (ctx.eJi >= 2) addWeight(w, 'attack_2', 2);
   if (ctx.eJi >= 3) addWeight(w, 'attack_3', 2);
   if (ctx.eJi >= 4) addWeight(w, 'attack_4', 2);
-  suppressDefenseIfNoThreat(ctx, w);
+  suppressWeakDefenseVsMage(ctx, w);
   suppressDefenseIfTooConsecutive(ctx, w);
   return pickWeightedAction(w, 'enemy', 'ji', blockedActions);
 }
 
 function aiElite(enemy) {
   const ctx = buildAiContext(enemy);
-  const blockedActions = getBlockedActions();
+  const blockedActions = getBlockedActions(ctx);
   // 第一次进入时随机决定性格，战斗期间不变
   if (!enemy.aiPersonality) {
     enemy.aiPersonality = Math.random() < 0.5 ? 'aggressive' : 'conservative';
@@ -331,7 +364,7 @@ function aiElite(enemy) {
  */
 function aiJiaxu(enemy) {
   const ctx = buildAiContext(enemy);
-  const blockedActions = getBlockedActions();
+  const blockedActions = getBlockedActions(ctx);
   const SENSITIVITY = 1.4;
   const w = {};
 
@@ -393,7 +426,7 @@ function aiJiaxu(enemy) {
  */
 function aiGufu(enemy) {
   const ctx = buildAiContext(enemy);
-  const blockedActions = getBlockedActions();
+  const blockedActions = getBlockedActions(ctx);
   const SENSITIVITY = 0.7; // 骨夫能感知标签，但反应方式更激进（见下方覆盖）
   const grow = enemy.chargeValue || 1;
   const w = {};
@@ -448,7 +481,7 @@ function aiGufu(enemy) {
  */
 function aiFaultRobot(enemy) {
   const ctx = buildAiContext(enemy);
-  const blockedActions = getBlockedActions();
+  const blockedActions = getBlockedActions(ctx);
   ensureFaultRobotState(enemy);
   const SENSITIVITY = 1.0;
   const unique = orbUniqueCount(enemy);
