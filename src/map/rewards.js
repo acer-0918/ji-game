@@ -1,6 +1,7 @@
 import { TECH_DEFS, getTechniqueCategoryLabel } from '../battleTechniques.js';
 import { consumeTechFromMapPool } from './generator.js';
 import { EQUIPMENT_DEFS } from '../equipment/defs.js';
+import { ensureEquipmentTagAssigned } from '../equipment/runtime.js';
 
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -21,6 +22,7 @@ export function createShopInventoryForRoom(game) {
     });
     equipmentBag.splice(idx, 1);
   }
+  equipItems.forEach(item => ensureEquipmentTagAssigned(game, item.id));
 
   const techIds = consumeTechFromMapPool(game.map, 4);
   const techItems = techIds.map((id) => ({
