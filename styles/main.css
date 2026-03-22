@@ -129,6 +129,16 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 14px; gap: 8px;
 }
+.map-currency-pack { display:flex; align-items:center; gap:8px; }
+.gold-badge {
+  background: var(--gold-l);
+  border: 1.5px solid rgba(224,144,16,0.4);
+  color: var(--gold);
+  padding: 5px 12px;
+  border-radius: var(--r-pill);
+  font-size: .78em;
+  font-weight: 700;
+}
 .map-title-text { font-size: 1.05em; font-weight: 800; color: var(--purple); }
 .frag-badge {
   background: var(--gold-l); border: 1.5px solid rgba(224,144,16,0.4);
@@ -180,21 +190,74 @@ body {
 .tag-placeholder { font-size: .72em; color: var(--text-lt); align-self: center; }
 .equip-slots { display: flex; gap: 6px; flex-wrap: wrap; }
 .equip-slots.compact .equip-slot { min-width: 80px; padding: 5px 8px; font-size: .66em; }
+.equip-slots.compact .equip-slot-art,
+.equip-slots.compact .equip-slot-fallback { width: 28px; height: 28px; }
 .equip-slot {
   min-width: 104px; padding: 7px 10px;
   border: 1.5px dashed var(--card-border);
   color: var(--text-lt); background: var(--bg3);
-  font-size: .72em; text-align: center; border-radius: var(--r-sm);
+  font-size: .72em; border-radius: var(--r-sm);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
 }
 .equip-slot.filled { border-style: solid; border-color: rgba(224,144,16,0.5); color: var(--gold); background: var(--gold-l); }
 .equip-slot.clickable { cursor: pointer; transition: all .2s; }
 .equip-slot.clickable:hover { border-color: var(--red); color: var(--red); background: var(--red-l); }
+.equip-slot-art {
+  width: 44px; height: 44px; object-fit: cover; border-radius: 6px;
+  border: 1px solid rgba(224,144,16,0.35);
+}
+.equip-slot-fallback {
+  width: 44px; height: 44px; border-radius: 6px;
+  align-items: center; justify-content: center;
+  background: rgba(224,144,16,0.15); font-size: 1.4em;
+}
+.equip-slot-name { font-weight: 700; color: var(--text); }
+.equip-slot-tag { font-size: .82em; color: var(--text-mid); }
+.equip-shop-icon {
+  width: 56px; height: 56px; min-width: 56px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: var(--bg3);
+}
+.shop-equip-art {
+  width: 100%; height: 100%; object-fit: cover; border-radius: 8px;
+}
+.shop-equip-fallback {
+  width: 100%; height: 100%;
+  align-items: center; justify-content: center;
+  font-size: 1.8em;
+}
 
 /* ── Map nodes ───────────────────────────────────── */
+.map-scroll-tip {
+  font-size: .72em;
+  color: var(--text-lt);
+  margin: 2px 2px 8px;
+}
+.map-tree-viewport {
+  position: relative;
+  height: 58vh;
+  overflow: auto;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, #fff9fd 0%, #f7ecff 100%);
+  cursor: grab;
+}
+.map-tree-viewport.dragging { cursor: grabbing; user-select: none; }
+.map-tree-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
 .nodes-wrap { display: flex; flex-direction: column; align-items: center; }
+.map-tree-wrap {
+  position: relative;
+  min-height: 1300px;
+  padding: 30px 0 42px;
+}
 .node-line   { width: 2px; height: 20px; background: var(--card-border); }
 .map-node {
-  width: 270px; padding: 14px 18px;
+  width: 220px; padding: 10px 12px;
   border: 2px solid var(--card-border); cursor: default;
   text-align: center; border-radius: var(--r-md);
   background: var(--card-bg); transition: all .2s;
@@ -208,6 +271,31 @@ body {
 .map-node.shop-node.available:hover { background: var(--gold-l); box-shadow: 0 8px 22px rgba(224,144,16,0.2); }
 .map-node.boss-node.available:hover { background: var(--red-l); box-shadow: 0 8px 22px rgba(224,50,74,0.2); }
 .node-icon { font-size: 1.7em; margin-bottom: 5px; }
+.node-icon-wrap {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.node-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(156,111,222,0.25);
+}
+.node-icon {
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  background: var(--bg3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5em;
+}
 .node-name { font-weight: 700; font-size: .9em; color: var(--text); margin-bottom: 4px; }
 .node-hint { font-size: .72em; color: var(--text-lt); }
 .map-node.available           .node-hint { color: var(--purple); }
@@ -663,6 +751,20 @@ body {
 .gold  .overlay-title { color: var(--gold); }
 .overlay-body  { color: var(--text-mid); margin-bottom: 22px; font-size: .92em; line-height: 1.8; }
 .overlay-btns  { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.event-art-wrap {
+  margin: -2px auto 10px;
+  width: min(100%, 420px);
+  height: 160px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg3);
+  border: 1px solid var(--card-border);
+}
+.event-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 /* ── Intro overlay ───────────────────────────────── */
 .intro-box {
@@ -776,6 +878,42 @@ body {
   border: 1.5px solid rgba(224,144,16,0.45);
   background: var(--gold-l);
 }
+.relic-choice-card.selected {
+  border-color: var(--green);
+  background: var(--green-l);
+}
+.relic-choice-card.locked {
+  opacity: 0.52;
+}
+.reward-option-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--r-sm);
+  background: var(--card-bg);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.reward-option-row.selected {
+  border-color: var(--green);
+  background: var(--green-l);
+}
+.reward-option-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.reward-option-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--green);
+}
+.reward-option-text {
+  font-size: .82em;
+  color: var(--text-mid);
+}
 
 /* ── 战技库 Tech Library ─────────────────────────── */
 .tech-lib-box {
@@ -833,11 +971,16 @@ body {
 }
 .tech-lib-row {
   text-align: center; padding: 6px 0 2px;
+  display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;
 }
 .btn-tech-lib-open {
   font-size: .8em; padding: 5px 16px; opacity: .75;
 }
 .btn-tech-lib-open:hover { opacity: 1; }
+.equip-lib-art-wrap {
+  width: 46px;
+  height: 46px;
+}
 
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
@@ -856,6 +999,7 @@ body {
   .map-node { width: 100%; max-width: 290px; }
   .overlay-box { padding: 22px 16px; }
   .class-btn { width: 135px; }
+  .map-currency-pack { flex-wrap: wrap; justify-content: flex-end; }
 }
 @media (max-width: 420px) {
   .action-card-btn { width: calc(50% - 6px); }

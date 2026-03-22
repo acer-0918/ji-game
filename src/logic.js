@@ -11,6 +11,11 @@ import {
   orbCount,
 } from './state.js';
 import { getTechForSlot, TECH_DEFS } from './battleTechniques.js';
+import {
+  clampPlayerJiByEquipment,
+  countActiveTag,
+  getAttackLevelTagModifier,
+} from './equipment/runtime.js';
 
 export function getActionData(key, side='player', actorOverride=null) {
   const actor = actorOverride || (side === 'player' ? G.player : G.enemy);
@@ -47,6 +52,20 @@ export function getActionData(key, side='player', actorOverride=null) {
       name: '厄介',
       emoji: '💢',
       disabledByOrbs: stacks < 4,
+    };
+  }
+
+  if (side === 'player' && key === 'dev_kill') {
+    if (!G.devMode) return null;
+    return {
+      type: 'dev_kill',
+      cost: 0,
+      def: 0,
+      atk: 99,
+      hits: 0,
+      damage: 0,
+      name: '三军听令',
+      emoji: '📣',
     };
   }
 
@@ -105,7 +124,13 @@ export function getActionData(key, side='player', actorOverride=null) {
     base.damage += 1;
   }
   if (side === 'player' && base.type === 'defense') {
-    base.def += getPlayerDefenseBonus();
+    base.def += getPlayerDefenseBonus(key);
+    if (key === 'defense_2') {
+      base.cost += countActiveTag(G, 'equi_tag_ng_a_3');
+    }
+  }
+  if (side === 'player' && base.type === 'attack') {
+    base.atk += getAttackLevelTagModifier(G);
   }
   if (side === 'player' && base.type === 'attack' && G.powerRelics && G.powerRelics.destinedFirstSight) {
     base.atk = 7;
@@ -146,6 +171,7 @@ export function getActionSubText(action) {
   if (action.type === 'ji' || action.type === 'gufu_charge') return `+${action.gain}Ji`;
   if (action.type === 'fault_orb') return '0Ji | 随机生成充能球';
   if (action.type === 'orb_buff') return '充能完成';
+  if (action.type === 'dev_kill') return '开发者行动 | 敌方生命归零';
   if (action.type === 'ekai') return '消耗4层【傻逼】 | 本回合待机 | 下回合必定命中';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
@@ -161,7 +187,7 @@ export function getActionSubText(action) {
 export function formatSingleAction(action) {
   if (!action) return '—';
   if (action.type === 'ji' || action.type === 'gufu_charge') return `${action.emoji}${action.name}`;
-  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom' || action.type === 'ekai') return `${action.emoji}${action.name}`;
+  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom' || action.type === 'ekai' || action.type === 'dev_kill') return `${action.emoji}${action.name}`;
   if (action.type === 'defense') return `${action.emoji}${action.name}(防${action.def})`;
   if (action.type === 'attack') return `${action.emoji}${action.name}(攻${action.atk}${action.hits > 1 ? ` ×${action.hits}` : ''})`;
   return `${action.emoji}${action.name}`;
@@ -238,6 +264,12 @@ export function resolveAction(side, key) {
     G.battle.ekaiPending = true;
     logs.push('💢 厄介蓄势：本回合待机蓄力，下回合将必定命中敌方！');
     action = { type:'orb_buff', cost:0, def:0, atk:0, name:'厄介·待机', emoji:'💢', hits:0, damage:0 };
+  } else if (base.type === 'dev_kill') {
+    if (side === 'player' && G.enemy) {
+      G.enemy.hp = 0;
+      logs.push('📣 三军听令：开发者指令生效，敌方生命值归零。');
+    }
+    action = { type:'orb_buff', cost:0, def:0, atk:0, name:'三军听令', emoji:'📣', hits:0, damage:0 };
   } else {
     if (side === 'player' && base.isMageRelease) {
       actor.lightningOrbs = Math.max(0, (actor.lightningOrbs || 0) - (base.orbCost || 0));
@@ -261,7 +293,8 @@ export function resolveAction(side, key) {
     }
   }
 
-  actor.ji = Math.max(0, actor.ji);
+  if (side === 'player') actor.ji = clampPlayerJiByEquipment(G, actor.ji);
+  else actor.ji = Math.max(0, actor.ji);
   return {action, logs, instantKill};
 }
 

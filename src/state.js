@@ -1,6 +1,13 @@
-import { CLASS_DEFS, DEFAULT_CLASS_KEY, MAP_TEMPLATE, ORB_KEYS, POWER_RELIC_DEFS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, DEFAULT_CLASS_KEY, ORB_KEYS, POWER_RELIC_DEFS, getAbilityDefsForClass } from './data.js';
 import { clone } from './utils.js';
 import { createTechniquesState, createTechCounters } from './battleTechniques.js';
+import { createMapState } from './map/runtime.js';
+import {
+  createEquipmentState,
+  getDefenseTagBonus,
+  getJiRateTagModifier,
+  hasEquippedEquipment,
+} from './equipment/runtime.js';
 
 export let G = {};
 
@@ -20,8 +27,9 @@ function createPowerRelicState() {
   return relicState;
 }
 
-export function initGame(classKey = DEFAULT_CLASS_KEY) {
+export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
   const cls = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
+  const map = createMapState({ hardMode });
   G = {
     player: {
       classKey: cls.key,
@@ -36,21 +44,25 @@ export function initGame(classKey = DEFAULT_CLASS_KEY) {
       jiSpentTotal: 0,
       luck: 0,
       fragments: 0,
+      gold: 0,
     },
     abilities: createAbilityState(cls.key),
     powerRelics: createPowerRelicState(),
-    shop: {enhancedDagger:false, enhancedIceBlade:false, enhancedBlade:false, powerEquip:false, vitalityEquip:false},
-    nodes: clone(MAP_TEMPLATE),
-    nodeIdx: 0,
+    shop: {enhancedDagger:false, enhancedIceBlade:false, enhancedBlade:false},
+    equipment: createEquipmentState(),
+    map,
+    runWon: false,
     currentNode: null,
     enemy: null,
     battle: {round:1, phase:'select', pAction:null, eAction:null, lastPlayerAction:null, lastEnemyAction:null, techCounters: createTechCounters(), enemyFrostLockThisRound: false},
     ui: {mainSel:null, actionKey:null},
     roomFlags: {playerDamagedInBattle:false},
     techniques: createTechniquesState(),
-    equippedGear: null,
     battleEntrySnapshot: null,
     pendingPowerRelicOptions: [],
+    pendingEventRelicOptions: [],
+    pendingEventRelicSelectedKey: null,
+    pendingBattleReward: null,
     hardMode: false,
     devMode: false,
   };
@@ -81,9 +93,11 @@ export function allOrbsGenerated(enemy) {
 }
 
 export function getPlayerJiRate() {
-  return (G.player.baseJiRate || 0)
+  const rate = (G.player.baseJiRate || 0)
     + (G.abilities.oneVsFour ? 1 : 0)
-    + (G.abilities.haruna ? 1 : 0);
+    + (G.abilities.haruna ? 1 : 0)
+    + getJiRateTagModifier(G);
+  return Math.max(0, rate);
 }
 
 export function getDogLuckValue() {
@@ -100,8 +114,20 @@ export function getDogLuckChance() {
   return Math.min(100, getDogLuckValue());
 }
 
-export function getPlayerDefenseBonus() {
-  return G.abilities.smoothStone ? 2 : 0;
+export function getPlayerDefenseBonus(actionKey='') {
+  if (!String(actionKey).startsWith('defense_')) return 0;
+  let bonus = 0;
+  if (hasEquippedEquipment(G, 'equi_8')) bonus += 2;
+  if (
+    hasEquippedEquipment(G, 'equi_3') &&
+    G.battle &&
+    G.battle.equipment &&
+    G.battle.equipment.barrierActive
+  ) {
+    bonus += 3;
+  }
+  bonus += getDefenseTagBonus(G, actionKey);
+  return bonus;
 }
 
 export function getEnemyStandardChargeGain(enemy) {

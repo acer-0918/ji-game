@@ -1,4 +1,5 @@
 import { G } from '../state.js';
+import { clampPlayerJiByEquipment } from '../equipment/runtime.js';
 
 function isAttackAction(action) {
   return action && action.type === 'attack';
@@ -137,12 +138,6 @@ function applyFireBladeBonus(ctx) {
   }
 }
 
-function applyPowerEquipBonus(ctx) {
-  if (ctx.side !== 'player' || G.equippedGear !== 'powerEquip') return;
-  ctx.bonusDamage += 1;
-  ctx.triggers.push('磨刀石——造成伤害时，额外 +1');
-}
-
 function applyMageFocusBonus(ctx) {
   if (ctx.side !== 'player' || !ctx.attackAction.isMageRelease) return;
   if (!G.abilities.focus) return;
@@ -155,7 +150,7 @@ function applyEnhancedDaggerOnHit(ctx) {
   const gainPerHit = ctx.attackAction.onHitGainJi || 0;
   if (gainPerHit <= 0) return;
   const gain = gainPerHit * ctx.hitCount;
-  G.player.ji += gain;
+  G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + gain);
   ctx.triggers.push(`强化小刀——命中后获得 ${gain} Ji`);
 }
 
@@ -181,7 +176,6 @@ HIT_HOOKS.push(applyDogHardWorkLuckOnHit);
 DAMAGE_EVENT_HOOKS.push(applyDefaultDamagePoint);
 DAMAGE_EVENT_HOOKS.push(applyActionDamageBonus);
 DAMAGE_TOTAL_HOOKS.push(applyFireBladeBonus);
-DAMAGE_TOTAL_HOOKS.push(applyPowerEquipBonus);
 DAMAGE_TOTAL_HOOKS.push(applyMageFocusBonus);
 
 function resolveDamageFromHits(side, attackAction, defendAction, hitCount) {
