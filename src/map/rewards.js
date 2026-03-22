@@ -1,4 +1,4 @@
-import { TECH_DEFS } from '../battleTechniques.js';
+import { TECH_DEFS, getTechniqueCategoryLabel } from '../battleTechniques.js';
 import { consumeTechFromMapPool } from './generator.js';
 import { EQUIPMENT_DEFS } from '../equipment/defs.js';
 
@@ -69,7 +69,7 @@ export function formatRewardPickText(pick) {
   if (pick.kind === 'fragment') return `能力碎片 +${pick.amount || 1}`;
   if (pick.kind === 'technique') {
     const def = TECH_DEFS[pick.id];
-    return def ? `战技：${def.name}` : `战技：${pick.id}`;
+    return def ? `战技：${def.name}（${getTechniqueCategoryLabel(def)}）` : `战技：${pick.id}`;
   }
   return '未知奖励';
 }

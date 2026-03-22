@@ -359,6 +359,12 @@
       <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓ <span class="key-hint-inline">↵</span></button>
     </div>
 
+    <div class="hunt-rhythm-panel" id="hunt-rhythm-panel" style="display:none">
+      <div class="hunt-rhythm-title">🏹 狩猎律动 · 追加攻击</div>
+      <input type="range" id="hunt-rhythm-slider" min="0" max="0" step="1" value="0">
+      <div class="hunt-rhythm-meta" id="hunt-rhythm-meta">追加 0 次（消耗 0 Ji）</div>
+    </div>
+
     <!-- 图鉴按钮 -->
     <div class="tech-lib-row">
       <button class="btn btn-outline btn-tech-lib-open" id="btn-tech-lib">⚔ 战技库</button>
@@ -451,6 +457,16 @@
     </div>
     <div class="overlay-btns" style="margin-top:12px">
       <button class="btn btn-outline" id="btn-event-confirm">确认离开</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-camp">
+  <div class="overlay-box">
+    <div class="overlay-title">🔥 篝火</div>
+    <div class="overlay-body" id="camp-body">你在篝火旁稍作休整。</div>
+    <div class="overlay-btns" style="margin-top:12px">
+      <button class="btn btn-outline" id="btn-camp-confirm">确认离开</button>
     </div>
   </div>
 </div>

@@ -1,7 +1,7 @@
 import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, POWER_RELIC_DEFS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
 import { getActionData } from './logic.js';
-import { TECH_DEFS, getTechDefsForSlot } from './battleTechniques.js';
+import { TECH_DEFS, getTechDefsForSlot, getTechniqueCategoryLabel } from './battleTechniques.js';
 import { getEquipmentCardArtPath } from './equipment/art.js';
 import { EQUIPMENT_DEFS, getEquipmentDef } from './equipment/defs.js';
 import { getMapNodeArtPath } from './map/art.js';
@@ -153,8 +153,9 @@ export function renderMap() {
   if (svg) svg.innerHTML = '';
   if (!map || !Array.isArray(map.floors)) return;
 
-  const X_GAP = 210;
-  const Y_GAP = 150;
+  const isNarrowScreen = window.matchMedia('(max-width: 680px)').matches;
+  const X_GAP = isNarrowScreen ? 158 : 210;
+  const Y_GAP = isNarrowScreen ? 136 : 150;
   const MARGIN_X = 160;
   const MARGIN_Y = 100;
   const coords = {};
@@ -162,7 +163,8 @@ export function renderMap() {
   map.floors.forEach((floorDef, floorIdx) => {
     const roomIds = floorDef.roomIds || [];
     const rowWidth = Math.max(1, roomIds.length - 1) * X_GAP;
-    const baseX = Math.max(70, MARGIN_X + (380 - rowWidth) / 2);
+    const baseCenter = isNarrowScreen ? 260 : 380;
+    const baseX = Math.max(70, MARGIN_X + (baseCenter - rowWidth) / 2);
     const y = MARGIN_Y + floorIdx * Y_GAP;
     roomIds.forEach((roomId, idx) => {
       coords[roomId] = { x: baseX + idx * X_GAP, y };
@@ -350,10 +352,12 @@ export function renderShop() {
     if (item.kind === 'technique') {
       const def = TECH_DEFS[item.id];
       if (!def) return;
+      const category = getTechniqueCategoryLabel(def);
       card.innerHTML = `
         <div class="ab-icon">${def.emoji}</div>
         <div class="ab-info">
           <div class="ab-name">${def.name}</div>
+          <div class="ab-desc">类别：${category}</div>
           <div class="ab-desc">${def.desc}</div>
           <div class="ab-cost">售价 ${item.price} 金币${canAfford ? '' : `（当前 ${G.player.gold || 0}）`}</div>
         </div>

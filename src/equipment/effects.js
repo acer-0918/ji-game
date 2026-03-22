@@ -26,15 +26,6 @@ function getPlayerAttackPackets(ctx) {
   );
 }
 
-function askFollowUpCount(maxCount) {
-  if (maxCount <= 0) return 0;
-  if (typeof window === 'undefined' || typeof window.prompt !== 'function') return 0;
-  const raw = window.prompt(`【狩猎律动】请选择追加攻击次数（0~${maxCount}）`, '0');
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return 0;
-  return Math.max(0, Math.min(maxCount, Math.floor(parsed)));
-}
-
 export function registerEquipmentEffects(engine) {
   engine.registerEffect({
     effectId: 'player.equipment_round_setup',
@@ -46,6 +37,7 @@ export function registerEquipmentEffects(engine) {
       const st = ensureBattleEquipmentState(G) || createBattleEquipmentState();
       st.usedDefense = false;
       st.tookDamage = false;
+      st.huntRhythmPlannedExtraCount = 0;
       st.barrierActive = hasEquippedEquipment(G, 'equi_3') && !!st.barrierReady;
       if (st.barrierActive) {
         pushLog(ctx, 'log-ab', '🧱 壁垒：本回合防御基础等级 +3。');
@@ -117,16 +109,19 @@ export function registerEquipmentEffects(engine) {
       ctx.hitCheck &&
       (ctx.hitCheck.playerHits || 0) > 0 &&
       (ctx.pChosen.cost || 0) > 0 &&
-      G.player.ji >= (ctx.pChosen.cost || 0)
+      G.player.ji > 0
     ),
     apply: (ctx) => {
-      const maxExtra = Math.floor(G.player.ji / (ctx.pChosen.cost || 1));
-      if (maxExtra <= 0) return;
-      const extraCount = askFollowUpCount(maxExtra);
+      const cost = Math.max(1, Math.floor(ctx.pChosen.cost || 1));
+      const st = ensureBattleEquipmentState(G) || createBattleEquipmentState();
+      const maxExtra = Math.max(0, Math.floor((G.player.ji || 0) / cost));
+      const plannedExtra = Math.max(0, Math.floor(Number(st.huntRhythmPlannedExtraCount || 0)));
+      const extraCount = Math.min(maxExtra, plannedExtra);
       if (extraCount <= 0) return;
 
-      const spend = extraCount * (ctx.pChosen.cost || 0);
+      const spend = extraCount * cost;
       G.player.ji = clampPlayerJiByEquipment(G, G.player.ji - spend);
+      st.huntRhythmPlannedExtraCount = 0;
 
       const basePerCast = Math.max(1, Math.floor((ctx.result && ctx.result.edmg) || 0));
       const followUpBase = basePerCast * extraCount;

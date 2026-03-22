@@ -239,6 +239,12 @@ export const TECH_DEFS = {
   },
 };
 
+export function getTechniqueCategoryLabel(defOrId) {
+  const def = typeof defOrId === 'string' ? TECH_DEFS[defOrId] : defOrId;
+  if (!def || !Number.isFinite(Number(def.slot))) return '未分类';
+  return `攻击${Math.floor(Number(def.slot))}类`;
+}
+
 /** 获取某槽位的所有战技定义 */
 export function getTechDefsForSlot(slot) {
   return Object.values(TECH_DEFS).filter((t) => t.slot === slot);

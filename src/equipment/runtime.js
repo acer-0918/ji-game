@@ -58,6 +58,7 @@ export function createBattleEquipmentState() {
     usedDefense: false,
     tookDamage: false,
     haoYi: 0,
+    huntRhythmPlannedExtraCount: 0,
   };
 }
 

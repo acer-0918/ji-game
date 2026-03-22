@@ -39,8 +39,9 @@ export function completeMapRoom(map, roomId) {
   if (!room) return { room: null, isRunCompleted: false };
   room.cleared = true;
 
-  const next = new Set(map.availableRoomIds || []);
-  next.delete(roomId);
+  // Single-path progression: after clearing a room, only its direct next-floor
+  // connections remain available. Do not keep sibling rooms on the same floor.
+  const next = new Set();
   room.connections.forEach((childId) => {
     const child = getRoom(map, childId);
     if (!child || child.cleared) return;

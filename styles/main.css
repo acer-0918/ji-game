@@ -257,11 +257,12 @@ body {
 }
 .node-line   { width: 2px; height: 20px; background: var(--card-border); }
 .map-node {
-  width: 220px; padding: 10px 12px;
+  width: 186px; padding: 9px 10px;
   border: 2px solid var(--card-border); cursor: default;
   text-align: center; border-radius: var(--r-md);
   background: var(--card-bg); transition: all .2s;
   box-shadow: 0 4px 14px rgba(156,111,222,0.1);
+  overflow-wrap: anywhere;
 }
 .map-node.available { border-color: var(--purple); cursor: pointer; }
 .map-node.available:hover { background: var(--purple-l); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(156,111,222,0.25); }
@@ -296,7 +297,7 @@ body {
   justify-content: center;
   font-size: 1.5em;
 }
-.node-name { font-weight: 700; font-size: .9em; color: var(--text); margin-bottom: 4px; }
+.node-name { font-weight: 700; font-size: .86em; line-height: 1.35; color: var(--text); margin-bottom: 4px; }
 .node-hint { font-size: .72em; color: var(--text-lt); }
 .map-node.available           .node-hint { color: var(--purple); }
 .map-node.boss-node.available .node-hint { color: var(--red); }
@@ -718,6 +719,28 @@ body {
 }
 .btn-confirm:disabled { background: #e0d0f0; color: var(--text-lt); box-shadow: none; cursor: not-allowed; }
 
+.hunt-rhythm-panel {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(224, 50, 74, 0.28);
+  border-radius: var(--r-sm);
+  background: rgba(224, 50, 74, 0.08);
+}
+.hunt-rhythm-title {
+  font-size: .74em;
+  font-weight: 700;
+  color: var(--red);
+}
+#hunt-rhythm-slider {
+  width: 100%;
+  margin-top: 8px;
+}
+.hunt-rhythm-meta {
+  margin-top: 6px;
+  font-size: .72em;
+  color: var(--text-mid);
+}
+
 /* ── Result screens ──────────────────────────────── */
 .result-screen.active { display: flex; justify-content: center; align-items: center; min-height: 80vh; }
 .result-wrap { text-align: center; padding: 40px 20px; }
@@ -914,6 +937,17 @@ body {
   font-size: .82em;
   color: var(--text-mid);
 }
+.reward-pick-card {
+  border: 1.5px solid rgba(156,111,222,0.35);
+  background: var(--card-bg);
+}
+.reward-pick-card.selected {
+  border-color: var(--green);
+  background: var(--green-l);
+}
+.reward-pick-card.locked {
+  opacity: 0.5;
+}
 
 /* ── 战技库 Tech Library ─────────────────────────── */
 .tech-lib-box {
@@ -991,12 +1025,26 @@ body {
 @media (max-width: 680px) {
   body { padding: 0; }
   .stat-row { grid-template-columns: 1fr auto 1fr; }
-  .portrait-row { padding: 0 12px; gap: 16px; }
+  .portrait-row {
+    height: 220px;
+    padding: 0 6px;
+    gap: 8px;
+    justify-content: space-between;
+  }
+  .stage-portrait {
+    width: calc(50% - 6px);
+    max-width: 150px;
+    height: 200px;
+  }
+  .portrait-emoji { font-size: 5.2em; }
   .played-cards { flex-direction: row; }
   .main-cards-row { flex-wrap: wrap; justify-content: center; }
   .action-card-btn { width: calc(50% - 6px); min-height: 100px; }
   .map-info-row { grid-template-columns: 1fr; }
-  .map-node { width: 100%; max-width: 290px; }
+  .map-tree-viewport { height: 62vh; }
+  .map-node { width: 154px; max-width: 154px; padding: 8px 8px; }
+  .node-name { font-size: .8em; line-height: 1.32; }
+  .node-hint { font-size: .66em; }
   .overlay-box { padding: 22px 16px; }
   .class-btn { width: 135px; }
   .map-currency-pack { flex-wrap: wrap; justify-content: flex-end; }
@@ -1004,4 +1052,8 @@ body {
 @media (max-width: 420px) {
   .action-card-btn { width: calc(50% - 6px); }
   .reveal-card { width: 80px; }
+  .portrait-row { height: 198px; }
+  .stage-portrait { max-width: 132px; height: 182px; }
+  .portrait-emoji { font-size: 4.4em; }
+  .map-node { width: 140px; max-width: 140px; }
 }
