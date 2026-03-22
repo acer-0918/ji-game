@@ -44,7 +44,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
       jiSpentTotal: 0,
       luck: 0,
       fragments: 0,
-      gold: 0,
+      gold: 75,
     },
     abilities: createAbilityState(cls.key),
     powerRelics: createPowerRelicState(),

@@ -4,7 +4,6 @@ import {
   removeEquipmentTag,
   rerollEquipmentTag,
 } from '../equipment/runtime.js';
-import { TECH_DEFS, equipTechnique, getTechniqueCategoryLabel } from '../battleTechniques.js';
 import {
   EQUIP_TAGPOOL_PO_A,
   EQUIP_TAGPOOL_PO_B,
@@ -19,13 +18,6 @@ function rerollPositiveTag(game, equipmentId, pool) {
   return true;
 }
 
-function grantMapTechnique(game) {
-  const out = consumeTechFromMapPool(game.map, 1);
-  if (!out.length) return null;
-  const techId = out[0];
-  equipTechnique(game, techId);
-  return techId;
-}
 
 export function resolveEventChoice(game, room, choiceKey, { addLog, selectedEquipmentId = null } = {}) {
   const eventId = room && room.payload ? room.payload.eventId : null;
@@ -71,14 +63,14 @@ export function resolveEventChoice(game, room, choiceKey, { addLog, selectedEqui
       return { text: '你对装备进行了重随词条。', leave: true };
     }
     if (choiceKey === 'B') {
-      const techId = grantMapTechnique(game);
-      if (techId) {
-        const def = TECH_DEFS[techId];
-        const name = def ? def.name : techId;
-        const category = getTechniqueCategoryLabel(def || techId);
-        addLog?.('log-ab', `📘 事件奖励：获得战技 ${name}（${category}，已自动装备到对应攻击槽）。`);
-      }
-      return { text: '睡觉是好事，你在睡梦中想明白了很多事情。（获得1战技）', leave: true };
+      const techIds = consumeTechFromMapPool(game.map, 3).filter(Boolean);
+      if (!techIds.length) return { text: '没有可用的战技。', leave: true };
+      return {
+        text: '选择一个战技。',
+        leave: false,
+        requiresTechPick: true,
+        techIds,
+      };
     }
     game.player.maxHp += 1;
     game.player.hp = Math.max(1, game.player.hp - 2);

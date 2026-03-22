@@ -270,25 +270,25 @@ export function getPostBattleTagModifiers(input) {
   const innerInjury = countActiveTag(input, 'equi_tag_ng_b_4');
 
   return {
-    fragmentDelta: hardWork * 10 + rich * 50 - poor * 10 - bankrupt * 50,
+    goldDelta: hardWork * 10 + rich * 50 - poor * 10 - bankrupt * 50,
     hpDelta: heal - innerInjury,
     hasInnerInjury: innerInjury > 0,
   };
 }
 
 export function applyPostBattleTagModifiers(game, { addLog } = {}) {
-  if (!game || !game.player) return { fragmentDelta: 0, hpDelta: 0 };
+  if (!game || !game.player) return { goldDelta: 0, hpDelta: 0 };
   const mods = getPostBattleTagModifiers(game);
-  let appliedFragmentDelta = 0;
+  let appliedGoldDelta = 0;
   let appliedHpDelta = 0;
 
-  if (mods.fragmentDelta !== 0) {
-    const before = Number(game.player.fragments || 0);
-    game.player.fragments = Math.max(0, before + mods.fragmentDelta);
-    appliedFragmentDelta = game.player.fragments - before;
-    if (appliedFragmentDelta !== 0 && typeof addLog === 'function') {
-      const sign = appliedFragmentDelta > 0 ? '+' : '';
-      addLog('log-ab', `🎒 装备词条：战后碎片 ${sign}${appliedFragmentDelta}。`);
+  if (mods.goldDelta !== 0) {
+    const before = Number(game.player.gold || 0);
+    game.player.gold = Math.max(0, before + mods.goldDelta);
+    appliedGoldDelta = game.player.gold - before;
+    if (appliedGoldDelta !== 0 && typeof addLog === 'function') {
+      const sign = appliedGoldDelta > 0 ? '+' : '';
+      addLog('log-ab', `🎒 装备词条：战后金币 ${sign}${appliedGoldDelta}。`);
     }
   }
 
@@ -309,7 +309,7 @@ export function applyPostBattleTagModifiers(game, { addLog } = {}) {
   }
 
   return {
-    fragmentDelta: appliedFragmentDelta,
+    goldDelta: appliedGoldDelta,
     hpDelta: appliedHpDelta,
   };
 }

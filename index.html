@@ -357,16 +357,19 @@
       </button>
     </div>
 
+    <div class="hunt-rhythm-panel" id="hunt-rhythm-panel" style="display:none">
+      <div class="hunt-rhythm-title">🏹 命中！狩猎律动</div>
+      <div class="hunt-rhythm-meta" id="hunt-rhythm-meta">已追加 0 次 · 剩余 Ji：0</div>
+      <div class="hunt-rhythm-btns">
+        <button class="btn-confirm" id="btn-hunt-rhythm-add">再追加一次</button>
+        <button class="btn btn-outline" id="btn-hunt-rhythm-confirm">完成</button>
+      </div>
+    </div>
+
     <!-- 确认行 -->
     <div class="confirm-row">
       <div class="sel-preview">已选：<em id="sel-preview-text">未选择</em></div>
       <button class="btn-confirm" id="btn-confirm" disabled>确认出牌 ✓ <span class="key-hint-inline">↵</span></button>
-    </div>
-
-    <div class="hunt-rhythm-panel" id="hunt-rhythm-panel" style="display:none">
-      <div class="hunt-rhythm-title">🏹 狩猎律动 · 追加攻击</div>
-      <input type="range" id="hunt-rhythm-slider" min="0" max="0" step="1" value="0">
-      <div class="hunt-rhythm-meta" id="hunt-rhythm-meta">追加 0 次（消耗 0 Ji）</div>
     </div>
 
     <!-- 图鉴按钮 -->
@@ -497,6 +500,7 @@
       <div style="margin-bottom:12px;">设置功能开发中，敬请期待。</div>
       <button class="btn btn-outline" id="btn-toggle-devmode">开发者模式：关闭</button>
       <button class="btn btn-outline" id="btn-toggle-narrow-ui" style="margin-top:8px">窄屏战斗界面优化：关闭</button>
+      <button class="btn btn-danger" id="btn-home-from-settings" style="margin-top:12px;">放弃本局，回到首页</button>
     </div>
     <div class="overlay-btns">
       <button class="btn btn-outline" id="btn-settings-close">关闭</button>

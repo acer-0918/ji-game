@@ -2,8 +2,6 @@ import { PHASES, ACTOR_SCOPE } from '../battle/constants.js';
 import { COMBAT_ORDER, DAMAGE_ORDER, ROUND_START_ORDER } from '../battle/order.js';
 import {
   addAddMod,
-  createDamagePacket,
-  DAMAGE_TYPE,
   getDamagePackets,
   TARGET,
   toResultFromPackets,
@@ -114,32 +112,11 @@ export function registerEquipmentEffects(engine) {
     ),
     apply: (ctx) => {
       const cost = Math.max(1, Math.floor(ctx.pChosen.cost || 1));
-      const st = ensureBattleEquipmentState(G) || createBattleEquipmentState();
       const maxExtra = Math.max(0, Math.floor((G.player.ji || 0) / cost));
-      const plannedExtra = Math.max(0, Math.floor(Number(st.huntRhythmPlannedExtraCount || 0)));
-      const extraCount = Math.min(maxExtra, plannedExtra);
-      if (extraCount <= 0) return;
-
-      const spend = extraCount * cost;
-      G.player.ji = clampPlayerJiByEquipment(G, G.player.ji - spend);
-      st.huntRhythmPlannedExtraCount = 0;
-
+      if (maxExtra <= 0) return;
       const basePerCast = Math.max(1, Math.floor((ctx.result && ctx.result.edmg) || 0));
-      const followUpBase = basePerCast * extraCount;
-      if (followUpBase <= 0) return;
-
-      const followUpPacket = createDamagePacket({
-        type: DAMAGE_TYPE.ATTACK,
-        source: TARGET.PLAYER,
-        target: TARGET.ENEMY,
-        base: followUpBase,
-        tags: ['equip_hunt_rhythm'],
-      });
-      if (!Array.isArray(ctx.damagePackets)) ctx.damagePackets = [];
-      ctx.damagePackets.push(followUpPacket);
-      toResultFromPackets(ctx);
-      recordBossObservedTag('chain_attack'); // Boss 记忆：玩家有连击能力
-      pushLog(ctx, 'log-ab', `🏹 狩猎律动：追加 ${extraCount} 次同款攻击（消耗 ${spend} Ji）。`);
+      recordBossObservedTag('chain_attack');
+      G.battle.huntRhythmPending = { maxExtra, cost, basePerCast };
     },
   });
 

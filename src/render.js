@@ -787,7 +787,21 @@ export function renderEquipmentLibrary() {
         <div class="tech-lib-desc">${item.desc}</div>
         <div class="tech-lib-slot-status">词条：${tagText}</div>
         <div class="tech-lib-desc">词条效果：${tagDetail}</div>
-      </div>`;
+      </div>
+      ${G.devMode ? (() => {
+        if (isEquipped) {
+          const slotIndex = G.equipment.slots.indexOf(item.id);
+          return `<div class="ab-action"><button class="btn-unlock" data-dev-unequip-equip="${slotIndex}">卸下</button></div>`;
+        }
+        const freeSlot = (G.equipment.slots || []).findIndex(s => !s);
+        if (freeSlot >= 0) {
+          return `<div class="ab-action"><button class="btn-unlock" data-dev-equip-equip="${item.id}">装备</button></div>`;
+        }
+        return `<div class="ab-action">
+          <button class="btn-unlock" data-dev-equip-equip="${item.id}" data-dev-replace-slot="0">替换槽1</button>
+          <button class="btn-unlock" style="margin-top:4px" data-dev-equip-equip="${item.id}" data-dev-replace-slot="1">替换槽2</button>
+        </div>`;
+      })() : ''}`;
     container.appendChild(card);
   });
 }
