@@ -137,17 +137,28 @@ function buildAiContext(enemy) {
   const playerJiSpentTotal  = G.player.jiSpentTotal  || 0;
   const amaneProgress       = playerJiSpentTotal % 8; // 天音触发进度（nsyc 内部状态）
 
-  // 进攻性资源威胁 0~1（与 Ji 无关的爆发来源）
+  const pMaxAtk = getMaxAffordableAttack('player', G.player.ji, G.player);
+
+  // Ji 威胁：Ji 是攻防两用资源，对所有职业都有参考价值
+  // 法师例外：几乎不用Ji输出，Ji威胁直接归零
+  const jiThreat = (playerClass === 'mage' || G.player.ji === 0)
+    ? 0
+    : pMaxAtk / 7;
+
+  // 进攻性资源威胁 0~1（与 Ji 无关的特殊爆发来源）
   let offensiveThreat = 0;
   if (playerClass === 'mage') {
-    offensiveThreat = playerLightningOrbs >= 5 ? 1.0 : playerLightningOrbs / 7;
+    // 法师：完全基于电球，5球前威胁极低，4球给预警，5球拉满
+    if      (playerLightningOrbs >= 5) offensiveThreat = 1.0;
+    else if (playerLightningOrbs >= 4) offensiveThreat = 0.5;  // Boss 开始准备高防
+    else                               offensiveThreat = playerLightningOrbs * 0.05;
   } else if (playerClass === 'nsyc') {
-    offensiveThreat = playerShaBiStacks >= 4 ? 0.9 : (playerShaBiStacks / 4) * 0.6;
-    if (amaneProgress >= 7) offensiveThreat = Math.max(offensiveThreat, 0.85);
+    // nsyc：厄介必中，Boss防御无效，不用"威胁"维度
+    // offensiveThreat 保持0，纯读Ji威胁即可
+    // 傻逼层数 >= 4 用「暴露」维度处理（见下方 nsycExposed）
   }
+  // 其他职业（assassin/tank/dog）：offensiveThreat 保持 0，完全基于 Ji
 
-  const pMaxAtk      = getMaxAffordableAttack('player', G.player.ji, G.player);
-  const jiThreat     = G.player.ji === 0 ? 0 : pMaxAtk / 7;
   const overallThreat = Math.max(jiThreat, offensiveThreat);
 
   return {
@@ -174,11 +185,15 @@ function buildAiContext(enemy) {
     offensiveThreat,
     jiThreat,
     overallThreat,
-    // 玩家无Ji且无进攻性资源 → Boss 防御完全无意义
-    playerHasNoThreat: G.player.ji === 0 && offensiveThreat < 0.3,
+    // 玩家无任何威胁来源 → Boss 防御完全无意义
+    // 法师：无球（或球少）即无威胁；nsyc/常规：无Ji且无进攻资源
+    playerHasNoThreat: overallThreat < 0.15,
     playerIsMage:   playerClass === 'mage',
     mageCanRelease: playerClass === 'mage' && playerLightningOrbs >= 5,
     playerIsGeneralClass: ['assassin', 'tank', 'dog'].includes(playerClass),
+    // nsyc 暴露维度：傻逼层数 ≥ 4 时玩家即将释放厄介（必中但防御无效）
+    // Boss 无法阻止，但玩家此时专注于释放，可大胆低攻击骚扰
+    nsycExposed: playerClass === 'nsyc' && playerShaBiStacks >= 4,
     consecutiveBossDefense: getBossMemory().consecutiveDefenseCount || 0,
   };
 }
@@ -226,6 +241,15 @@ function getBlockedActions() {
 }
 
 // ─── 核心修复：玩家无威胁时压制 Boss 防御 ──────────────────────────────────────
+
+/**
+ * 法师释放攻击等级为5，defense_0（防3）完全无效。
+ * 当法师可以释放时，压制 defense_0，强制选更高防御。
+ */
+function suppressWeakDefenseVsMage(ctx, weights) {
+  if (!ctx.playerIsMage || !ctx.mageCanRelease) return;
+  weights.defense_0 = 0; // 防3挡不住攻5，出了等于送
+}
 
 /** 修复①：玩家无Ji且无进攻性资源 → 防御毫无意义，全部清零 */
 function suppressDefenseIfNoThreat(ctx, weights) {
@@ -330,9 +354,11 @@ function aiJiaxu(enemy) {
       addWeight(w, 'defense_1', 3);
     }
   }
-  if (ctx.playerClass === 'nsyc') {
-    if (ctx.playerShaBiStacks >= 4) addWeight(w, 'defense_0', 4);
-    if (ctx.amaneProgress >= 7)      addWeight(w, 'defense_1', 5);
+  if (ctx.nsycExposed) {
+    // 玩家即将释放厄介（必中）→ 防御无用，反而大胆骚扰
+    // 用最低攻击即可，既省Ji又给压力
+    addWeight(w, 'attack_1', 6);
+    w.defense_0 = 0; w.defense_1 = 0; w.defense_2 = 0;
   }
 
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 5);
@@ -354,6 +380,7 @@ function aiJiaxu(enemy) {
   if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.playerLowHp ? 5 : 2);
 
   applyTagReactions(w, SENSITIVITY);
+  suppressWeakDefenseVsMage(ctx, w);
   suppressDefenseIfNoThreat(ctx, w);
   suppressDefenseIfTooConsecutive(ctx, w);
   return pickWeightedAction(w, 'enemy', ctx.playerLikelyCharge ? 'attack_2' : 'attack_3', blockedActions);
@@ -386,6 +413,12 @@ function aiGufu(enemy) {
   if (ctx.playerLikelyCharge) addWeight(w, 'attack_1', 4);
   if (ctx.pJi <= 2 && ctx.eJi >= 2) addWeight(w, 'attack_2', 3);
 
+  // nsyc 暴露：骨夫本来就莽，更不会防，直接压低攻
+  if (ctx.nsycExposed) {
+    addWeight(w, 'attack_1', 5);
+    w.defense_0 = 0; w.defense_1 = 0; w.defense_2 = 0;
+  }
+
   // 骨夫：只在极端威胁 + 血量危急时才防御
   if (ctx.eJi >= 1 && ctx.playerUltraThreat) addWeight(w, 'defense_1', 2);
   if (ctx.eJi >= 2 && ctx.playerUltraThreat && ctx.enemyLowHp) addWeight(w, 'defense_2', 2);
@@ -402,6 +435,7 @@ function aiGufu(enemy) {
   if (getAllPlayerTags()['enemy_ji_drain'] && ctx.eJi >= 2) {
     addWeight(w, `attack_${Math.min(ctx.eJi, 7)}`, 4); // 直接押当前Ji对应最高攻
   }
+  suppressWeakDefenseVsMage(ctx, w);
   suppressDefenseIfNoThreat(ctx, w);
   suppressDefenseIfTooConsecutive(ctx, w);
   return pickWeightedAction(w, 'enemy', grow <= 3 ? 'ji' : 'attack_4', blockedActions);
@@ -443,9 +477,14 @@ function aiFaultRobot(enemy) {
     } else if (ctx.playerLightningOrbs >= 4) {
       addWeight(w, 'defense_1', 3);
     }
+  } else if (ctx.nsycExposed) {
+    // nsyc 暴露：厄介必中，防御无效，直接压最低攻击骚扰
+    addWeight(w, 'attack_1', 5);
+    w.defense_0 = 0; w.defense_1 = 0; w.defense_2 = 0;
   } else if (ctx.playerClass === 'nsyc') {
-    if (ctx.playerShaBiStacks >= 4) addWeight(w, 'defense_0', 4);
-    if (ctx.amaneProgress >= 7)      addWeight(w, 'defense_1', 5);
+    // nsyc 层数未满：正常读Ji威胁
+    if (ctx.playerHighThreat  && ctx.eJi >= 1) addWeight(w, 'defense_1', 3);
+    if (ctx.playerUltraThreat && ctx.eJi >= 2) addWeight(w, 'defense_2', 2);
   } else {
     // 常规职业（assassin/tank/dog）：Ji威胁读法
     if (ctx.playerHighThreat  && ctx.eJi >= 1) addWeight(w, 'defense_1', 3);
@@ -471,6 +510,7 @@ function aiFaultRobot(enemy) {
   if (ctx.eJi >= 7) addWeight(w, 'attack_7', ctx.playerLowHp ? 5 : 2 + orbCount(enemy, 'dark'));
 
   applyTagReactions(w, SENSITIVITY);
+  suppressWeakDefenseVsMage(ctx, w);
   suppressDefenseIfNoThreat(ctx, w);
   suppressDefenseIfTooConsecutive(ctx, w);
   return pickWeightedAction(w, 'enemy', unique < 3 ? 'orb_random' : 'attack_4', blockedActions);

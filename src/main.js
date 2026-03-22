@@ -8,7 +8,6 @@ import { registerTechEffects } from './battle/techEffects.js';
 import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
-import { initMDPPolicies, clearMDPPolicies } from './mdp.js';
 import { CLASS_DEFS, POWER_RELIC_DEFS, getAbilityDefsForClass, getPowerRelicDef } from './data.js';
 import {
   describeAttack,
@@ -732,7 +731,6 @@ function doSurrender() {
 function startGame() {
   if (!selectedClassKey) return;
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
-  clearMDPPolicies();
   initGame(selectedClassKey, false);
   applyDeveloperModeToGameState();
   updateHardBadge(false);
@@ -743,16 +741,9 @@ function startGame() {
 async function startHardGame() {
   if (!selectedClassKey) return;
   document.querySelectorAll('.overlay').forEach((overlay) => overlay.classList.remove('show'));
-  const btn = $('btn-hard-start');
-  if (btn) { btn.disabled = true; btn.textContent = '准备中...'; }
-  openLoading('机器学习了');
+  openLoading('分析战场中…');
   await nextPaint();
-  try {
-    await initMDPPolicies(selectedClassKey);
-  } finally {
-    closeLoading();
-    if (btn) { btn.disabled = false; btn.textContent = '困难模式 (MDP)'; }
-  }
+  closeLoading();
   initGame(selectedClassKey, true);
   applyDeveloperModeToGameState();
   G.hardMode = true;
@@ -893,7 +884,7 @@ function startBattle(node, keepSnapshot=false) {
     addLog('log-ab', '🤖 故障机器人会随机生成 5 类充能球；当五类都已出现后，再次启动会直接消灭玩家。');
   }
   if (G.hardMode) {
-    addLog('log-ab', '⚡ 困难模式：此 Boss 使用马尔可夫最优策略（MDP），根据你当前的 Ji 状态动态决策。');
+    addLog('log-ab', '⚡ 困难模式：此 Boss 拥有更强的战场感知能力，会根据你的职业与战斗风格动态调整策略。');
   }
   applyRoundStartEffects();
   updateHardBadge(G.hardMode);
