@@ -154,100 +154,113 @@ export function generateRunMap({ hardMode = false } = {}) {
   pushFloor(map, 2, f2);
   f2.forEach((room) => linkRooms(f1[0], room));
 
-  // floor 3
-  const f3 = [];
-  roomArrayByIds(map, map.floors[1].roomIds).forEach((parent) => {
-    const cnt = randInt(1, 2);
-    for (let i = 0; i < cnt; i++) {
-      const room = buildEventRoom(3, f3.length);
-      f3.push(room);
-      linkRooms(parent, room);
-    }
+  // floor 3 — elite (one per F2 branch)
+  const f3 = f2.map((parent, i) => {
+    const room = buildEliteRoom(3, i);
+    linkRooms(parent, room);
+    return room;
   });
   pushFloor(map, 3, f3);
 
-  // floor 4
-  const f4 = [];
-  roomArrayByIds(map, map.floors[2].roomIds).forEach((parent) => {
-    const room = buildMysteryRoom(4, f4.length, true);
-    f4.push(room);
-    linkRooms(parent, room);
-  });
+  // floor 4 — shop (convergence after elite)
+  const f4 = [buildShopRoom(4, 0)];
   pushFloor(map, 4, f4);
+  f3.forEach((room) => linkRooms(room, f4[0]));
 
-  // floor 5
+  // floor 5 — events (was floor 3)
   const f5 = [];
   roomArrayByIds(map, map.floors[3].roomIds).forEach((parent) => {
-    const room = buildMysteryRoom(5, f5.length, false);
-    f5.push(room);
-    linkRooms(parent, room);
+    const cnt = randInt(1, 2);
+    for (let i = 0; i < cnt; i++) {
+      const room = buildEventRoom(5, f5.length);
+      f5.push(room);
+      linkRooms(parent, room);
+    }
   });
   pushFloor(map, 5, f5);
 
-  // floor 6
-  const f6Count = randInt(1, 3);
-  const f6 = Array.from({ length: f6Count }, (_, i) => {
-    const kind = randomChoice(['battle', 'elite']);
-    return kind === 'battle' ? buildMobRoom(6, i) : buildEliteRoom(6, i);
+  // floor 6 — mystery (was floor 4)
+  const f6 = [];
+  roomArrayByIds(map, map.floors[4].roomIds).forEach((parent) => {
+    const room = buildMysteryRoom(6, f6.length, true);
+    f6.push(room);
+    linkRooms(parent, room);
   });
   pushFloor(map, 6, f6);
-  const parents5 = roomArrayByIds(map, map.floors[4].roomIds);
-  f6.forEach((child) => {
-    const parent = randomChoice(parents5);
-    linkRooms(parent, child);
-  });
-  parents5.forEach((parent) => {
-    if (parent.connections.some((id) => map.roomsById[id] && map.roomsById[id].floor === 6)) return;
-    linkRooms(parent, randomChoice(f6));
-  });
 
-  // floor 7
+  // floor 7 — mystery (was floor 5)
   const f7 = [];
   roomArrayByIds(map, map.floors[5].roomIds).forEach((parent) => {
-    const room = buildEliteRoom(7, f7.length);
+    const room = buildMysteryRoom(7, f7.length, false);
     f7.push(room);
     linkRooms(parent, room);
   });
   pushFloor(map, 7, f7);
 
-  // floor 8
-  const f8 = [buildShopRoom(8, 0)];
+  // floor 8 — battle/elite mix (was floor 6)
+  const f8Count = randInt(1, 3);
+  const f8 = Array.from({ length: f8Count }, (_, i) => {
+    const kind = randomChoice(['battle', 'elite']);
+    return kind === 'battle' ? buildMobRoom(8, i) : buildEliteRoom(8, i);
+  });
   pushFloor(map, 8, f8);
-  roomArrayByIds(map, map.floors[6].roomIds).forEach((parent) => linkRooms(parent, f8[0]));
+  const parents7 = roomArrayByIds(map, map.floors[6].roomIds);
+  f8.forEach((child) => {
+    const parent = randomChoice(parents7);
+    linkRooms(parent, child);
+  });
+  parents7.forEach((parent) => {
+    if (parent.connections.some((id) => map.roomsById[id] && map.roomsById[id].floor === 8)) return;
+    linkRooms(parent, randomChoice(f8));
+  });
 
-  // floor 9
-  const f9 = [buildEventRoom(9, 0)];
+  // floor 9 — elite (was floor 7)
+  const f9 = [];
+  roomArrayByIds(map, map.floors[7].roomIds).forEach((parent) => {
+    const room = buildEliteRoom(9, f9.length);
+    f9.push(room);
+    linkRooms(parent, room);
+  });
   pushFloor(map, 9, f9);
-  linkRooms(f8[0], f9[0]);
 
-  // floor 10
-  const f10 = [buildEliteRoom(10, 0)];
+  // floor 10 — shop (was floor 8)
+  const f10 = [buildShopRoom(10, 0)];
   pushFloor(map, 10, f10);
-  linkRooms(f9[0], f10[0]);
+  roomArrayByIds(map, map.floors[8].roomIds).forEach((parent) => linkRooms(parent, f10[0]));
 
-  // floor 11
-  const f11Left = randomChoice(['camp', 'event']);
-  const f11 = [
-    f11Left === 'camp' ? buildCampRoom(11, 0) : buildEventRoom(11, 0),
-    f11Left === 'camp' ? buildEventRoom(11, 1) : buildCampRoom(11, 1),
-  ];
+  // floor 11 — event (was floor 9)
+  const f11 = [buildEventRoom(11, 0)];
   pushFloor(map, 11, f11);
-  f11.forEach((room) => linkRooms(f10[0], room));
+  linkRooms(f10[0], f11[0]);
 
-  // floor 12
-  const f12 = [buildBossRoom(12, 0)];
+  // floor 12 — elite (was floor 10)
+  const f12 = [buildEliteRoom(12, 0)];
   pushFloor(map, 12, f12);
-  f11.forEach((room) => linkRooms(room, f12[0]));
+  linkRooms(f11[0], f12[0]);
+
+  // floor 13 — camp/event (was floor 11)
+  const f13Left = randomChoice(['camp', 'event']);
+  const f13 = [
+    f13Left === 'camp' ? buildCampRoom(13, 0) : buildEventRoom(13, 0),
+    f13Left === 'camp' ? buildEventRoom(13, 1) : buildCampRoom(13, 1),
+  ];
+  pushFloor(map, 13, f13);
+  f13.forEach((room) => linkRooms(f12[0], room));
+
+  // floor 14 — boss (was floor 12)
+  const f14 = [buildBossRoom(14, 0)];
+  pushFloor(map, 14, f14);
+  f13.forEach((room) => linkRooms(room, f14[0]));
 
   if (hardMode) {
-    const prevBossId = f12[0].payload ? f12[0].payload.bossId : null;
-    const f13 = [buildBossRoom(13, 0, prevBossId)];
-    pushFloor(map, 13, f13);
-    linkRooms(f12[0], f13[0]);
-    f12[0].payload.finalBoss = false;
-    f13[0].payload.finalBoss = true;
+    const prevBossId = f14[0].payload ? f14[0].payload.bossId : null;
+    const f15 = [buildBossRoom(15, 0, prevBossId)];
+    pushFloor(map, 15, f15);
+    linkRooms(f14[0], f15[0]);
+    f14[0].payload.finalBoss = false;
+    f15[0].payload.finalBoss = true;
   } else {
-    f12[0].payload.finalBoss = true;
+    f14[0].payload.finalBoss = true;
   }
 
   map.availableRoomIds = [map.startRoomId];
