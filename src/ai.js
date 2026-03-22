@@ -277,6 +277,17 @@ function getBlockedActions(ctx) {
   return blocked;
 }
 
+/**
+ * 权重层兜底：playerHasNoThreat 时清零防御权重。
+ * （blockedActions 已封堵 fallback，此处保持权重池干净）
+ */
+function suppressDefenseIfNoThreat(ctx, weights) {
+  if (!ctx.playerHasNoThreat) return;
+  weights.defense_0 = 0;
+  weights.defense_1 = 0;
+  weights.defense_2 = 0;
+}
+
 /** 连续防御 ≥ 2 次且玩家威胁不极端 → 额外压制高防（权重层，fallback 层由 blocked 管） */
 function suppressDefenseIfTooConsecutive(ctx, weights) {
   if (ctx.consecutiveBossDefense < 2 || ctx.playerUltraThreat) return;
