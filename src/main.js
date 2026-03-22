@@ -63,6 +63,7 @@ const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
 const DEV_FRAGMENTS = 999999999;
+const DEV_GOLD = 999999999;
 const FEEDBACK_URL = 'https://v.wjx.cn/vm/hhxTGwR.aspx#';
 const BATTLE_TIMINGS = {
   REVEAL_DELAY_MS: 120,
@@ -102,6 +103,7 @@ function persistDeveloperMode() {
 function keepDeveloperResources() {
   if (!G.devMode || !G.player) return;
   G.player.fragments = DEV_FRAGMENTS;
+  G.player.gold = DEV_GOLD;
 }
 
 function refreshDeveloperModeButton() {
