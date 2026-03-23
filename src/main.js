@@ -618,10 +618,14 @@ function showScreen(id) {
 
 function openOverlay(id) {
   $(id).classList.add('show');
+  document.body.style.overflow = 'hidden';
 }
 
 function closeOverlay(id) {
   $(id).classList.remove('show');
+  if (!document.querySelector('.overlay.show')) {
+    document.body.style.overflow = '';
+  }
 }
 
 function openEventRoom(room) {

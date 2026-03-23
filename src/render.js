@@ -151,6 +151,7 @@ export function renderEquipSlots(id) {
     }
 
     const tagDef = getEquipmentTagDefForItem(G, equipmentId);
+    const tagLine = getEquipmentTagText(G, equipmentId);
     const detail = tagDef
       ? `${def.desc}\n当前词条：${tagDef.name}\n词条效果：${tagDef.desc}`
       : `${def.desc}\n当前词条：无`;
