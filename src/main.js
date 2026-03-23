@@ -616,6 +616,10 @@ function showScreen(id) {
   $(`screen-${id}`).classList.add('active');
 }
 
+function hasOpenOverlay() {
+  return !!document.querySelector('.overlay.show');
+}
+
 function openOverlay(id) {
   $(id).classList.add('show');
   document.body.style.overflow = 'hidden';
@@ -944,10 +948,11 @@ function leaveShop() {
 
 function finalizeCurrentMapRoomProgress() {
   if (!G.map) return;
-  const roomId = (G.currentNode && G.currentNode.id) || G.map.currentRoomId || null;
+  const roomId = G.activeMapRoomId || (G.currentNode && G.currentNode.id) || G.map.currentRoomId || null;
   if (!roomId) return;
   const room = getRoomById(G.map, roomId);
   if (!room) {
+    G.activeMapRoomId = null;
     G.map.currentRoomId = null;
     return;
   }
@@ -977,6 +982,7 @@ function finalizeCurrentMapRoomProgress() {
       .map((node) => node.id);
     G.map.availableRoomIds = [...new Set(inferred)];
   }
+  G.activeMapRoomId = null;
   G.map.currentRoomId = null;
 }
 
@@ -1086,12 +1092,14 @@ function restartRun() {
 }
 
 function enterNode(roomId) {
+  if (hasOpenOverlay()) return;
   const node = getRoomById(G.map, roomId);
   if (!node) return;
   if (!G.devMode && !(G.map.availableRoomIds || []).includes(roomId)) return;
   const room = enterMapRoom(G.map, roomId);
   if (!room) return;
   G.currentNode = room;
+  G.activeMapRoomId = room.id;
 
   resetRoomJi();
   if (room.type === 'shop') {
