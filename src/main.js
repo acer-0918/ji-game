@@ -1698,13 +1698,117 @@ function bindStaticEvents() {
     btn.addEventListener('click', () => subSelect(btn.dataset.action));
   });
 
-  $('nodes-wrap').addEventListener('click', (event) => {
-    const node = event.target.closest('.map-node.available');
-    if (!node) return;
-    const roomId = node.dataset.roomId;
-    if (!roomId) return;
-    enterNode(roomId);
-  });
+  const nodesWrap = $('nodes-wrap');
+  let mapNodeTouchStart = null;
+  let lastPointerOpen = null;
+  const TAP_MOVE_THRESHOLD = 12;
+  const POINTER_CLICK_GUARD_MS = 700;
+  function getMapNodeFromEventTarget(target) {
+    if (!target) return null;
+    if (typeof target.closest === 'function') return target.closest('.map-node');
+    if (target.nodeType && target.nodeType !== 1 && target.parentElement && typeof target.parentElement.closest === 'function') {
+      return target.parentElement.closest('.map-node');
+    }
+    return null;
+  }
+  if (nodesWrap) {
+    nodesWrap.addEventListener('pointerdown', (event) => {
+      // 主要用于移动端：记录触点，避免把滚动误判为点击
+      const node = getMapNodeFromEventTarget(event.target);
+      if (!node) {
+        mapNodeTouchStart = null;
+        return;
+      }
+      mapNodeTouchStart = {
+        roomId: node.dataset.roomId || '',
+        x: event.clientX,
+        y: event.clientY,
+        pointerType: event.pointerType || '',
+      };
+    });
+
+    nodesWrap.addEventListener('pointerup', (event) => {
+      if (!mapNodeTouchStart) return;
+      const node = getMapNodeFromEventTarget(event.target);
+      const roomId = node && node.dataset ? node.dataset.roomId : '';
+      const dx = Math.abs(event.clientX - mapNodeTouchStart.x);
+      const dy = Math.abs(event.clientY - mapNodeTouchStart.y);
+      const movedTooFar = dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD;
+      const isTouchLike = mapNodeTouchStart.pointerType && mapNodeTouchStart.pointerType !== 'mouse';
+      if (!movedTooFar && isTouchLike && roomId && roomId === mapNodeTouchStart.roomId) {
+        lastPointerOpen = { roomId, time: Date.now() };
+        enterNode(roomId);
+      }
+      mapNodeTouchStart = null;
+    });
+
+    nodesWrap.addEventListener('pointercancel', () => {
+      mapNodeTouchStart = null;
+    });
+
+    // iOS/部分安卓机型在滚动容器内可能丢失 click，追加 touch 兜底
+    nodesWrap.addEventListener('touchstart', (event) => {
+      const touch = event.changedTouches && event.changedTouches[0];
+      if (!touch) return;
+      const node = getMapNodeFromEventTarget(event.target);
+      if (!node) {
+        mapNodeTouchStart = null;
+        return;
+      }
+      mapNodeTouchStart = {
+        roomId: node.dataset.roomId || '',
+        x: touch.clientX,
+        y: touch.clientY,
+        pointerType: 'touch',
+      };
+    }, { passive: true });
+
+    nodesWrap.addEventListener('touchend', (event) => {
+      if (!mapNodeTouchStart) return;
+      const touch = event.changedTouches && event.changedTouches[0];
+      if (!touch) {
+        mapNodeTouchStart = null;
+        return;
+      }
+      const node = getMapNodeFromEventTarget(event.target);
+      const roomId = node && node.dataset ? node.dataset.roomId : '';
+      const dx = Math.abs(touch.clientX - mapNodeTouchStart.x);
+      const dy = Math.abs(touch.clientY - mapNodeTouchStart.y);
+      const movedTooFar = dx > TAP_MOVE_THRESHOLD || dy > TAP_MOVE_THRESHOLD;
+      if (!movedTooFar && roomId && roomId === mapNodeTouchStart.roomId) {
+        const now = Date.now();
+        if (
+          !lastPointerOpen ||
+          lastPointerOpen.roomId !== roomId ||
+          now - lastPointerOpen.time > POINTER_CLICK_GUARD_MS
+        ) {
+          lastPointerOpen = { roomId, time: now };
+          enterNode(roomId);
+        }
+      }
+      mapNodeTouchStart = null;
+    }, { passive: true });
+
+    nodesWrap.addEventListener('touchcancel', () => {
+      mapNodeTouchStart = null;
+    }, { passive: true });
+
+    nodesWrap.addEventListener('click', (event) => {
+      const node = getMapNodeFromEventTarget(event.target);
+      if (!node) return;
+      const roomId = node.dataset.roomId;
+      if (!roomId) return;
+      // 避免移动端 pointerup 已触发后，随后的合成 click 再次进入
+      if (
+        lastPointerOpen &&
+        lastPointerOpen.roomId === roomId &&
+        Date.now() - lastPointerOpen.time <= POINTER_CLICK_GUARD_MS
+      ) {
+        return;
+      }
+      enterNode(roomId);
+    });
+  }
 
   const mapViewport = $('map-tree-viewport');
   if (mapViewport) {
