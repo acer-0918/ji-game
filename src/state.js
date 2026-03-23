@@ -63,6 +63,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
     pendingPowerRelicOptions: [],
     pendingEventRelicOptions: [],
     pendingEventRelicSelectedKey: null,
+    pendingEventRelicSelectedKeys: [],
     pendingEventEquipmentChoiceKey: null,
     pendingBattleReward: null,
     hardMode: false,

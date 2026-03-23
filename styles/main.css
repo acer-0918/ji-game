@@ -293,6 +293,10 @@ body {
 }
 .map-node.available { border-color: var(--purple); cursor: pointer; }
 .map-node.available:hover { background: var(--purple-l); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(156,111,222,0.25); }
+.map-node.triggered {
+  border-color: rgba(224,144,16,0.45);
+  background: rgba(224,144,16,0.08);
+}
 .map-node.done  { background: var(--bg3); color: var(--text-lt); }
 .map-node.boss-node  { border-color: rgba(224,50,74,0.4); }
 .map-node.shop-node  { border-color: rgba(224,144,16,0.4); }
@@ -327,6 +331,7 @@ body {
 .node-name { font-weight: 700; font-size: .86em; line-height: 1.35; color: var(--text); margin-bottom: 4px; }
 .node-hint { font-size: .72em; color: var(--text-lt); }
 .map-node.available           .node-hint { color: var(--purple); }
+.map-node.triggered           .node-hint { color: var(--gold); }
 .map-node.boss-node.available .node-hint { color: var(--red); }
 .map-node.shop-node.available .node-hint { color: var(--gold); }
 
@@ -968,6 +973,12 @@ body {
 }
 
 #ov-battle-relic-options {
+  max-height: 34vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#event-relic-options {
   max-height: 34vh;
   overflow-y: auto;
   padding-right: 4px;

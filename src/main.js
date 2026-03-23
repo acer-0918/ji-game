@@ -437,6 +437,12 @@ function clearEventRelicChoiceUI() {
   if (wrap) wrap.style.display = 'none';
   G.pendingEventRelicOptions = [];
   G.pendingEventRelicSelectedKey = null;
+  G.pendingEventRelicSelectedKeys = [];
+}
+
+function isDogHeadEventRelicDevMode() {
+  const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
+  return !!(G.devMode && eventId === 'event_2');
 }
 
 function renderEventRelicChoiceUI(options) {
@@ -445,8 +451,10 @@ function renderEventRelicChoiceUI(options) {
   const skipBtn = $('btn-event-relic-skip');
   if (!wrap || !container) return;
   container.innerHTML = '';
+  const devDogMode = isDogHeadEventRelicDevMode();
   const selectedKey = G.pendingEventRelicSelectedKey;
   const hasSelected = !!selectedKey;
+  const selectedKeys = new Set(Array.isArray(G.pendingEventRelicSelectedKeys) ? G.pendingEventRelicSelectedKeys : []);
   if (!Array.isArray(options) || options.length <= 0) {
     const empty = document.createElement('div');
     empty.className = 'tag-placeholder';
@@ -457,8 +465,11 @@ function renderEventRelicChoiceUI(options) {
     return;
   }
   options.forEach((item) => {
-    const isSelected = selectedKey === item.key;
-    const isLocked = hasSelected && !isSelected;
+    const isOwned = hasPowerRelic(G, item.key);
+    const isSelected = devDogMode ? selectedKeys.has(item.key) : selectedKey === item.key;
+    const isLocked = devDogMode ? isOwned : (hasSelected && !isSelected);
+    const actionLabel = isOwned ? '已拥有' : (isSelected ? '已选择' : '选择');
+    const actionDisabled = devDogMode ? isOwned : hasSelected;
     const card = document.createElement('div');
     card.className = `ab-node-card relic-choice-card${isSelected ? ' selected' : ''}${isLocked ? ' locked' : ''}`;
     card.innerHTML = `
@@ -468,20 +479,27 @@ function renderEventRelicChoiceUI(options) {
         <div class="ab-desc">${item.desc}</div>
       </div>
       <div class="ab-action">
-        <button class="btn-unlock" data-event-relic="${item.key}" ${hasSelected ? 'disabled' : ''}>${isSelected ? '已选择' : '选择'}</button>
+        <button class="btn-unlock" data-event-relic="${item.key}" ${actionDisabled ? 'disabled' : ''}>${actionLabel}</button>
       </div>`;
     container.appendChild(card);
   });
-  if (skipBtn) skipBtn.disabled = hasSelected;
+  if (skipBtn) skipBtn.disabled = devDogMode ? false : hasSelected;
   wrap.style.display = '';
 }
 
 function chooseEventRelic(key) {
-  if (G.pendingEventRelicSelectedKey) return;
+  const devDogMode = isDogHeadEventRelicDevMode();
+  if (!devDogMode && G.pendingEventRelicSelectedKey) return;
   const def = getPowerRelicDef(key);
   if (!def || hasPowerRelic(G, key)) return;
   G.powerRelics[key] = true;
-  G.pendingEventRelicSelectedKey = key;
+  if (devDogMode) {
+    const selected = new Set(Array.isArray(G.pendingEventRelicSelectedKeys) ? G.pendingEventRelicSelectedKeys : []);
+    selected.add(key);
+    G.pendingEventRelicSelectedKeys = [...selected];
+  } else {
+    G.pendingEventRelicSelectedKey = key;
+  }
   addLog('log-ab', `🧿 事件馈赠：获得强大遗物 ${def.name}。`);
   renderEventRelicChoiceUI(G.pendingEventRelicOptions);
   renderMap();
@@ -743,7 +761,7 @@ function chooseEventEquipment(equipmentId) {
     $('event-choices').innerHTML = '';
     const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
     if (eventId === 'event_2') {
-      const options = getPowerRelicOptions(1);
+      const options = isDogHeadEventRelicDevMode() ? [...POWER_RELIC_DEFS] : getPowerRelicOptions(1);
       G.pendingEventRelicOptions = options;
       renderEventRelicChoiceUI(options);
     }
@@ -946,7 +964,7 @@ function chooseEventOption(choiceKey) {
   } else {
     const eventId = G.currentNode && G.currentNode.payload ? G.currentNode.payload.eventId : '';
     if (eventId === 'event_2') {
-      const options = getPowerRelicOptions(1);
+      const options = isDogHeadEventRelicDevMode() ? [...POWER_RELIC_DEFS] : getPowerRelicOptions(1);
       G.pendingEventRelicOptions = options;
       renderEventRelicChoiceUI(options);
     }

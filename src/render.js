@@ -246,11 +246,16 @@ export function renderMap() {
     const pos = coords[node.id];
     if (!pos) return;
     const div = document.createElement('div');
+    const isAvailable = (map.availableRoomIds || []).includes(node.id);
+    const isTriggered = !!node.visited && !node.cleared;
     let cls = 'map-node';
     if (node.type === 'boss') cls += ' boss-node';
     if (node.type === 'shop') cls += ' shop-node';
     if (node.cleared) cls += ' done';
-    else if (G.devMode || (map.availableRoomIds || []).includes(node.id)) cls += ' available';
+    else {
+      if (G.devMode || isAvailable) cls += ' available';
+      if (isTriggered) cls += ' triggered';
+    }
     div.className = cls;
     div.dataset.roomId = node.id;
     div.style.position = 'absolute';
@@ -262,8 +267,10 @@ export function renderMap() {
       ? '开发者模式：点击进入'
       : node.cleared
         ? '✓ 已完成'
-        : (map.availableRoomIds || []).includes(node.id)
-          ? '点击进入'
+        : isTriggered
+          ? (isAvailable ? '🟠 已触发（可进入）' : '🟠 已触发')
+          : isAvailable
+            ? '✅ 已解锁（点击进入）'
           : '🔒 未解锁';
     const enemyTip = node.payload && node.payload.enemy ? ` · ${node.payload.enemy.emoji}${node.payload.enemy.name}` : '';
     const icon = node.type === 'battle' ? '👹'
