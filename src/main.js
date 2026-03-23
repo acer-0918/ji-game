@@ -927,21 +927,7 @@ function unequipEquipmentSlot(slotIndex) {
 
 function leaveShop() {
   clearEquipmentShopOffers(G);
-  const roomId = (G.currentNode && G.currentNode.id) || (G.map && G.map.currentRoomId) || null;
-  if (roomId) {
-    const completeInfo = completeMapRoom(G.map, roomId);
-    const room = completeInfo && completeInfo.room ? completeInfo.room : getRoomById(G.map, roomId);
-    if (room) {
-      room.visited = true;
-      room.cleared = true;
-      const next = room.connections
-        .map((childId) => getRoomById(G.map, childId))
-        .filter((child) => !!child && !child.cleared)
-        .map((child) => child.id);
-      G.map.availableRoomIds = [...new Set(next)];
-    }
-    G.map.currentRoomId = null;
-  }
+  finalizeCurrentMapRoomProgress();
   if (G.devMode) {
     closeOverlay('ov-shop');
     renderMap();
@@ -950,6 +936,44 @@ function leaveShop() {
   resetRoomJi();
   closeOverlay('ov-shop');
   renderMap();
+}
+
+function finalizeCurrentMapRoomProgress() {
+  if (!G.map) return;
+  const roomId = (G.currentNode && G.currentNode.id) || G.map.currentRoomId || null;
+  if (!roomId) return;
+  const room = getRoomById(G.map, roomId);
+  if (!room) {
+    G.map.currentRoomId = null;
+    return;
+  }
+
+  // 强一致收口：无论来源路径如何，离开房间时都写回 visited+cleared。
+  room.visited = true;
+  room.cleared = true;
+  completeMapRoom(G.map, roomId);
+
+  const directNext = (room.connections || [])
+    .map((childId) => getRoomById(G.map, childId))
+    .filter((child) => !!child && !child.cleared)
+    .map((child) => child.id);
+
+  if (directNext.length > 0) {
+    G.map.availableRoomIds = [...new Set(directNext)];
+  } else {
+    // 兜底：若直接后继为空（异常态），从父子关系推导当前应解锁节点。
+    const inferred = Object.values(G.map.roomsById || {})
+      .filter((node) => {
+        if (!node || node.cleared) return false;
+        return (node.parents || []).some((parentId) => {
+          const parent = getRoomById(G.map, parentId);
+          return !!(parent && parent.cleared);
+        });
+      })
+      .map((node) => node.id);
+    G.map.availableRoomIds = [...new Set(inferred)];
+  }
+  G.map.currentRoomId = null;
 }
 
 function chooseEventOption(choiceKey) {
@@ -985,9 +1009,7 @@ function chooseEventOption(choiceKey) {
 }
 
 function confirmLeaveEvent() {
-  if (G.currentNode && G.currentNode.id) {
-    completeMapRoom(G.map, G.currentNode.id);
-  }
+  finalizeCurrentMapRoomProgress();
   G.pendingEventEquipmentChoiceKey = null;
   G.pendingEventTechChoiceKey = null;
   clearEventRelicChoiceUI();
@@ -1001,7 +1023,7 @@ function openCampRoom() {
   const before = G.player.hp;
   G.player.hp = Math.min(G.player.maxHp, G.player.hp + heal);
   const actual = G.player.hp - before;
-  if (G.currentNode.id) completeMapRoom(G.map, G.currentNode.id);
+  finalizeCurrentMapRoomProgress();
   $('camp-body').textContent = `你在篝火旁恢复了 ${actual} 点生命。`;
   openOverlay('ov-camp');
   renderMap();

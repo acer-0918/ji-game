@@ -275,12 +275,14 @@ body {
   top: 0;
   left: 0;
   pointer-events: none;
+  z-index: 0;
 }
 .nodes-wrap { display: flex; flex-direction: column; align-items: center; }
 .map-tree-wrap {
   position: relative;
   min-height: 1300px;
   padding: 30px 0 42px;
+  z-index: 1;
 }
 .node-line   { width: 2px; height: 20px; background: var(--card-border); }
 .map-node {
@@ -295,7 +297,7 @@ body {
 .map-node.available:hover { background: var(--purple-l); transform: translateY(-2px); box-shadow: 0 8px 22px rgba(156,111,222,0.25); }
 .map-node.triggered {
   border-color: rgba(224,144,16,0.45);
-  background: rgba(224,144,16,0.08);
+  background: #fff6e8;
 }
 .map-node.done  { background: var(--bg3); color: var(--text-lt); }
 .map-node.boss-node  { border-color: rgba(224,50,74,0.4); }
