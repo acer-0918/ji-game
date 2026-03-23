@@ -621,8 +621,15 @@ function hasOpenOverlay() {
 }
 
 function openOverlay(id) {
-  $(id).classList.add('show');
+  const el = $(id);
+  el.classList.add('show');
   document.body.style.overflow = 'hidden';
+  // iOS Safari fires a synthesized click after touchend at the same screen coordinates.
+  // If an overlay button lands on those coordinates, it would trigger immediately.
+  // Block pointer events briefly so the ghost click falls through harmlessly;
+  // enterNode() will still early-return because hasOpenOverlay() sees class 'show'.
+  el.style.pointerEvents = 'none';
+  setTimeout(() => { el.style.pointerEvents = ''; }, 200);
 }
 
 function closeOverlay(id) {
