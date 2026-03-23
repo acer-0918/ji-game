@@ -52,11 +52,12 @@ export const CLASS_DEFS = {
     passiveDesc: null,
     spDesc: null,
     abilityDefs: [
-      {key:'popcorn',     icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
-      {key:'smallPotion', icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
-      {key:'taunt',       icon:'📢', name:'嘲讽',       cost:1, desc:'当敌方 Ji 为 1 且【攻击1】合法时，敌方本回合行动只能为【攻击1】。'},
-      {key:'suppression', icon:'🧱', name:'压制',       cost:1, desc:'你的等级大于 4 的战技消耗 4 Ji。'},
-      {key:'tigerTank',   icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入精英或 Boss 房间时，生命上限立刻永久 +3，且当前生命同步 +3。'},
+      {key:'popcorn',        icon:'🍿', name:'爆米',       cost:1, desc:'若你在该回合受到伤害，则下一回合开始时你获得 2 Ji。'},
+      {key:'smallPotion',    icon:'🧪', name:'小血瓶',     cost:1, desc:'每场战斗开始时回复 1 生命。'},
+      {key:'heavyTechBoost', icon:'⚖️', name:'重甲破击',   cost:1, desc:'你的【重】战技命中时额外造成 1 点伤害。'},
+      {key:'taunt',          icon:'📢', name:'嘲讽',       cost:1, desc:'当敌方 Ji 为 1 且【攻击1】合法时，敌方本回合行动只能为【攻击1】。'},
+      {key:'suppression',    icon:'🧱', name:'压制',       cost:1, desc:'你的等级大于 4 的战技消耗 4 Ji。'},
+      {key:'tigerTank',      icon:'🐯', name:'虎式坦克',   cost:1, desc:'每当进入精英或 Boss 房间时，生命上限立刻永久 +3，且当前生命同步 +3。'},
     ],
   },
   mage: {

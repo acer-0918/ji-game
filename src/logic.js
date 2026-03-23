@@ -17,6 +17,8 @@ import {
   clampPlayerJiByEquipment,
   countActiveTag,
   getAttackLevelTagModifier,
+  getHeavyTechCostReduction,
+  getLightTechCostReduction,
 } from './equipment/runtime.js';
 import { hasPowerRelic } from './powerRelics/index.js';
 
@@ -110,6 +112,16 @@ export function getActionData(key, side='player', actorOverride=null) {
       if (tech.id === 'atk_1_e') {
         const streak = G.battle && G.battle.techCounters ? (G.battle.techCounters.renzhuJian_streak || 0) : 0;
         if (streak >= 5) base.cost = 0;
+      }
+      // 词条【力大无穷】：重战技消耗 -1（最低 1）
+      if (tech.weight === 'heavy') {
+        const reduction = getHeavyTechCostReduction(G);
+        if (reduction > 0) base.cost = Math.max(1, base.cost - reduction);
+      }
+      // 词条【轻便灵巧】：轻战技消耗 -1（最低 1）
+      if (tech.weight === 'light') {
+        const reduction = getLightTechCostReduction(G);
+        if (reduction > 0) base.cost = Math.max(1, base.cost - reduction);
       }
     }
   }

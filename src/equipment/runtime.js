@@ -255,6 +255,16 @@ export function getAttackLevelTagModifier(input) {
   return -0.1 * weak;
 }
 
+/** 重战技 Ji 消耗减少量（力大无穷，每层 -1） */
+export function getHeavyTechCostReduction(input) {
+  return countActiveTag(input, 'equi_tag_po_b_4');
+}
+
+/** 轻战技 Ji 消耗减少量（轻便灵巧，每层 -1） */
+export function getLightTechCostReduction(input) {
+  return countActiveTag(input, 'equi_tag_po_b_5');
+}
+
 export function getDefenseTagBonus(input, actionKey) {
   if (actionKey !== 'defense_1' && actionKey !== 'defense_2') return 0;
   return countActiveTag(input, 'equi_tag_po_a_2');

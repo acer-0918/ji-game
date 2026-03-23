@@ -1073,6 +1073,13 @@ body {
 }
 .tech-lib-card.equipped .tech-lib-name { color: var(--purple); }
 .tech-lib-desc { font-size: .78em; color: var(--text-mid); line-height: 1.5; }
+.tech-weight-badge {
+  display: inline-block; font-size: .65em; font-weight: 700;
+  padding: 1px 5px; border-radius: 4px; margin-left: 5px;
+  vertical-align: middle; letter-spacing: .5px;
+}
+.tech-weight-badge.heavy { background: #7c3030; color: #ffd0b0; }
+.tech-weight-badge.light  { background: #1e4d6b; color: #b8e4ff; }
 .tech-lib-action {
   flex-shrink: 0; display: flex; align-items: center;
 }

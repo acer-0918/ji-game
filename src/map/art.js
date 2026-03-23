@@ -3,7 +3,7 @@ export function getMapNodeArtPath(nodeType) {
 }
 
 export function getMapEventArtPath(eventId) {
-  return `assets/map/events/${eventId}.png`;
+  return `assets/cards/event/${eventId}.png`;
 }
 
 export function getMapBackgroundArtPath(theme = 'default') {

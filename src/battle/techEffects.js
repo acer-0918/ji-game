@@ -10,6 +10,7 @@ import {
 } from '../logic.js';
 import { recordBossObservedTag } from '../ai.js';
 import { G } from '../state.js';
+import { TECH_DEFS } from '../battleTechniques.js';
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
 }
@@ -144,6 +145,19 @@ function applyProbDamageBonus(ctx) {
     const pct = Math.round(prob * 100);
     ctx.triggers.push(`${ctx.attackAction.name}（${pct}%概率触发）：命中后伤害 +1`);
   }
+}
+
+/** 重甲破击（坦克能力）：重战技命中时额外 +1 伤害 */
+function applyHeavyTechBoost(ctx) {
+  if (ctx.side !== 'player') return;
+  if (!G.abilities || !G.abilities.heavyTechBoost) return;
+  if (!ctx.attackAction || ctx.hitCount <= 0) return;
+  const techId = ctx.attackAction.techId;
+  if (!techId) return;
+  const def = TECH_DEFS[techId];
+  if (!def || def.weight !== 'heavy') return;
+  ctx.bonusDamage += 1;
+  ctx.triggers.push(`重甲破击：重战技命中，额外造成 1 点伤害。`);
 }
 
 /** 太刀：20% 概率递归追加 */
@@ -323,6 +337,7 @@ export function registerTechEffects(engine) {
   registerHitHook(applyFrostNovaOnHit);
   registerHitHook(applyPotCannonOnHit);
 
+  registerDamageTotalHook(applyHeavyTechBoost);
   registerDamageTotalHook(applyProbDamageBonus);
   registerDamageTotalHook(applyTachiFollowUp);
   registerDamageTotalHook(applyMeteorFollowUp);

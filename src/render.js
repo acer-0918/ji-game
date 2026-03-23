@@ -403,10 +403,15 @@ export function renderShop() {
       const replaceHint = equippedDef
         ? `购买后替换：${equippedDef.name} → ${def.name}`
         : `购买后装备到攻击${def.slot}类（替换基础攻击）`;
+      const shopWeightBadge = def.weight === 'heavy'
+        ? '<span class="tech-weight-badge heavy">重</span>'
+        : def.weight === 'light'
+          ? '<span class="tech-weight-badge light">轻</span>'
+          : '';
       card.innerHTML = `
         <div class="ab-icon">${def.emoji}</div>
         <div class="ab-info">
-          <div class="ab-name">${def.name}</div>
+          <div class="ab-name">${def.name}${shopWeightBadge}</div>
           <div class="ab-desc">类别：${category}</div>
           <div class="ab-desc replace-hint">${replaceHint}</div>
           <div class="ab-desc">${def.desc}</div>
@@ -773,11 +778,16 @@ export function renderTechniqueLibrary() {
             : `<button class="btn btn-outline tech-dev-btn" data-equip-tech="${tech.id}">装备</button>`
           }</div>`
         : '';
+      const weightBadge = tech.weight === 'heavy'
+        ? '<span class="tech-weight-badge heavy">重</span>'
+        : tech.weight === 'light'
+          ? '<span class="tech-weight-badge light">轻</span>'
+          : '';
       card.innerHTML = `
         <div class="tech-art-wrap">${artHtml}
         </div>
         <div class="tech-lib-info">
-          <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${tech.name}${isEquipped ? '（已装备）' : ''}</div>
+          <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${tech.name}${isEquipped ? '（已装备）' : ''}${weightBadge}</div>
           <div class="tech-lib-desc">${tech.desc}</div>
         </div>${devBtn}`;
       section.appendChild(card);

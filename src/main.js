@@ -536,7 +536,8 @@ function renderBattleRewardUI() {
         const replaceHint = equippedDef
           ? `将替换：${equippedDef.name} → ${def.name}`
           : `将装备到攻击${def.slot}类（替换基础攻击）`;
-        desc = `类别：${getTechniqueCategoryLabel(def)} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
+        const weightLabel = def.weight === 'heavy' ? '【重】' : def.weight === 'light' ? '【轻】' : '';
+        desc = `类别：${getTechniqueCategoryLabel(def)}${weightLabel} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
       } else {
         icon = '⚔';
         title = `战技：${item.id}`;
@@ -686,10 +687,15 @@ function renderEventTechPicker(techIds) {
     if (!def) return;
     const card = document.createElement('div');
     card.className = 'ab-node-card';
+    const eventWeightBadge = def.weight === 'heavy'
+      ? '<span class="tech-weight-badge heavy">重</span>'
+      : def.weight === 'light'
+        ? '<span class="tech-weight-badge light">轻</span>'
+        : '';
     card.innerHTML = `
       <div class="ab-icon">${def.emoji || '⚔'}</div>
       <div class="ab-info">
-        <div class="ab-name">${def.name}</div>
+        <div class="ab-name">${def.name}${eventWeightBadge}</div>
         <div class="ab-desc">类别：${getTechniqueCategoryLabel(def)}${def.desc ? ` · ${def.desc}` : ''}</div>
       </div>
       <div class="ab-action">

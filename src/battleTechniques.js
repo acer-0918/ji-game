@@ -17,6 +17,7 @@ export const TECH_DEFS = {
   atk_1_b: {
     id: 'atk_1_b',
     slot: 1,
+    weight: 'light',
     name: '小刀',
     emoji: '🗡️',
     desc: '【小刀】命中时有30%概率造成伤害+1。',
@@ -24,6 +25,7 @@ export const TECH_DEFS = {
   atk_1_c: {
     id: 'atk_1_c',
     slot: 1,
+    weight: 'light',
     name: '强化小刀',
     emoji: '🗡✨',
     desc: '【强化小刀】命中时有60%概率造成伤害+1。',
@@ -31,6 +33,7 @@ export const TECH_DEFS = {
   atk_1_d: {
     id: 'atk_1_d',
     slot: 1,
+    weight: 'light',
     name: '回旋镖',
     emoji: '🪃',
     desc: '【回旋镖】每命中一次时，下回合开始时+1Ji。',
@@ -38,6 +41,7 @@ export const TECH_DEFS = {
   atk_1_e: {
     id: 'atk_1_e',
     slot: 1,
+    weight: 'light',
     name: '连珠箭',
     emoji: '🏹',
     desc: '若前5回合连续使用【连珠箭】，则该回合使用【连珠箭】的消耗为0。',
@@ -54,6 +58,7 @@ export const TECH_DEFS = {
   atk_2_b: {
     id: 'atk_2_b',
     slot: 2,
+    weight: 'heavy',
     name: '大刀',
     emoji: '🔪',
     desc: '【大刀】命中时有30%概率造成伤害+1。',
@@ -61,6 +66,7 @@ export const TECH_DEFS = {
   atk_2_c: {
     id: 'atk_2_c',
     slot: 2,
+    weight: 'heavy',
     name: '强化大刀',
     emoji: '🔪✨',
     desc: '【强化大刀】命中时有60%概率造成伤害+1。',
@@ -68,6 +74,7 @@ export const TECH_DEFS = {
   atk_2_d: {
     id: 'atk_2_d',
     slot: 2,
+    weight: 'light',
     name: '太刀',
     emoji: '⚔️🐉',
     desc: '【太刀】每次命中时，有20%概率免费追加一次【太刀】攻击（登龙！）。追加的【太刀】同样有20%概率继续触发。',
@@ -84,6 +91,7 @@ export const TECH_DEFS = {
   atk_3_b: {
     id: 'atk_3_b',
     slot: 3,
+    weight: 'light',
     name: '冰刀',
     emoji: '❄️🗡️',
     desc: '【冰刀】命中时有30%概率造成伤害+1。',
@@ -91,6 +99,7 @@ export const TECH_DEFS = {
   atk_3_c: {
     id: 'atk_3_c',
     slot: 3,
+    weight: 'light',
     name: '强化冰刀',
     emoji: '❄️🗡✨',
     desc: '【强化冰刀】命中时有60%概率造成伤害+1。',
@@ -98,6 +107,7 @@ export const TECH_DEFS = {
   atk_3_d: {
     id: 'atk_3_d',
     slot: 3,
+    weight: 'heavy',
     name: '冰之盾',
     emoji: '🛡❄️',
     desc: '使用【冰之盾】时自带6防御等级。',
@@ -105,6 +115,7 @@ export const TECH_DEFS = {
   atk_3_e: {
     id: 'atk_3_e',
     slot: 3,
+    weight: 'light',
     name: '冰霜新星',
     emoji: '❄️💫',
     desc: '【冰霜新星】命中时，敌人下一回合无法使用任何等级的攻击。',
@@ -121,6 +132,7 @@ export const TECH_DEFS = {
   atk_4_b: {
     id: 'atk_4_b',
     slot: 4,
+    weight: 'light',
     name: '火刀',
     emoji: '🔥🗡️',
     desc: '【火刀】命中时有30%概率造成伤害+1。',
@@ -128,6 +140,7 @@ export const TECH_DEFS = {
   atk_4_c: {
     id: 'atk_4_c',
     slot: 4,
+    weight: 'light',
     name: '强化火刀',
     emoji: '🔥🗡✨',
     desc: '【强化火刀】命中时有60%概率造成伤害+1。',
@@ -135,6 +148,7 @@ export const TECH_DEFS = {
   atk_4_d: {
     id: 'atk_4_d',
     slot: 4,
+    weight: 'heavy',
     name: '火焰流星雨',
     emoji: '☄️🔥',
     desc: '若前3回合连续使用【火焰流星雨】，该回合命中后将免费追加3次【火焰流星雨】。',
@@ -142,6 +156,7 @@ export const TECH_DEFS = {
   atk_4_e: {
     id: 'atk_4_e',
     slot: 4,
+    weight: 'heavy',
     name: '日轮刀',
     emoji: '☀️⚔️',
     desc: '【日轮刀】命中时有90%概率造成伤害+1。',
@@ -158,6 +173,7 @@ export const TECH_DEFS = {
   atk_5_b: {
     id: 'atk_5_b',
     slot: 5,
+    weight: 'light',
     name: '鬼刀',
     emoji: '👻🗡️',
     desc: '【鬼刀】命中时有30%概率造成伤害+1。',
@@ -165,6 +181,7 @@ export const TECH_DEFS = {
   atk_5_c: {
     id: 'atk_5_c',
     slot: 5,
+    weight: 'light',
     name: '强化鬼刀',
     emoji: '👻🗡✨',
     desc: '【强化鬼刀】命中时有60%概率造成伤害+1。',
@@ -172,6 +189,7 @@ export const TECH_DEFS = {
   atk_5_d: {
     id: 'atk_5_d',
     slot: 5,
+    weight: 'light',
     name: '鬼头刀',
     emoji: '👹⚔️',
     desc: '【鬼头刀】的消耗为4Ji（而非5Ji）。',
@@ -189,6 +207,7 @@ export const TECH_DEFS = {
   atk_6_b: {
     id: 'atk_6_b',
     slot: 6,
+    weight: 'heavy',
     name: '六脉神剑',
     emoji: '⚡⚔️',
     desc: '【六脉神剑】命中时有30%概率造成伤害+1。',
@@ -196,6 +215,7 @@ export const TECH_DEFS = {
   atk_6_c: {
     id: 'atk_6_c',
     slot: 6,
+    weight: 'heavy',
     name: '强化六脉神剑',
     emoji: '⚡⚔✨',
     desc: '【强化六脉神剑】命中时有60%概率造成伤害+1。',
@@ -219,6 +239,7 @@ export const TECH_DEFS = {
   atk_7_b: {
     id: 'atk_7_b',
     slot: 7,
+    weight: 'heavy',
     name: '大炮',
     emoji: '💣💥',
     desc: '【大炮】命中时有30%概率造成伤害+1。',
@@ -226,6 +247,7 @@ export const TECH_DEFS = {
   atk_7_c: {
     id: 'atk_7_c',
     slot: 7,
+    weight: 'heavy',
     name: '强化大炮',
     emoji: '💣💥✨',
     desc: '【强化大炮】命中时有60%概率造成伤害+1。',
@@ -233,6 +255,7 @@ export const TECH_DEFS = {
   atk_7_d: {
     id: 'atk_7_d',
     slot: 7,
+    weight: 'heavy',
     name: '壶大炮',
     emoji: '🫙💥',
     desc: '【壶大炮】命中时使敌人的Ji数在下回合开始时-3（至多归零）。',
