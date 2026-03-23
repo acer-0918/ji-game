@@ -24,6 +24,7 @@ import {
   renderShop,
   renderEquipmentLibrary,
   renderTechniqueLibrary,
+  renderExperimentalBattleUi,
   resetRoundUI,
 } from './render.js';
 import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
@@ -76,6 +77,7 @@ const $ = (id) => document.getElementById(id);
 let selectedClassKey = null;
 const DEV_MODE_LS_KEY = 'ji_game_dev_mode';
 const NARROW_BATTLE_UI_LS_KEY = 'ji_game_narrow_battle_ui';
+const EXPERIMENTAL_BATTLE_UI_LS_KEY = 'ji_game_experimental_battle_ui';
 const DEV_FRAGMENTS = 999999999;
 const DEV_GOLD = 999999999;
 const FEEDBACK_URL = 'https://v.wjx.cn/vm/hhxTGwR.aspx#';
@@ -87,6 +89,8 @@ const BATTLE_TIMINGS = {
 const DELEGATION_PROBLEM_REVEAL_DELAY_MS = 800;
 let developerModeEnabled = false;
 let narrowBattleUiEnabled = false;
+let experimentalBattleUiEnabled = false;
+let experimentalDragState = null;
 const battleEngine = createBattleEngine();
 registerDefaultCombatEffects(battleEngine);
 registerDefaultRoundStartEffects(battleEngine);
@@ -112,6 +116,11 @@ try {
 } catch (_) {
   narrowBattleUiEnabled = false;
 }
+try {
+  experimentalBattleUiEnabled = window.localStorage.getItem(EXPERIMENTAL_BATTLE_UI_LS_KEY) === '1';
+} catch (_) {
+  experimentalBattleUiEnabled = false;
+}
 
 function persistDeveloperMode() {
   try {
@@ -124,6 +133,14 @@ function persistDeveloperMode() {
 function persistNarrowBattleUi() {
   try {
     window.localStorage.setItem(NARROW_BATTLE_UI_LS_KEY, narrowBattleUiEnabled ? '1' : '0');
+  } catch (_) {
+    // ignore storage failures
+  }
+}
+
+function persistExperimentalBattleUi() {
+  try {
+    window.localStorage.setItem(EXPERIMENTAL_BATTLE_UI_LS_KEY, experimentalBattleUiEnabled ? '1' : '0');
   } catch (_) {
     // ignore storage failures
   }
@@ -151,6 +168,16 @@ function refreshNarrowBattleUiButton() {
   btn.textContent = `窄屏战斗界面优化：${narrowBattleUiEnabled ? '开启' : '关闭'}`;
 }
 
+function applyExperimentalBattleUiClass() {
+  document.body.classList.toggle('experimental-battle-ui', !!experimentalBattleUiEnabled);
+}
+
+function refreshExperimentalBattleUiButton() {
+  const btn = $('btn-toggle-experimental-battle-ui');
+  if (!btn) return;
+  btn.textContent = `实验性战斗界面：${experimentalBattleUiEnabled ? '开启' : '关闭'}`;
+}
+
 function applyDeveloperModeToGameState() {
   G.devMode = developerModeEnabled;
   keepDeveloperResources();
@@ -172,6 +199,174 @@ function toggleNarrowBattleUi() {
   applyNarrowBattleUiClass();
   refreshNarrowBattleUiButton();
   if ($('screen-battle').classList.contains('active') && G.enemy) refreshBars();
+}
+
+function toggleExperimentalBattleUi() {
+  experimentalBattleUiEnabled = !experimentalBattleUiEnabled;
+  persistExperimentalBattleUi();
+  applyExperimentalBattleUiClass();
+  refreshExperimentalBattleUiButton();
+  if ($('screen-battle').classList.contains('active') && G.enemy) {
+    renderExperimentalBattleUi();
+    refreshBars();
+  }
+}
+
+function isExperimentalBattleUiActive() {
+  return !!(experimentalBattleUiEnabled && $('screen-battle') && $('screen-battle').classList.contains('active'));
+}
+
+function syncLiveBattleLogOverlay() {
+  const liveLog = $('live-battle-log');
+  const battleLog = $('battle-log');
+  if (!liveLog || !battleLog) return;
+  liveLog.innerHTML = battleLog.innerHTML || '';
+  liveLog.scrollTop = liveLog.scrollHeight;
+}
+
+function openLiveBattleLog() {
+  syncLiveBattleLogOverlay();
+  openOverlay('ov-live-battle-log');
+}
+
+function closeLiveBattleLog() {
+  closeOverlay('ov-live-battle-log');
+}
+
+function getActionCategoryForExperimentalUi(key) {
+  if (key === 'ji') return 'ji';
+  if (String(key).startsWith('defense_')) return 'def';
+  if (String(key).startsWith('attack_')) return 'atk';
+  return 'sp';
+}
+
+function previewExperimentalActionKey(key) {
+  const category = getActionCategoryForExperimentalUi(key);
+  if (category === 'ji') {
+    mainSelect('ji');
+  } else {
+    mainSelect(category);
+    subSelect(key);
+  }
+  renderExperimentalBattleUi();
+}
+
+function pulseExperimentalFeedback(targetId, className, duration = 360) {
+  const el = $(targetId);
+  if (!el) return;
+  el.classList.remove(className);
+  void el.offsetWidth;
+  el.classList.add(className);
+  window.setTimeout(() => el.classList.remove(className), duration);
+}
+
+function triggerExperimentalAttackFeedback() {
+  if (!isExperimentalBattleUiActive() || !G.battle || !G.battle.cardsRevealed) return;
+  const playerAction = getActionData(G.battle.pAction, 'player');
+  const enemyAction = getActionData(G.battle.eAction, 'enemy');
+  if (playerAction && playerAction.type === 'attack') pulseExperimentalFeedback('exp-player-portrait', 'attack-left', 320);
+  if (enemyAction && enemyAction.type === 'attack') pulseExperimentalFeedback('exp-enemy-portrait', 'attack-right', 320);
+  pulseExperimentalFeedback('exp-player-card', 'card-pulse', 320);
+  pulseExperimentalFeedback('exp-enemy-card', 'card-pulse', 320);
+}
+
+function triggerExperimentalHitFeedback(result) {
+  if (!isExperimentalBattleUiActive() || !result) return;
+  if (Number(result.pdmg || 0) > 0) pulseExperimentalFeedback('exp-player-portrait', 'taking-hit', 420);
+  if (Number(result.edmg || 0) > 0) pulseExperimentalFeedback('exp-enemy-portrait', 'taking-hit', 420);
+}
+
+function resetExperimentalDragState() {
+  if (experimentalDragState && experimentalDragState.cardEl) {
+    const card = experimentalDragState.cardEl;
+    card.classList.remove('dragging', 'drag-ready');
+    card.style.removeProperty('--drag-x');
+    card.style.removeProperty('--drag-y');
+    card.style.removeProperty('--drag-rotate');
+    if (experimentalDragState.pointerId != null && typeof card.releasePointerCapture === 'function') {
+      try {
+        card.releasePointerCapture(experimentalDragState.pointerId);
+      } catch (_) {
+        // ignore pointer capture release failures
+      }
+    }
+  }
+  const handShell = $('exp-battle-hand-shell');
+  if (handShell) handShell.classList.remove('dragging', 'ready');
+  experimentalDragState = null;
+}
+
+function canStartExperimentalDrag(card) {
+  if (!card || card.disabled) return false;
+  if (!isExperimentalBattleUiActive() || !G.battle || G.battle.phase !== 'select') return false;
+  if (hasDelegationProblemRelic()) return false;
+  return card.dataset.disabled !== 'true';
+}
+
+function handleExperimentalHandPointerDown(event) {
+  if (!isExperimentalBattleUiActive()) return;
+  const card = event.target.closest('.exp-hand-card[data-action]');
+  if (!canStartExperimentalDrag(card)) return;
+  experimentalDragState = {
+    key: card.dataset.action,
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    lastX: event.clientX,
+    lastY: event.clientY,
+    cardEl: card,
+    dragging: false,
+    releaseReady: false,
+  };
+  if (typeof card.setPointerCapture === 'function') {
+    try {
+      card.setPointerCapture(event.pointerId);
+    } catch (_) {
+      // ignore pointer capture failures
+    }
+  }
+}
+
+function handleExperimentalHandPointerMove(event) {
+  if (!experimentalDragState || event.pointerId !== experimentalDragState.pointerId) return;
+  const { startX, startY, cardEl } = experimentalDragState;
+  if (!cardEl) return;
+  const dx = event.clientX - startX;
+  const dy = event.clientY - startY;
+  experimentalDragState.lastX = event.clientX;
+  experimentalDragState.lastY = event.clientY;
+  if (!experimentalDragState.dragging && Math.hypot(dx, dy) < 10) return;
+  experimentalDragState.dragging = true;
+  cardEl.classList.add('dragging');
+  cardEl.style.setProperty('--drag-x', `${dx}px`);
+  cardEl.style.setProperty('--drag-y', `${dy}px`);
+  cardEl.style.setProperty('--drag-rotate', `${Math.max(-8, Math.min(8, dx * 0.04))}deg`);
+  const handShell = $('exp-battle-hand-shell');
+  let ready = false;
+  if (handShell) {
+    handShell.classList.add('dragging');
+    const rect = handShell.getBoundingClientRect();
+    ready = event.clientY < rect.top + 8;
+    handShell.classList.toggle('ready', ready);
+  }
+  experimentalDragState.releaseReady = ready;
+  cardEl.classList.toggle('drag-ready', ready);
+}
+
+function handleExperimentalHandPointerUp(event) {
+  if (!experimentalDragState || event.pointerId !== experimentalDragState.pointerId) return;
+  const state = experimentalDragState;
+  const shouldRelease = !!(state.dragging && state.releaseReady);
+  const actionKey = state.key;
+  resetExperimentalDragState();
+  if (!actionKey) return;
+  if (shouldRelease) {
+    if (!(G.ui && G.ui.actionKey === actionKey)) previewExperimentalActionKey(actionKey);
+    confirmAction({ forceActionKey: actionKey });
+    renderExperimentalBattleUi();
+    return;
+  }
+  previewExperimentalActionKey(actionKey);
 }
 
 function getRoundBlockedSet() {
@@ -1091,6 +1286,8 @@ async function startHardGame() {
 function updateHardBadge(show) {
   const badge = $('hard-badge');
   if (badge) badge.style.display = show ? '' : 'none';
+  const expBadge = $('exp-hard-badge');
+  if (expBadge) expBadge.style.display = show ? '' : 'none';
 }
 
 function restartRun() {
@@ -1169,6 +1366,7 @@ function startBattle(node, keepSnapshot=false) {
     roundDisabledActions:[],
     reunionDamageBonus:0,
     killedByDestinedFirstSight:false,
+    cardsRevealed:false,
     equipment:createBattleEquipmentState(),
   };
   G.ui = {mainSel:null, actionKey:null};
@@ -1190,15 +1388,18 @@ function startBattle(node, keepSnapshot=false) {
   function loadPortrait(frameId, imgId, src) {
     const frame = $(frameId);
     const img = $(imgId);
+    if (!frame || !img) return;
     frame.classList.remove('has-art');
     img.onload  = () => frame.classList.add('has-art');
     img.onerror = () => frame.classList.remove('has-art');
     img.src = src;
   }
-  loadPortrait('b-player-portrait', 'b-player-portrait-img',
-    `assets/portraits/player_${G.player.classKey}.png`);
-  loadPortrait('b-enemy-portrait', 'b-enemy-portrait-img',
-    `assets/portraits/enemy_${G.enemy.id.toLowerCase()}.png`);
+  const playerPortraitSrc = `assets/portraits/player_${G.player.classKey}.png`;
+  const enemyPortraitSrc = `assets/portraits/enemy_${G.enemy.id.toLowerCase()}.png`;
+  loadPortrait('b-player-portrait', 'b-player-portrait-img', playerPortraitSrc);
+  loadPortrait('b-enemy-portrait', 'b-enemy-portrait-img', enemyPortraitSrc);
+  loadPortrait('exp-player-portrait', 'exp-player-portrait-img', playerPortraitSrc);
+  loadPortrait('exp-enemy-portrait', 'exp-enemy-portrait-img', enemyPortraitSrc);
 
   renderEnemyStateTags();
   renderPassiveTags('battle-passive-tags');
@@ -1232,6 +1433,7 @@ function startBattle(node, keepSnapshot=false) {
   resetRoundUI();
   hideHuntRhythmPanel();
   refreshBars();
+  renderExperimentalBattleUi();
   applyDelegationProblemUiLock();
   runAfter(0, maybeAutoSubmitDelegationProblemAction);
   showScreen('battle');
@@ -1262,6 +1464,7 @@ function mainSelect(category) {
   $('sel-preview-text').textContent = `⚡ 蓄力 (+${action.gain}Ji)`;
     $('btn-confirm').disabled = false;
     hideHuntRhythmPanel();
+    renderExperimentalBattleUi();
     return;
   }
 
@@ -1279,6 +1482,7 @@ function mainSelect(category) {
   if (G.ui.mainSel === category) {
     G.ui.mainSel = null;
     hideHuntRhythmPanel();
+    renderExperimentalBattleUi();
     return;
   }
 
@@ -1286,6 +1490,7 @@ function mainSelect(category) {
   $(btnMap[category]).classList.add('sel');
   $(panelMap[category]).classList.add('show');
   hideHuntRhythmPanel();
+  renderExperimentalBattleUi();
 }
 
 function subSelect(key) {
@@ -1312,6 +1517,7 @@ function subSelect(key) {
   $('sel-preview-text').textContent = `${action.emoji} ${action.name}${playedSubText ? ` (${playedSubText})` : ''}`;
   $('btn-confirm').disabled = false;
   updateHuntRhythmPanelForAction(key);
+  renderExperimentalBattleUi();
 }
 
 function confirmAction(options = {}) {
@@ -1327,10 +1533,13 @@ function confirmAction(options = {}) {
   G.battle.pAction = actionKey;
   G.battle.eAction = aiDecide(G.enemy);
   G.battle.phase = 'reveal';
+  G.battle.cardsRevealed = false;
   hideHuntRhythmPanel();
+  resetExperimentalDragState();
   $('action-area').style.pointerEvents = 'none';
   $('btn-confirm').disabled = true;
   $('round-phase').textContent = '揭示中...';
+  renderExperimentalBattleUi();
   runAfter(getRevealDelayMs(), doReveal);
 }
 
@@ -1342,6 +1551,9 @@ function doReveal() {
   enemyCard.innerHTML = `<div class="ac-emoji">${enemyAction.emoji}</div><div class="ac-name">${enemyAction.name}</div><div class="ac-sub">${enemySubText}</div>`;
   $('player-card').className = 'reveal-card revealed-player';
   $('round-phase').textContent = '结算中...';
+  G.battle.cardsRevealed = true;
+  renderExperimentalBattleUi();
+  triggerExperimentalAttackFeedback();
   runAfter(BATTLE_TIMINGS.RESOLVE_DELAY_MS, doResolve);
 }
 
@@ -1352,6 +1564,7 @@ function doResolve() {
   G.battle.lastPlayerAction = G.battle.pAction;
   G.battle.lastEnemyAction = G.battle.eAction;
   refreshBars();
+  triggerExperimentalHitFeedback(resolveCtx.result);
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
     if (G.battle && G.battle.huntRhythmPending) {
@@ -1413,6 +1626,8 @@ function endBattle(win) {
   clearRelicChoiceUI();
   clearBattleRewardUI();
   hideHuntRhythmPanel();
+  resetExperimentalDragState();
+  closeLiveBattleLog();
   if (G.battle) G.battle.huntRhythmPending = null;
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
@@ -1465,7 +1680,7 @@ function endBattle(win) {
     logDetails.open = false;
     logSnapshot.innerHTML = (battleLog && battleLog.innerHTML)
       ? battleLog.innerHTML
-      : '<div class="log-item">暂无日志。</div>';
+      : '';
   }
 
   G.enemy = null;
@@ -1489,6 +1704,8 @@ function closeBattleOverlay() {
 
 function openSettings() {
   refreshDeveloperModeButton();
+  refreshNarrowBattleUiButton();
+  refreshExperimentalBattleUiButton();
   openOverlay('ov-settings');
 }
 function closeSettings() { closeOverlay('ov-settings'); }
@@ -1715,6 +1932,7 @@ function bindStaticEvents() {
   });
   $('btn-toggle-devmode')?.addEventListener('click', toggleDeveloperMode);
   $('btn-toggle-narrow-ui')?.addEventListener('click', toggleNarrowBattleUi);
+  $('btn-toggle-experimental-battle-ui')?.addEventListener('click', toggleExperimentalBattleUi);
   $('btn-intro')?.addEventListener('click', () => openIntro());
   $('btn-intro-battle')?.addEventListener('click', () => openIntro(G.player.classKey));
   $('btn-intro-close')?.addEventListener('click', closeIntro);
@@ -1744,6 +1962,15 @@ function bindStaticEvents() {
   $('btn-profile-shop')?.addEventListener('click', openProfile);
   $('btn-profile-event')?.addEventListener('click', openProfile);
   $('btn-profile-close')?.addEventListener('click', closeProfile);
+  $('btn-exp-tech-lib')?.addEventListener('click', openTechLibrary);
+  $('btn-exp-equip-lib')?.addEventListener('click', openEquipLibrary);
+  $('btn-exp-intro')?.addEventListener('click', () => openIntro(G.player && G.player.classKey ? G.player.classKey : undefined));
+  $('btn-exp-profile')?.addEventListener('click', openProfile);
+  $('btn-exp-restart')?.addEventListener('click', restartBattle);
+  $('btn-exp-surrender')?.addEventListener('click', askSurrender);
+  $('btn-exp-settings')?.addEventListener('click', openSettings);
+  $('btn-exp-battle-log')?.addEventListener('click', openLiveBattleLog);
+  $('btn-live-log-close')?.addEventListener('click', closeLiveBattleLog);
 
   // Dev mode: equip/unequip techniques from the library
   $('tech-lib-slots')?.addEventListener('click', (event) => {
@@ -1902,8 +2129,21 @@ function bindStaticEvents() {
     });
   }
 
+  const experimentalHand = $('exp-battle-hand');
+  if (experimentalHand) {
+    experimentalHand.addEventListener('pointerdown', handleExperimentalHandPointerDown);
+    experimentalHand.addEventListener('pointermove', handleExperimentalHandPointerMove);
+    experimentalHand.addEventListener('pointerup', handleExperimentalHandPointerUp);
+    experimentalHand.addEventListener('pointercancel', resetExperimentalDragState);
+    experimentalHand.addEventListener('pointerleave', (event) => {
+      if (!experimentalDragState) return;
+      if (event.pointerType === 'mouse' && !experimentalDragState.dragging) resetExperimentalDragState();
+    });
+  }
+
   window.addEventListener('resize', () => {
     applyNarrowBattleUiClass();
+    applyExperimentalBattleUiClass();
     if ($('screen-battle').classList.contains('active') && G.enemy) refreshBars();
   });
 
@@ -2016,6 +2256,7 @@ function handleKeydown(e) {
     document.querySelectorAll('.action-card-btn').forEach((b) => b.classList.remove('sel'));
     G.ui.mainSel = null;
     hideHuntRhythmPanel();
+    renderExperimentalBattleUi();
     return;
   }
 
@@ -2052,8 +2293,10 @@ function bootstrap() {
   initGame();
   applyDeveloperModeToGameState();
   applyNarrowBattleUiClass();
+  applyExperimentalBattleUiClass();
   refreshDeveloperModeButton();
   refreshNarrowBattleUiButton();
+  refreshExperimentalBattleUiButton();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);

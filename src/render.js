@@ -1,6 +1,6 @@
 import { CLASS_DEFS, MAX_JI_DISPLAY, ORB_META, ORB_KEYS, SHOP_ITEMS } from './data.js';
 import { G, getPlayerJiRate, isJiHiddenBattle, orbCount, orbUniqueCount } from './state.js';
-import { getActionData } from './logic.js';
+import { getActionData, getActionSubText } from './logic.js';
 import { TECH_DEFS, getTechDefsForSlot, getTechniqueCategoryLabel } from './battleTechniques.js';
 import { getEquipmentCardArtPath } from './equipment/art.js';
 import { EQUIPMENT_DEFS, getEquipmentDef } from './equipment/defs.js';
@@ -38,7 +38,7 @@ export function renderBadgeList(id, badges, emptyText='暂无') {
   });
 }
 
-export function getPassiveBadges() {
+export function getPassiveBadges({ includeResources = true, includeTechniques = true } = {}) {
   const arr = [];
   const classDef = CLASS_DEFS[G.player.classKey];
   const allAbilities = classDef ? [...classDef.abilityDefs] : [];
@@ -75,14 +75,16 @@ export function getPassiveBadges() {
   POWER_RELIC_DEFS.forEach((item) => {
     if (hasPowerRelic(G, item.key)) arr.push({icon:item.icon, name:item.name, detail:item.desc});
   });
-  if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`, detail:'法师资源：用于释放一重释放。'});
-  if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`, detail:'小狗资源：影响幸运回复与幸运蓄力触发率。'});
-  if (G.player.classKey === 'nsyc') {
-    arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`, detail:'nsyc 资源：用于释放厄介。'});
-    if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发', detail:'厄介已蓄势，将在下回合开始时结算伤害。'});
+  if (includeResources) {
+    if (G.player.classKey === 'mage') arr.push({icon:'⚡', name:`闪电球 ×${G.player.lightningOrbs || 0}`, detail:'法师资源：用于释放一重释放。'});
+    if (G.player.classKey === 'dog') arr.push({icon:'🍀', name:`幸运值 ×${G.player.luck || 0}`, detail:'小狗资源：影响幸运回复与幸运蓄力触发率。'});
+    if (G.player.classKey === 'nsyc') {
+      arr.push({icon:'🤬', name:`傻逼层数 ×${G.player.shaBiStacks || 0}`, detail:'nsyc 资源：用于释放厄介。'});
+      if (G.battle && G.battle.ekaiPending) arr.push({icon:'💢', name:'厄介待发', detail:'厄介已蓄势，将在下回合开始时结算伤害。'});
+    }
   }
   // 已装备战技
-  if (G.techniques) {
+  if (includeTechniques && G.techniques) {
     for (let slot = 1; slot <= 7; slot++) {
       const id = G.techniques[slot];
       const def = id && TECH_DEFS[id];
@@ -104,18 +106,18 @@ export function getEnemyStateBadges() {
   const arr = [];
   if (!G.enemy) return arr;
   if (G.enemy.id === 'jiaxu') {
-    arr.push({icon:'🌫️', name:'无知之幕：双方 Ji 数量隐藏'});
+    arr.push({icon:'🌫️', name:'无知之幕：双方 Ji 数量隐藏', detail:'贾诩展开无知之幕，战斗中双方的 Ji 数值都会被隐藏。'});
   }
   if (G.enemy.id === 'gufu') {
-    arr.push({icon:'👑', name:`野性之心 当前 +${G.enemy.chargeValue || 1}Ji`});
+    arr.push({icon:'👑', name:`野性之心 当前 +${G.enemy.chargeValue || 1}Ji`, detail:'古夫每次使用野性之心都会成长，下次使用时获得更多 Ji。'});
   }
   if (G.enemy.id === 'faultRobot') {
-    arr.push({icon:'🧪', name:`充能球图谱 ${orbUniqueCount(G.enemy)}/5`});
+    arr.push({icon:'🧪', name:`充能球图谱 ${orbUniqueCount(G.enemy)}/5`, detail:'故障机器人会生成五类充能球；当五类都已出现后，再次启动将直接消灭玩家。'});
     ORB_KEYS.forEach((k) => {
       const c = orbCount(G.enemy, k);
-      if (c > 0) arr.push({icon:ORB_META[k].icon, name:`${ORB_META[k].name} ×${c}`});
+      if (c > 0) arr.push({icon:ORB_META[k].icon, name:`${ORB_META[k].name} ×${c}`, detail:`当前拥有 ${c} 个${ORB_META[k].name}。`});
     });
-    if (!arr.some((x) => x.name.includes('×'))) arr.push({icon:'🤖', name:'尚未生成任何充能球'});
+    if (!arr.some((x) => x.name.includes('×'))) arr.push({icon:'🤖', name:'尚未生成任何充能球', detail:'当前还没有任何充能球生成。'});
   }
   return arr;
 }
@@ -171,6 +173,448 @@ export function renderEquipSlots(id) {
     }
     wrap.appendChild(slot);
   }
+}
+
+function renderExperimentalChipRow(id, items, { iconOnly = false } = {}) {
+  const wrap = $(id);
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const list = Array.isArray(items) ? items : [];
+  wrap.classList.toggle('is-empty', list.length <= 0);
+  wrap.style.display = 'flex';
+
+  list.forEach((item) => {
+    const el = document.createElement(iconOnly ? 'button' : 'div');
+    el.className = `${iconOnly ? 'exp-icon-chip' : 'exp-value-chip'}${item.detail ? ' detail-target' : ''}`;
+    if (iconOnly) {
+      el.type = 'button';
+      el.textContent = item.icon || '•';
+    } else {
+      el.innerHTML = `
+        <span class="exp-chip-icon">${item.icon || '•'}</span>
+        ${item.valueText ? `<span class="exp-chip-value">${item.valueText}</span>` : ''}`;
+    }
+    if (item.detail) {
+      el.dataset.detailTitle = item.title || `${item.icon || ''} ${item.name || '效果'}`.trim();
+      el.dataset.detail = item.detail;
+    }
+    wrap.appendChild(el);
+  });
+}
+
+function syncExperimentalBattleLogPanels() {
+  const battleLog = $('battle-log');
+  const logHtml = battleLog && battleLog.innerHTML ? battleLog.innerHTML : '';
+
+  const inlineLog = $('exp-inline-battle-log');
+  if (inlineLog) {
+    inlineLog.innerHTML = logHtml;
+    inlineLog.scrollTop = inlineLog.scrollHeight;
+  }
+
+  const liveLog = $('live-battle-log');
+  if (liveLog) {
+    liveLog.innerHTML = logHtml;
+    liveLog.scrollTop = liveLog.scrollHeight;
+  }
+}
+
+export function getPlayerBattleValueBadges() {
+  const arr = [];
+  if (!G.player) return arr;
+
+  if (G.battle && G.battle.equipment && Number(G.battle.equipment.haoYi || 0) > 0) {
+    arr.push({
+      icon: '🥊',
+      valueText: String(G.battle.equipment.haoYi || 0),
+      title: '🥊 豪意值',
+      detail: '来自装备【蓄意轰拳】。完全防御成功后会积累豪意值，下次攻击命中时按比例转化为额外伤害。',
+    });
+  }
+
+  if (G.battle && G.battle.equipment && G.battle.equipment.barrierActive) {
+    arr.push({
+      icon: '🧱',
+      valueText: '+3',
+      title: '🧱 壁垒生效',
+      detail: '来自装备【壁垒】。本回合你的防御基础等级额外 +3。',
+    });
+  } else if (G.battle && G.battle.equipment && G.battle.equipment.barrierReady) {
+    arr.push({
+      icon: '🧱',
+      valueText: '待机',
+      title: '🧱 壁垒待命',
+      detail: '来自装备【壁垒】。下回合开始时你的防御基础等级将额外 +3。',
+    });
+  }
+
+  if (G.battle && Number(G.battle.reunionDamageBonus || 0) > 0) {
+    arr.push({
+      icon: '🕊️',
+      valueText: `+${G.battle.reunionDamageBonus || 0}`,
+      title: '🕊️ 可能的重逢',
+      detail: '来自遗物【可能的重逢】。敌人每使用一次超防，你在本场战斗中的所有伤害都会增加。',
+    });
+  }
+
+  if (G.battle && G.battle.popcornPending) {
+    arr.push({
+      icon: '🍿',
+      valueText: '+2',
+      title: '🍿 爆米待发',
+      detail: '来自能力【爆米】。因为你上回合受到了伤害，下回合开始时将获得 2 Ji。',
+    });
+  }
+
+  const techCounters = G.battle && G.battle.techCounters ? G.battle.techCounters : null;
+  if (techCounters && Number(techCounters.boomerang_pending || 0) > 0) {
+    arr.push({
+      icon: '🪃',
+      valueText: `+${techCounters.boomerang_pending || 0}`,
+      title: '🪃 回旋镖待发',
+      detail: '回旋镖命中后累计的回合开始 Ji 奖励。',
+    });
+  }
+  if (techCounters && Number(techCounters.dice_pending || 0) > 0) {
+    arr.push({
+      icon: '🎲',
+      valueText: `+${techCounters.dice_pending || 0}`,
+      title: '🎲 掷骰待发',
+      detail: '上回合使用掷骰后，回合开始时会获得对应的 Ji 奖励。',
+    });
+  }
+  if (techCounters && Number(techCounters.pot_cannon_pending || 0) > 0) {
+    arr.push({
+      icon: '🫙',
+      valueText: `-${techCounters.pot_cannon_pending || 0}`,
+      title: '🫙 壶大炮压制',
+      detail: '壶大炮已经命中，敌方将在下回合开始时失去对应数量的 Ji。',
+    });
+  }
+
+  if (hasPowerRelic(G, 'deification')) {
+    const totalCoreKinds = ORB_KEYS.filter((key) => Number((G.player.coreOrbs || {})[key] || 0) > 0).length;
+    arr.push({
+      icon: '⚙️',
+      valueText: `${totalCoreKinds}/5`,
+      title: '⚙️ 完美核心图谱',
+      detail: '完美核心会生成五类充能球。下方图标展示每一类当前的持有数量。',
+    });
+    ORB_KEYS.forEach((key) => {
+      const count = Number((G.player.coreOrbs || {})[key] || 0);
+      if (count <= 0) return;
+      arr.push({
+        icon: ORB_META[key].icon,
+        valueText: String(count),
+        title: `${ORB_META[key].icon} ${ORB_META[key].name}`,
+        detail: `完美核心当前拥有 ${count} 个${ORB_META[key].name}。`,
+      });
+    });
+  }
+
+  return arr;
+}
+
+export function getEnemyBattleValueBadges() {
+  const arr = [];
+  if (!G.enemy) return arr;
+
+  if (G.enemy.id === 'jiaxu') {
+    arr.push({
+      icon: '🌫️',
+      valueText: '隐',
+      title: '🌫️ 无知之幕',
+      detail: '贾诩隐藏了双方的 Ji 数量。你仍然需要根据战场局势判断资源状态。',
+    });
+  }
+
+  if (G.enemy.id === 'gufu') {
+    arr.push({
+      icon: '👑',
+      valueText: `+${G.enemy.chargeValue || 1}`,
+      title: '👑 野性之心',
+      detail: '古夫下次使用野性之心时将获得这么多 Ji，而且这个数字会继续成长。',
+    });
+  }
+
+  if (G.enemy.id === 'faultRobot') {
+    arr.push({
+      icon: '🧪',
+      valueText: `${orbUniqueCount(G.enemy)}/5`,
+      title: '🧪 充能球图谱',
+      detail: '故障机器人已经解锁的充能球种类数。五类都齐后，再次启动会触发过载终焉。',
+    });
+    ORB_KEYS.forEach((key) => {
+      const count = orbCount(G.enemy, key);
+      if (count <= 0) return;
+      arr.push({
+        icon: ORB_META[key].icon,
+        valueText: String(count),
+        title: `${ORB_META[key].icon} ${ORB_META[key].name}`,
+        detail: `故障机器人当前拥有 ${count} 个${ORB_META[key].name}。`,
+      });
+    });
+  }
+
+  return arr;
+}
+
+function getExperimentalRoomText() {
+  if (!G.currentNode) return '战斗';
+  const typeLabel = G.currentNode.type === 'boss'
+    ? 'Boss 战'
+    : G.currentNode.type === 'elite'
+      ? '精英战'
+      : G.currentNode.type === 'battle'
+        ? '普通战'
+        : '战斗';
+  const enemyPart = G.enemy ? ` · ${G.enemy.name}` : '';
+  return `${typeLabel}${enemyPart}`;
+}
+
+function setExperimentalRevealCard(cardId, emojiId, mainId, subId, action, { facedown = false } = {}) {
+  const card = $(cardId);
+  if (!card) return;
+  if (facedown) {
+    card.className = 'reveal-card facedown exp-reveal-card';
+    card.innerHTML = '<div class="ac-emoji">🂠</div><div class="ac-name">???</div><div class="ac-sub"></div>';
+    return;
+  }
+
+  if (!action) {
+    card.className = 'reveal-card exp-reveal-card';
+    if (emojiId && mainId && subId) {
+      $(emojiId).textContent = '　';
+      $(mainId).textContent = '—';
+      $(subId).textContent = '';
+    } else {
+      card.innerHTML = '<div class="ac-emoji">　</div><div class="ac-name">—</div><div class="ac-sub"></div>';
+    }
+    return;
+  }
+
+  const subText = getActionSubText(action);
+  card.className = `reveal-card exp-reveal-card${cardId.includes('enemy') ? ' revealed-enemy' : ' revealed-player'}`;
+  if (emojiId && mainId && subId) {
+    $(emojiId).textContent = action.emoji || '　';
+    $(mainId).textContent = action.name || '—';
+    $(subId).textContent = subText;
+  } else {
+    card.innerHTML = `
+      <div class="ac-emoji">${action.emoji || '　'}</div>
+      <div class="ac-name">${action.name || '—'}</div>
+      <div class="ac-sub">${subText}</div>`;
+  }
+}
+
+function setExperimentalBar(barId, valId, cur, max) {
+  const bar = $(barId);
+  const val = $(valId);
+  if (!bar || !val) return;
+  const ratio = max > 0 ? Math.max(0, cur / max * 100) : 0;
+  bar.style.width = `${ratio}%`;
+  val.textContent = `${Math.max(0, cur)}/${max}`;
+}
+
+function setExperimentalJiBar(barId, valId, value, max, hidden) {
+  const bar = $(barId);
+  const val = $(valId);
+  if (!bar || !val) return;
+  if (hidden) {
+    bar.style.width = '100%';
+    bar.style.opacity = '0.16';
+    bar.style.filter = 'grayscale(1)';
+    val.textContent = '??';
+    return;
+  }
+  bar.style.width = `${Math.min((value / max) * 100, 100)}%`;
+  bar.style.opacity = '1';
+  bar.style.filter = 'none';
+  val.textContent = String(value);
+}
+
+function getExperimentalCardHint(action, key) {
+  if (!action) return '';
+  if (key === 'ji') return `+${action.gain || 0}Ji`;
+  if (action.isMageRelease) return `等级${action.atk}·持有${G.player.lightningOrbs || 0}`;
+  if (action.type === 'defense') return `防御${action.def || 0}`;
+  if (action.type === 'attack') return action.def > 0 ? `等级${action.atk}·防${action.def}` : `等级${action.atk}`;
+  if (action.type === 'ekai') return `持有${G.player.shaBiStacks || 0}层`;
+  if (action.type === 'fault_orb') return '随机充能球';
+  if (action.type === 'dev_kill') return '敌方立刻归零';
+  return '';
+}
+
+function buildExperimentalBattleCards() {
+  const groups = [];
+  const blocked = new Set((G.battle && G.battle.roundDisabledActions) || []);
+  const defenseForbidden = hasPowerRelic(G, 'possibleReunion');
+  const interactionLocked = !G.battle || G.battle.phase !== 'select' || hasPowerRelic(G, 'delegationProblem');
+
+  function buildCard(key, group) {
+    const action = getActionData(key, 'player');
+    if (!action) return null;
+    const blockedByRound = key.startsWith('defense_')
+      ? defenseForbidden || blocked.has(key)
+      : blocked.has(key);
+    const insufficient = action.isMageRelease
+      ? !!action.disabledByOrbs
+      : (action.cost || 0) > Number(G.player && G.player.ji || 0);
+    const disabled = interactionLocked || blockedByRound || insufficient || !!action.disabledByOrbs;
+    let costText = key === 'ji' ? 'J' : `${action.cost || 0}`;
+    if (action.isMageRelease) costText = `${action.orbCost || 0}⚡`;
+    else if (action.type === 'ekai') costText = `${action.stackCost || 4}🤬`;
+    else if (action.type === 'dev_kill') costText = 'DEV';
+
+    return {
+      key,
+      group,
+      action,
+      blockedByRound,
+      disabled,
+      selected: G.ui && G.ui.actionKey === key,
+      costText,
+      hintText: getExperimentalCardHint(action, key),
+    };
+  }
+
+  const chargeCards = [buildCard('ji', 'charge')].filter(Boolean);
+  groups.push({ key: 'charge', label: '蓄力', cards: chargeCards });
+
+  const defenseCards = ['defense_0', 'defense_1', 'defense_2'].map((key) => buildCard(key, 'defense')).filter(Boolean);
+  groups.push({ key: 'defense', label: '防守', cards: defenseCards });
+
+  const attackCards = ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7']
+    .map((key) => buildCard(key, 'attack'))
+    .filter(Boolean);
+  groups.push({ key: 'attack', label: '攻击', cards: attackCards });
+
+  const specialKeys = [];
+  if (G.player && G.player.classKey === 'mage') specialKeys.push('mage_release');
+  if (G.player && G.player.classKey === 'nsyc') specialKeys.push('ekai');
+  if (hasPowerRelic(G, 'deification')) specialKeys.push('perfect_core');
+  if (G.devMode) specialKeys.push('dev_kill');
+  const specialCards = specialKeys.map((key) => buildCard(key, 'special')).filter(Boolean);
+  if (specialCards.length > 0) {
+    groups.push({ key: 'special', label: '特殊', cards: specialCards });
+  }
+
+  return groups;
+}
+
+function renderExperimentalBattleHand() {
+  const wrap = $('exp-battle-hand');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const groups = buildExperimentalBattleCards();
+  const focusedGroup = G.ui && G.ui.mainSel
+    ? (G.ui.mainSel === 'def'
+      ? 'defense'
+      : G.ui.mainSel === 'atk'
+        ? 'attack'
+        : G.ui.mainSel === 'sp'
+          ? 'special'
+          : '')
+    : '';
+  groups.forEach((group) => {
+    const section = document.createElement('div');
+    const groupFocused = !!focusedGroup && focusedGroup === group.key;
+    section.className = `exp-card-group${groupFocused ? ' active' : ''}`;
+    section.dataset.group = group.key;
+
+    const title = document.createElement('div');
+    title.className = 'exp-card-group-title';
+    title.textContent = group.label;
+    section.appendChild(title);
+
+    const fan = document.createElement('div');
+    fan.className = 'exp-card-fan';
+    group.cards.forEach((card, idx) => {
+      const btn = document.createElement('button');
+      const fanSpread = group.cards.length >= 5 ? 18 : group.cards.length >= 3 ? 14 : 0;
+      btn.type = 'button';
+      btn.className = `exp-hand-card${groupFocused ? ' group-focused' : ''}${card.selected ? ' selected' : ''}${card.blockedByRound ? ' blocked' : ''}`;
+      btn.dataset.action = card.key;
+      btn.dataset.group = card.group;
+      btn.dataset.disabled = card.disabled ? 'true' : 'false';
+      btn.dataset.blocked = card.blockedByRound ? 'true' : 'false';
+      btn.style.setProperty(
+        '--exp-angle',
+        `${group.cards.length <= 1 ? 0 : (-fanSpread / 2) + (fanSpread * idx / Math.max(1, group.cards.length - 1))}deg`,
+      );
+      btn.style.setProperty('--exp-z', String(6 + idx));
+      btn.disabled = card.disabled;
+      btn.innerHTML = `
+        <span class="exp-card-cost">${card.costText}</span>
+        ${card.blockedByRound ? '<span class="exp-card-disabled-mark">禁</span>' : ''}
+        <div class="exp-card-icon">${card.action.emoji || '•'}</div>
+        <div class="exp-card-name">${card.action.name}</div>
+        <div class="exp-card-hint">${card.hintText || ''}</div>`;
+      fan.appendChild(btn);
+    });
+    section.appendChild(fan);
+    wrap.appendChild(section);
+  });
+}
+
+export function renderExperimentalBattleUi() {
+  if (!G.player || !G.battle) return;
+
+  const roomLabel = $('exp-battle-room');
+  if (roomLabel) roomLabel.textContent = getExperimentalRoomText();
+  const roundLabel = $('exp-round-label');
+  if (roundLabel) roundLabel.textContent = `第 ${G.battle.round || 1} 回合`;
+  const phaseLabel = $('exp-phase-label');
+  if (phaseLabel) {
+    const legacyPhase = $('round-phase');
+    phaseLabel.textContent = legacyPhase ? legacyPhase.textContent : (G.battle.phase === 'select' ? '选择行动' : '结算中...');
+  }
+
+  const expHardBadge = $('exp-hard-badge');
+  if (expHardBadge) expHardBadge.style.display = G.hardMode ? '' : 'none';
+
+  const playerStageName = $('exp-player-stage-name');
+  if (playerStageName) playerStageName.textContent = G.player.name || '玩家';
+  const enemyStageName = $('exp-enemy-stage-name');
+  if (enemyStageName) enemyStageName.textContent = G.enemy ? G.enemy.name : '敌人';
+  const playerEmoji = $('exp-player-portrait-emoji');
+  if (playerEmoji) playerEmoji.textContent = G.player.classIcon || '🗡️';
+  const enemyEmoji = $('exp-enemy-portrait-emoji');
+  if (enemyEmoji) enemyEmoji.textContent = G.enemy ? (G.enemy.emoji || '👹') : '👹';
+
+  renderExperimentalChipRow('exp-player-icon-row', getPassiveBadges({ includeResources: true, includeTechniques: false }), {
+    iconOnly: true,
+  });
+  renderExperimentalChipRow('exp-player-values', getPlayerBattleValueBadges());
+  renderExperimentalChipRow('exp-enemy-values', getEnemyBattleValueBadges());
+  syncExperimentalBattleLogPanels();
+
+  setExperimentalBar('exp-player-hp-bar', 'exp-player-hp-val', G.player.hp, G.player.maxHp);
+  if (G.enemy) setExperimentalBar('exp-enemy-hp-bar', 'exp-enemy-hp-val', G.enemy.hp, G.enemy.maxHp);
+  const hideJi = isJiHiddenBattle();
+  setExperimentalJiBar('exp-player-ji-bar', 'exp-player-ji-val', G.player.ji, MAX_JI_DISPLAY, hideJi);
+  if (G.enemy) setExperimentalJiBar('exp-enemy-ji-bar', 'exp-enemy-ji-val', G.enemy.ji, MAX_JI_DISPLAY, hideJi);
+
+  const revealed = !!(G.battle && G.battle.cardsRevealed);
+  const previewAction = G.ui && G.ui.actionKey ? getActionData(G.ui.actionKey, 'player') : null;
+  const revealedPlayerAction = G.battle && G.battle.pAction ? getActionData(G.battle.pAction, 'player') : null;
+  const revealedEnemyAction = G.battle && G.battle.eAction ? getActionData(G.battle.eAction, 'enemy') : null;
+
+  setExperimentalRevealCard(
+    'exp-player-card',
+    'exp-pc-emoji',
+    'exp-pc-main',
+    'exp-pc-sub',
+    revealed ? revealedPlayerAction : previewAction,
+  );
+  setExperimentalRevealCard('exp-enemy-card', null, null, null, revealedEnemyAction, { facedown: !revealed });
+
+  const caption = $('exp-selection-caption');
+  if (caption) {
+    caption.textContent = '';
+  }
+
+  renderExperimentalBattleHand();
 }
 
 export function renderMap() {
@@ -665,6 +1109,7 @@ export function refreshBars() {
   renderPassiveTags('battle-passive-tags');
   renderEquipSlots('battle-equip-slots');
   updateBattleCompactShortcuts();
+  renderExperimentalBattleUi();
 }
 
 function updateBattleCompactShortcuts() {
@@ -719,6 +1164,8 @@ export function resetRoundUI() {
   $('action-area').style.pointerEvents = 'auto';
   $('round-phase').textContent = '选择行动';
   G.ui = {mainSel:null, actionKey:null};
+  if (G.battle) G.battle.cardsRevealed = false;
+  renderExperimentalBattleUi();
 }
 
 function updateJiPips(value) {
@@ -743,6 +1190,7 @@ export function addLog(cls, text) {
   div.textContent = text;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
+  syncExperimentalBattleLogPanels();
 }
 
 /** 渲染战技库覆盖层 */

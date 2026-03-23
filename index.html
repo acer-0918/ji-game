@@ -102,6 +102,111 @@
 <!-- ══════════════ 战斗 ══════════════ -->
 <div id="screen-battle" class="screen">
 
+  <div class="battle-experimental-ui" id="battle-experimental-ui">
+    <div class="exp-battle-header">
+      <div class="exp-battle-header-main">
+        <div class="exp-battle-room" id="exp-battle-room">战斗</div>
+        <div class="exp-battle-roundline">
+          <span class="exp-battle-round" id="exp-round-label">第 1 回合</span>
+          <span class="exp-battle-phase" id="exp-phase-label">选择行动</span>
+          <span id="exp-hard-badge" class="hard-badge" style="display:none">HARD·MDP</span>
+        </div>
+      </div>
+      <div class="exp-battle-header-actions">
+        <button class="exp-toolbar-btn" id="btn-exp-tech-lib" title="战技库">⚔</button>
+        <button class="exp-toolbar-btn" id="btn-exp-equip-lib" title="装备库">🧰</button>
+        <button class="exp-toolbar-btn" id="btn-exp-intro" title="职业介绍">📖</button>
+        <button class="exp-toolbar-btn" id="btn-exp-profile" title="当前档案">📋</button>
+        <button class="exp-toolbar-btn" id="btn-exp-battle-log" title="战斗日志">📜</button>
+        <button class="exp-toolbar-btn" id="btn-exp-restart" title="读档">↺</button>
+        <button class="exp-toolbar-btn danger" id="btn-exp-surrender" title="自刎归天">🗡</button>
+        <button class="exp-toolbar-btn" id="btn-exp-settings" title="设置">⚙</button>
+      </div>
+    </div>
+
+    <div class="exp-player-icon-row" id="exp-player-icon-row"></div>
+
+    <div class="exp-battle-stage">
+      <section class="exp-combatant-side player" id="exp-player-stage">
+        <div class="exp-portrait-card">
+          <div class="exp-portrait-frame" id="exp-player-portrait">
+            <img class="exp-portrait-img" id="exp-player-portrait-img" src="" alt="">
+            <div class="exp-portrait-emoji" id="exp-player-portrait-emoji">🗡️</div>
+          </div>
+          <div class="exp-combatant-name exp-player-name" id="exp-player-stage-name">玩家</div>
+        </div>
+        <div class="exp-resource-bars">
+          <div class="exp-resource-row">
+            <span class="exp-resource-icon hp">❤</span>
+            <div class="exp-bar-track"><div class="exp-bar-fill hp-fill" id="exp-player-hp-bar"></div></div>
+            <span class="exp-resource-value" id="exp-player-hp-val">0/0</span>
+          </div>
+          <div class="exp-resource-row">
+            <span class="exp-resource-icon ji">⚡</span>
+            <div class="exp-bar-track"><div class="exp-bar-fill ji-fill" id="exp-player-ji-bar"></div></div>
+            <span class="exp-resource-value" id="exp-player-ji-val">0</span>
+          </div>
+        </div>
+        <div class="exp-status-strip" id="exp-player-values"></div>
+      </section>
+
+      <div class="exp-battle-middle">
+        <div class="exp-reveal-lane">
+          <div class="played-slot">
+            <div class="played-label enemy-lbl">敌方亮牌</div>
+            <div class="reveal-card facedown exp-reveal-card" id="exp-enemy-card">
+              <div class="ac-emoji">🂠</div>
+              <div class="ac-name">???</div>
+              <div class="ac-sub"></div>
+            </div>
+          </div>
+          <div class="exp-vs-mark">VS</div>
+          <div class="played-slot">
+            <div class="played-label player-lbl">我方亮牌</div>
+            <div class="reveal-card exp-reveal-card" id="exp-player-card">
+              <div class="ac-emoji" id="exp-pc-emoji">　</div>
+              <div class="ac-name" id="exp-pc-main">—</div>
+              <div class="ac-sub" id="exp-pc-sub"></div>
+            </div>
+          </div>
+        </div>
+        <div class="exp-middle-caption" id="exp-selection-caption">向上拖拽卡牌即可出牌</div>
+        <div class="exp-middle-log-wrap">
+          <div class="exp-middle-log" id="exp-inline-battle-log"></div>
+        </div>
+      </div>
+
+      <section class="exp-combatant-side enemy" id="exp-enemy-stage">
+        <div class="exp-portrait-card">
+          <div class="exp-portrait-frame enemy" id="exp-enemy-portrait">
+            <img class="exp-portrait-img" id="exp-enemy-portrait-img" src="" alt="">
+            <div class="exp-portrait-emoji" id="exp-enemy-portrait-emoji">👹</div>
+          </div>
+          <div class="exp-combatant-name exp-enemy-name" id="exp-enemy-stage-name">敌人</div>
+        </div>
+        <div class="exp-resource-bars">
+          <div class="exp-resource-row">
+            <span class="exp-resource-icon hp">❤</span>
+            <div class="exp-bar-track"><div class="exp-bar-fill hp-fill" id="exp-enemy-hp-bar"></div></div>
+            <span class="exp-resource-value" id="exp-enemy-hp-val">0/0</span>
+          </div>
+          <div class="exp-resource-row">
+            <span class="exp-resource-icon ji">⚡</span>
+            <div class="exp-bar-track"><div class="exp-bar-fill ji-fill" id="exp-enemy-ji-bar"></div></div>
+            <span class="exp-resource-value" id="exp-enemy-ji-val">0</span>
+          </div>
+        </div>
+        <div class="exp-status-strip" id="exp-enemy-values"></div>
+      </section>
+    </div>
+
+    <div class="exp-battle-hand-shell" id="exp-battle-hand-shell">
+      <div class="exp-battle-hand-scroller">
+        <div class="exp-battle-hand" id="exp-battle-hand"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- 顶栏 -->
   <div class="battle-topbar">
     <div class="round-info">
@@ -507,6 +612,7 @@
       <div style="margin-bottom:12px;">设置功能开发中，敬请期待。</div>
       <button class="btn btn-outline" id="btn-toggle-devmode">开发者模式：关闭</button>
       <button class="btn btn-outline" id="btn-toggle-narrow-ui" style="margin-top:8px">窄屏战斗界面优化：关闭</button>
+      <button class="btn btn-outline" id="btn-toggle-experimental-battle-ui" style="margin-top:8px">实验性战斗界面：关闭</button>
       <button class="btn btn-danger" id="btn-home-from-settings" style="margin-top:12px;">放弃本局，回到首页</button>
     </div>
     <div class="overlay-btns">
@@ -580,6 +686,16 @@
     <div class="tech-lib-slots" id="profile-content"></div>
     <div class="overlay-btns" style="margin-top:16px">
       <button class="btn btn-outline" id="btn-profile-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-live-battle-log">
+  <div class="overlay-box live-log-overlay-box">
+    <div class="overlay-title">📜 战斗日志</div>
+    <div id="live-battle-log" class="battle-log live-battle-log"></div>
+    <div class="overlay-btns" style="margin-top:16px">
+      <button class="btn btn-outline" id="btn-live-log-close">关闭</button>
     </div>
   </div>
 </div>

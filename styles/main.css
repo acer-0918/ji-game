@@ -1162,6 +1162,745 @@ body {
   white-space: pre-line;
 }
 
+/* ── Experimental Battle UI ─────────────────────── */
+.battle-experimental-ui {
+  display: none;
+}
+
+body.experimental-battle-ui #screen-battle.active {
+  max-width: 1720px;
+  padding: 18px 42px 34px;
+}
+
+body.experimental-battle-ui #screen-battle.active .battle-experimental-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  min-height: 100%;
+  overflow: visible;
+}
+
+body.experimental-battle-ui #screen-battle.active .battle-topbar,
+body.experimental-battle-ui #screen-battle.active .battlefield,
+body.experimental-battle-ui #screen-battle.active .battle-log,
+body.experimental-battle-ui #screen-battle.active .action-area {
+  display: none;
+}
+
+.exp-battle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.exp-battle-header-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.exp-battle-room {
+  font-size: 1em;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: .4px;
+}
+
+.exp-battle-roundline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.exp-battle-round {
+  font-size: .9em;
+  font-weight: 800;
+  color: var(--purple);
+}
+
+.exp-battle-phase {
+  font-size: .76em;
+  font-weight: 700;
+  color: var(--text-mid);
+  background: rgba(255,255,255,0.72);
+  border: 1px solid var(--card-border);
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+}
+
+.exp-battle-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  max-width: 680px;
+}
+
+.exp-toolbar-btn {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(156,111,222,0.22);
+  background: rgba(255,255,255,0.84);
+  color: var(--text);
+  font-size: 1.1em;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(156,111,222,0.12);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  position: relative;
+  font-family: inherit;
+}
+
+.exp-toolbar-btn:hover {
+  transform: translateY(-2px);
+  border-color: rgba(156,111,222,0.55);
+  box-shadow: 0 10px 24px rgba(156,111,222,0.18);
+  background: rgba(255,255,255,0.96);
+}
+
+.exp-toolbar-btn.danger {
+  color: var(--red);
+  border-color: rgba(224,50,74,0.22);
+}
+
+.exp-toolbar-btn.danger:hover {
+  border-color: rgba(224,50,74,0.48);
+  box-shadow: 0 10px 24px rgba(224,50,74,0.16);
+}
+
+.exp-player-icon-row,
+.exp-status-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 52px;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  width: 100%;
+}
+
+.exp-player-icon-row {
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid rgba(156,111,222,0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.86), rgba(248,242,255,0.94));
+  box-shadow: 0 6px 18px rgba(156,111,222,0.08);
+}
+
+.exp-icon-chip,
+.exp-value-chip {
+  border: 1px solid rgba(156,111,222,0.16);
+  background: rgba(255,255,255,0.92);
+  color: var(--text);
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 2px 8px rgba(156,111,222,0.08);
+}
+
+.exp-icon-chip {
+  width: 40px;
+  height: 40px;
+  font-size: 1.06em;
+  cursor: help;
+}
+
+.exp-value-chip {
+  padding: 7px 10px;
+  min-width: 44px;
+}
+
+.exp-chip-icon {
+  font-size: 1.02em;
+  line-height: 1;
+}
+
+.exp-chip-value {
+  font-size: .8em;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.exp-battle-stage {
+  display: grid;
+  grid-template-columns: minmax(280px, 330px) minmax(230px, 280px) minmax(280px, 330px);
+  gap: 38px;
+  align-items: start;
+  width: min(100%, 1080px);
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.exp-combatant-side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  min-height: 320px;
+  border-radius: 24px;
+  border: 1px solid rgba(156,111,222,0.18);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,242,255,0.96) 100%);
+  box-shadow: 0 16px 36px rgba(156,111,222,0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.exp-combatant-side.enemy {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,243,245,0.96) 100%);
+}
+
+.exp-portrait-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.exp-portrait-frame {
+  width: 100%;
+  height: 182px;
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 100%, rgba(156,111,222,0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.7), rgba(244,236,255,0.9));
+}
+
+.exp-portrait-frame.enemy {
+  background:
+    radial-gradient(circle at 50% 100%, rgba(224,50,74,0.12), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,238,242,0.92));
+}
+
+.exp-portrait-frame::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 72%;
+  height: 26%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(156,111,222,0.18), transparent 72%);
+  pointer-events: none;
+}
+
+.exp-portrait-frame.enemy::after {
+  background: radial-gradient(circle, rgba(224,50,74,0.14), transparent 72%);
+}
+
+.exp-portrait-img {
+  display: none;
+  max-width: 92%;
+  max-height: 94%;
+  object-fit: contain;
+  object-position: bottom center;
+  z-index: 1;
+}
+
+.exp-portrait-frame.has-art .exp-portrait-img {
+  display: block;
+  filter: drop-shadow(0 12px 22px rgba(90,40,170,0.18));
+}
+
+.exp-portrait-frame.enemy.has-art .exp-portrait-img {
+  filter: drop-shadow(0 12px 22px rgba(180,32,60,0.16));
+}
+
+.exp-portrait-frame.has-art .exp-portrait-emoji {
+  display: none;
+}
+
+.exp-portrait-emoji {
+  font-size: 5.1em;
+  line-height: 1;
+  padding-bottom: 10px;
+}
+
+.exp-combatant-name {
+  font-size: .88em;
+  font-weight: 800;
+  letter-spacing: .3px;
+}
+
+.exp-player-name {
+  color: var(--purple);
+}
+
+.exp-enemy-name {
+  color: var(--red);
+}
+
+.exp-resource-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exp-resource-row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.exp-resource-icon {
+  font-size: .8em;
+  font-weight: 800;
+}
+
+.exp-resource-icon.hp {
+  color: var(--green);
+}
+
+.exp-resource-icon.ji {
+  color: var(--purple);
+}
+
+.exp-bar-track {
+  height: 12px;
+  background: rgba(156,111,222,0.11);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+.exp-bar-fill {
+  height: 100%;
+  width: 0%;
+  transition: width .24s ease, opacity .24s ease, filter .24s ease;
+}
+
+.exp-resource-value {
+  font-size: .76em;
+  font-weight: 800;
+  color: var(--text-mid);
+  min-width: 40px;
+  text-align: right;
+}
+
+.exp-battle-middle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 320px;
+  min-width: 0;
+  padding: 2px 0 0;
+  position: relative;
+  z-index: 2;
+}
+
+.exp-reveal-lane {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  align-items: center;
+  padding-top: 0;
+}
+
+.exp-battle-middle .played-slot {
+  width: 98px;
+  flex: 0 0 98px;
+}
+
+.exp-battle-middle .played-label {
+  white-space: nowrap;
+  font-size: .58em;
+}
+
+.exp-reveal-card {
+  width: 92px;
+  min-height: 96px;
+  padding: 8px 6px;
+}
+
+.exp-vs-mark {
+  font-size: 2.1em;
+  font-weight: 900;
+  color: rgba(100,60,180,0.18);
+  letter-spacing: 1px;
+}
+
+.exp-middle-caption {
+  min-height: 0;
+  font-size: 0;
+  line-height: 0;
+  color: transparent;
+  text-align: center;
+}
+
+.exp-middle-log-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.exp-middle-log {
+  width: min(100%, 298px);
+  height: 134px;
+  min-height: 134px;
+  max-height: 134px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--card-border);
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 4px 14px rgba(156,111,222,0.08);
+  text-align: left;
+  font-size: .72em;
+  line-height: 1.6;
+}
+
+.exp-middle-log .log-entry {
+  text-align: left;
+}
+
+.exp-battle-hand-shell {
+  width: min(100%, 1500px);
+  margin: 18px auto 0;
+  padding: 38px 16px 22px;
+  border: 2px dashed transparent;
+  border-radius: 34px;
+  transition: border-color .16s ease, background .16s ease, box-shadow .16s ease;
+  overflow: visible;
+  position: relative;
+  z-index: 24;
+  isolation: isolate;
+}
+
+.exp-battle-hand-shell::before {
+  content: '';
+  position: absolute;
+  inset: 14px 18px 0;
+  border-radius: 999px 999px 28px 28px;
+  background:
+    radial-gradient(circle at 50% 100%, rgba(156,111,222,0.18), transparent 58%),
+    linear-gradient(180deg, rgba(255,255,255,0.72), rgba(244,236,255,0.2));
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    0 18px 44px rgba(156,111,222,0.08);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.exp-battle-hand-scroller {
+  width: 100%;
+  overflow: visible;
+  padding: 18px 0 18px;
+  text-align: center;
+}
+
+.exp-battle-hand-shell.dragging {
+  border-color: rgba(156,111,222,0.2);
+  background: rgba(255,255,255,0.18);
+}
+
+.exp-battle-hand-shell.dragging.ready {
+  border-color: rgba(26,158,112,0.46);
+  background: rgba(26,158,112,0.05);
+  box-shadow: inset 0 0 0 1px rgba(26,158,112,0.08);
+}
+
+.exp-battle-hand {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  justify-content: center;
+  align-items: flex-end;
+  min-width: max-content;
+  padding: 0 34px 12px;
+  margin: 0 auto;
+  position: relative;
+  overflow: visible;
+}
+
+.exp-card-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  margin: 0;
+  position: relative;
+  overflow: visible;
+}
+
+.exp-card-group + .exp-card-group {
+  margin-left: -18px;
+}
+
+.exp-card-group-title {
+  display: none;
+}
+
+.exp-card-fan {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.exp-card-fan .exp-hand-card + .exp-hand-card {
+  margin-left: -64px;
+}
+
+.exp-hand-card {
+  width: 124px;
+  min-height: 166px;
+  margin-left: 0;
+  padding: 10px 8px;
+  border-radius: 16px;
+  border: 1.5px solid var(--card-border);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,240,255,0.96));
+  box-shadow: 0 12px 26px rgba(84,48,148,0.16);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transform:
+    translate3d(var(--drag-x, 0px), var(--drag-y, 0px), 0)
+    rotate(calc(var(--exp-angle, 0deg) + var(--drag-rotate, 0deg)));
+  transform-origin: center 88%;
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease, border-color .2s ease, background .2s ease;
+  z-index: var(--exp-z, 1);
+  user-select: none;
+  touch-action: none;
+}
+
+.exp-hand-card[data-group="defense"] {
+  background: linear-gradient(180deg, rgba(247,252,255,0.98), rgba(236,246,255,0.97));
+  border-color: rgba(58,143,208,0.22);
+}
+
+.exp-hand-card[data-group="attack"] {
+  background: linear-gradient(180deg, rgba(255,251,251,0.98), rgba(255,242,245,0.97));
+  border-color: rgba(224,50,74,0.18);
+}
+
+.exp-hand-card[data-group="special"] {
+  background: linear-gradient(180deg, rgba(255,252,245,0.99), rgba(255,246,230,0.98));
+  border-color: rgba(224,144,16,0.24);
+}
+
+.exp-hand-card[data-group="charge"] {
+  background: linear-gradient(180deg, rgba(251,249,255,0.99), rgba(242,236,255,0.98));
+}
+
+.exp-hand-card:hover:not(:disabled),
+.exp-hand-card.hovering:not(:disabled) {
+  transform:
+    translate3d(var(--drag-x, 0px), calc(var(--drag-y, 0px) - 26px), 0)
+    rotate(calc(var(--exp-angle, 0deg) + var(--drag-rotate, 0deg)));
+  border-color: var(--purple);
+  background: var(--card-hover);
+  box-shadow: 0 22px 34px rgba(84,48,148,0.24);
+  z-index: 180;
+}
+
+.exp-hand-card.group-focused:not(:disabled):not(.selected):not(.dragging) {
+  transform:
+    translate3d(var(--drag-x, 0px), calc(var(--drag-y, 0px) - 12px), 0)
+    rotate(calc(var(--exp-angle, 0deg) + var(--drag-rotate, 0deg)));
+  border-color: rgba(156,111,222,0.56);
+  box-shadow: 0 18px 30px rgba(84,48,148,0.2);
+  z-index: 150;
+}
+
+.exp-hand-card.selected {
+  border-color: var(--green);
+  box-shadow: 0 18px 32px rgba(26,158,112,0.22);
+  transform:
+    translate3d(var(--drag-x, 0px), calc(var(--drag-y, 0px) - 18px), 0)
+    rotate(calc(var(--exp-angle, 0deg) + var(--drag-rotate, 0deg)));
+  z-index: 170;
+}
+
+.exp-hand-card:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.22);
+  opacity: .52;
+  box-shadow: 0 4px 12px rgba(54,24,112,0.07);
+}
+
+.exp-hand-card.blocked {
+  border-color: rgba(224,50,74,0.36);
+}
+
+.exp-hand-card.dragging {
+  transition: none;
+  z-index: 320;
+  box-shadow: 0 26px 44px rgba(26,18,56,0.26);
+}
+
+.exp-hand-card.drag-ready {
+  border-color: rgba(26,158,112,0.56);
+  box-shadow: 0 26px 46px rgba(26,158,112,0.24);
+}
+
+.exp-card-cost {
+  position: absolute;
+  left: 7px;
+  top: 7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(76,40,150,0.1);
+  color: var(--purple);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .58em;
+  font-weight: 700;
+}
+
+.exp-hand-card[data-group="defense"] .exp-card-cost {
+  color: var(--blue);
+  background: rgba(58,143,208,0.1);
+}
+
+.exp-hand-card[data-group="attack"] .exp-card-cost {
+  color: var(--red);
+  background: rgba(224,50,74,0.1);
+}
+
+.exp-hand-card[data-group="special"] .exp-card-cost {
+  color: var(--gold);
+  background: rgba(224,144,16,0.12);
+}
+
+.exp-card-disabled-mark {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(224,50,74,0.12);
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .56em;
+  font-weight: 700;
+}
+
+.exp-card-icon {
+  margin-top: 30px;
+  font-size: 1.9em;
+  line-height: 1;
+  text-align: center;
+}
+
+.exp-card-name {
+  font-size: .78em;
+  font-weight: 700;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.exp-card-hint {
+  font-size: .64em;
+  text-align: center;
+  color: var(--text-lt);
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.live-battle-log {
+  height: min(50vh, 420px);
+  min-height: min(50vh, 420px);
+  max-height: min(50vh, 420px);
+  margin-top: 10px;
+}
+
+.live-log-overlay-box {
+  width: min(92vw, 440px);
+  max-width: 440px;
+  text-align: left;
+}
+
+.live-log-overlay-box .overlay-title {
+  text-align: left;
+}
+
+.live-log-overlay-box .overlay-btns {
+  justify-content: flex-start;
+}
+
+.exp-portrait-frame.attack-left,
+.exp-portrait-frame.attack-right {
+  animation-duration: .3s;
+  animation-timing-function: ease-out;
+}
+
+.exp-portrait-frame.attack-left {
+  animation-name: expStageAttackLeft;
+}
+
+.exp-portrait-frame.attack-right {
+  animation-name: expStageAttackRight;
+}
+
+.exp-portrait-frame.taking-hit {
+  animation: expStageHit .38s ease;
+}
+
+.exp-reveal-card.card-pulse {
+  animation: expCardPulse .32s ease;
+}
+
+@keyframes expStageAttackLeft {
+  0% { transform: translateX(0) scale(1); }
+  45% { transform: translateX(12px) scale(1.02); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes expStageAttackRight {
+  0% { transform: translateX(0) scale(1); }
+  45% { transform: translateX(-12px) scale(1.02); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes expStageHit {
+  0% { transform: translateX(0) scale(1); filter: brightness(1); }
+  18% { transform: translateX(-8px) scale(.99); filter: brightness(1.28); }
+  38% { transform: translateX(6px) scale(.985); filter: brightness(.96); }
+  100% { transform: translateX(0) scale(1); filter: brightness(1); }
+}
+
+@keyframes expCardPulse {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
 /* ── Scrollbar ───────────────────────────────────── */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
