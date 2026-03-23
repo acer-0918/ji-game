@@ -52,6 +52,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
     shop: {enhancedDagger:false, enhancedIceBlade:false, enhancedBlade:false},
     equipment: createEquipmentState(),
     map,
+    activeMapRoomId: null,
     runWon: false,
     currentNode: null,
     enemy: null,
