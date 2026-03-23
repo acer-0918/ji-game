@@ -927,8 +927,20 @@ function unequipEquipmentSlot(slotIndex) {
 
 function leaveShop() {
   clearEquipmentShopOffers(G);
-  if (G.currentNode && G.currentNode.id) {
-    completeMapRoom(G.map, G.currentNode.id);
+  const roomId = (G.currentNode && G.currentNode.id) || (G.map && G.map.currentRoomId) || null;
+  if (roomId) {
+    const completeInfo = completeMapRoom(G.map, roomId);
+    const room = completeInfo && completeInfo.room ? completeInfo.room : getRoomById(G.map, roomId);
+    if (room) {
+      room.visited = true;
+      room.cleared = true;
+      const next = room.connections
+        .map((childId) => getRoomById(G.map, childId))
+        .filter((child) => !!child && !child.cleared)
+        .map((child) => child.id);
+      G.map.availableRoomIds = [...new Set(next)];
+    }
+    G.map.currentRoomId = null;
   }
   if (G.devMode) {
     closeOverlay('ov-shop');

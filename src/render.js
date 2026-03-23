@@ -248,12 +248,13 @@ export function renderMap() {
     const div = document.createElement('div');
     const isAvailable = (map.availableRoomIds || []).includes(node.id);
     const isTriggered = !!node.visited && !node.cleared;
+    const isDevReachableOnly = !!G.devMode && !node.cleared && !isAvailable;
     let cls = 'map-node';
     if (node.type === 'boss') cls += ' boss-node';
     if (node.type === 'shop') cls += ' shop-node';
     if (node.cleared) cls += ' done';
     else {
-      if (G.devMode || isAvailable) cls += ' available';
+      if (isAvailable || isDevReachableOnly) cls += ' available';
       if (isTriggered) cls += ' triggered';
     }
     div.className = cls;
@@ -263,15 +264,15 @@ export function renderMap() {
     div.style.top = `${pos.y}px`;
     div.style.transform = 'translate(-50%, -50%)';
 
-    const hint = G.devMode
-      ? '开发者模式：点击进入'
-      : node.cleared
-        ? '✓ 已完成'
-        : isTriggered
-          ? (isAvailable ? '🟠 已触发（可进入）' : '🟠 已触发')
-          : isAvailable
-            ? '✅ 已解锁（点击进入）'
-          : '🔒 未解锁';
+    const hint = node.cleared
+      ? '✓ 已完成'
+      : isTriggered
+        ? (isAvailable ? '🟠 已触发（可进入）' : '🟠 已触发')
+        : isAvailable
+          ? '✅ 已解锁'
+          : isDevReachableOnly
+            ? '🧪 开发者模式可进入'
+            : '🔒 未解锁';
     const enemyTip = node.payload && node.payload.enemy ? ` · ${node.payload.enemy.emoji}${node.payload.enemy.name}` : '';
     const icon = node.type === 'battle' ? '👹'
       : node.type === 'elite' ? '⚔️'
