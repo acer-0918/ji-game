@@ -840,6 +840,9 @@ body {
   border-radius: var(--r-lg); border: 2px solid var(--card-border);
   box-shadow: 0 24px 60px rgba(156,111,222,0.25);
   position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .overlay-box.green { border-color: rgba(26,158,112,0.5); }
 .overlay-box.red   { border-color: rgba(224,50,74,0.5); }
@@ -1188,7 +1191,7 @@ body {
   .map-node { width: 154px; max-width: 154px; padding: 8px 8px; }
   .node-name { font-size: .8em; line-height: 1.32; }
   .node-hint { font-size: .66em; }
-  .overlay-box { padding: 22px 16px; }
+  .overlay-box { padding: 22px 16px; max-height: 88vh; }
   .class-btn { width: 135px; }
   .map-currency-pack { flex-wrap: wrap; justify-content: flex-end; }
 
