@@ -9,11 +9,12 @@ import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
 import { CLASS_DEFS, getAbilityDefsForClass } from './data.js';
+import { createExperimentalBattleUi } from './experimentalBattleUi.js';
 import { POWER_RELIC_DEFS, getPowerRelicDef, hasPowerRelic } from './powerRelics/index.js';
 import { getActionData } from './logic.js';
 import {
-  addLog,
-  refreshBars,
+  addLog as renderAddLog,
+  refreshBars as renderRefreshBars,
   refreshActionLabels,
   renderAbilityTree,
   renderEnemyStateTags,
@@ -24,8 +25,7 @@ import {
   renderShop,
   renderEquipmentLibrary,
   renderTechniqueLibrary,
-  renderExperimentalBattleUi,
-  resetRoundUI,
+  resetRoundUI as renderResetRoundUI,
 } from './render.js';
 import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
 import { equipTechnique, TECH_DEFS, getTechniqueCategoryLabel, unequipTechniqueSlot } from './battleTechniques.js';
@@ -90,7 +90,27 @@ const DELEGATION_PROBLEM_REVEAL_DELAY_MS = 800;
 let developerModeEnabled = false;
 let narrowBattleUiEnabled = false;
 let experimentalBattleUiEnabled = false;
-let experimentalDragState = null;
+let experimentalBattleUi = null;
+
+function renderExperimentalBattleUi() {
+  experimentalBattleUi && experimentalBattleUi.render();
+}
+
+function refreshBars() {
+  renderRefreshBars();
+  renderExperimentalBattleUi();
+}
+
+function resetRoundUI() {
+  renderResetRoundUI();
+  renderExperimentalBattleUi();
+}
+
+function addLog(cls, text) {
+  renderAddLog(cls, text);
+  experimentalBattleUi && experimentalBattleUi.syncLogPanels();
+}
+
 const battleEngine = createBattleEngine();
 registerDefaultCombatEffects(battleEngine);
 registerDefaultRoundStartEffects(battleEngine);
@@ -178,6 +198,22 @@ function refreshExperimentalBattleUiButton() {
   btn.textContent = `实验性战斗界面：${experimentalBattleUiEnabled ? '开启' : '关闭'}`;
 }
 
+experimentalBattleUi = createExperimentalBattleUi({
+  isEnabled: () => experimentalBattleUiEnabled,
+  hasDelegationProblemRelic,
+  previewActionKey: previewExperimentalActionKey,
+  confirmAction,
+  openOverlay,
+  closeOverlay,
+  openTechLibrary,
+  openEquipLibrary,
+  openIntro: () => openIntro(G.player && G.player.classKey ? G.player.classKey : undefined),
+  openProfile,
+  restartBattle,
+  askSurrender,
+  openSettings,
+});
+
 function applyDeveloperModeToGameState() {
   G.devMode = developerModeEnabled;
   keepDeveloperResources();
@@ -212,27 +248,6 @@ function toggleExperimentalBattleUi() {
   }
 }
 
-function isExperimentalBattleUiActive() {
-  return !!(experimentalBattleUiEnabled && $('screen-battle') && $('screen-battle').classList.contains('active'));
-}
-
-function syncLiveBattleLogOverlay() {
-  const liveLog = $('live-battle-log');
-  const battleLog = $('battle-log');
-  if (!liveLog || !battleLog) return;
-  liveLog.innerHTML = battleLog.innerHTML || '';
-  liveLog.scrollTop = liveLog.scrollHeight;
-}
-
-function openLiveBattleLog() {
-  syncLiveBattleLogOverlay();
-  openOverlay('ov-live-battle-log');
-}
-
-function closeLiveBattleLog() {
-  closeOverlay('ov-live-battle-log');
-}
-
 function getActionCategoryForExperimentalUi(key) {
   if (key === 'ji') return 'ji';
   if (String(key).startsWith('defense_')) return 'def';
@@ -249,124 +264,6 @@ function previewExperimentalActionKey(key) {
     subSelect(key);
   }
   renderExperimentalBattleUi();
-}
-
-function pulseExperimentalFeedback(targetId, className, duration = 360) {
-  const el = $(targetId);
-  if (!el) return;
-  el.classList.remove(className);
-  void el.offsetWidth;
-  el.classList.add(className);
-  window.setTimeout(() => el.classList.remove(className), duration);
-}
-
-function triggerExperimentalAttackFeedback() {
-  if (!isExperimentalBattleUiActive() || !G.battle || !G.battle.cardsRevealed) return;
-  const playerAction = getActionData(G.battle.pAction, 'player');
-  const enemyAction = getActionData(G.battle.eAction, 'enemy');
-  if (playerAction && playerAction.type === 'attack') pulseExperimentalFeedback('exp-player-portrait', 'attack-left', 320);
-  if (enemyAction && enemyAction.type === 'attack') pulseExperimentalFeedback('exp-enemy-portrait', 'attack-right', 320);
-  pulseExperimentalFeedback('exp-player-card', 'card-pulse', 320);
-  pulseExperimentalFeedback('exp-enemy-card', 'card-pulse', 320);
-}
-
-function triggerExperimentalHitFeedback(result) {
-  if (!isExperimentalBattleUiActive() || !result) return;
-  if (Number(result.pdmg || 0) > 0) pulseExperimentalFeedback('exp-player-portrait', 'taking-hit', 420);
-  if (Number(result.edmg || 0) > 0) pulseExperimentalFeedback('exp-enemy-portrait', 'taking-hit', 420);
-}
-
-function resetExperimentalDragState() {
-  if (experimentalDragState && experimentalDragState.cardEl) {
-    const card = experimentalDragState.cardEl;
-    card.classList.remove('dragging', 'drag-ready');
-    card.style.removeProperty('--drag-x');
-    card.style.removeProperty('--drag-y');
-    card.style.removeProperty('--drag-rotate');
-    if (experimentalDragState.pointerId != null && typeof card.releasePointerCapture === 'function') {
-      try {
-        card.releasePointerCapture(experimentalDragState.pointerId);
-      } catch (_) {
-        // ignore pointer capture release failures
-      }
-    }
-  }
-  const handShell = $('exp-battle-hand-shell');
-  if (handShell) handShell.classList.remove('dragging', 'ready');
-  experimentalDragState = null;
-}
-
-function canStartExperimentalDrag(card) {
-  if (!card || card.disabled) return false;
-  if (!isExperimentalBattleUiActive() || !G.battle || G.battle.phase !== 'select') return false;
-  if (hasDelegationProblemRelic()) return false;
-  return card.dataset.disabled !== 'true';
-}
-
-function handleExperimentalHandPointerDown(event) {
-  if (!isExperimentalBattleUiActive()) return;
-  const card = event.target.closest('.exp-hand-card[data-action]');
-  if (!canStartExperimentalDrag(card)) return;
-  experimentalDragState = {
-    key: card.dataset.action,
-    pointerId: event.pointerId,
-    startX: event.clientX,
-    startY: event.clientY,
-    lastX: event.clientX,
-    lastY: event.clientY,
-    cardEl: card,
-    dragging: false,
-    releaseReady: false,
-  };
-  if (typeof card.setPointerCapture === 'function') {
-    try {
-      card.setPointerCapture(event.pointerId);
-    } catch (_) {
-      // ignore pointer capture failures
-    }
-  }
-}
-
-function handleExperimentalHandPointerMove(event) {
-  if (!experimentalDragState || event.pointerId !== experimentalDragState.pointerId) return;
-  const { startX, startY, cardEl } = experimentalDragState;
-  if (!cardEl) return;
-  const dx = event.clientX - startX;
-  const dy = event.clientY - startY;
-  experimentalDragState.lastX = event.clientX;
-  experimentalDragState.lastY = event.clientY;
-  if (!experimentalDragState.dragging && Math.hypot(dx, dy) < 10) return;
-  experimentalDragState.dragging = true;
-  cardEl.classList.add('dragging');
-  cardEl.style.setProperty('--drag-x', `${dx}px`);
-  cardEl.style.setProperty('--drag-y', `${dy}px`);
-  cardEl.style.setProperty('--drag-rotate', `${Math.max(-8, Math.min(8, dx * 0.04))}deg`);
-  const handShell = $('exp-battle-hand-shell');
-  let ready = false;
-  if (handShell) {
-    handShell.classList.add('dragging');
-    const rect = handShell.getBoundingClientRect();
-    ready = event.clientY < rect.top + 8;
-    handShell.classList.toggle('ready', ready);
-  }
-  experimentalDragState.releaseReady = ready;
-  cardEl.classList.toggle('drag-ready', ready);
-}
-
-function handleExperimentalHandPointerUp(event) {
-  if (!experimentalDragState || event.pointerId !== experimentalDragState.pointerId) return;
-  const state = experimentalDragState;
-  const shouldRelease = !!(state.dragging && state.releaseReady);
-  const actionKey = state.key;
-  resetExperimentalDragState();
-  if (!actionKey) return;
-  if (shouldRelease) {
-    if (!(G.ui && G.ui.actionKey === actionKey)) previewExperimentalActionKey(actionKey);
-    confirmAction({ forceActionKey: actionKey });
-    renderExperimentalBattleUi();
-    return;
-  }
-  previewExperimentalActionKey(actionKey);
 }
 
 function getRoundBlockedSet() {
@@ -1535,7 +1432,7 @@ function confirmAction(options = {}) {
   G.battle.phase = 'reveal';
   G.battle.cardsRevealed = false;
   hideHuntRhythmPanel();
-  resetExperimentalDragState();
+  experimentalBattleUi && experimentalBattleUi.resetDragState();
   $('action-area').style.pointerEvents = 'none';
   $('btn-confirm').disabled = true;
   $('round-phase').textContent = '揭示中...';
@@ -1553,7 +1450,7 @@ function doReveal() {
   $('round-phase').textContent = '结算中...';
   G.battle.cardsRevealed = true;
   renderExperimentalBattleUi();
-  triggerExperimentalAttackFeedback();
+  experimentalBattleUi && experimentalBattleUi.triggerAttackFeedback();
   runAfter(BATTLE_TIMINGS.RESOLVE_DELAY_MS, doResolve);
 }
 
@@ -1564,7 +1461,7 @@ function doResolve() {
   G.battle.lastPlayerAction = G.battle.pAction;
   G.battle.lastEnemyAction = G.battle.eAction;
   refreshBars();
-  triggerExperimentalHitFeedback(resolveCtx.result);
+  experimentalBattleUi && experimentalBattleUi.triggerHitFeedback(resolveCtx.result);
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
     if (G.battle && G.battle.huntRhythmPending) {
@@ -1626,8 +1523,8 @@ function endBattle(win) {
   clearRelicChoiceUI();
   clearBattleRewardUI();
   hideHuntRhythmPanel();
-  resetExperimentalDragState();
-  closeLiveBattleLog();
+  experimentalBattleUi && experimentalBattleUi.resetDragState();
+  experimentalBattleUi && experimentalBattleUi.closeLiveBattleLog();
   if (G.battle) G.battle.huntRhythmPending = null;
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
@@ -1962,15 +1859,7 @@ function bindStaticEvents() {
   $('btn-profile-shop')?.addEventListener('click', openProfile);
   $('btn-profile-event')?.addEventListener('click', openProfile);
   $('btn-profile-close')?.addEventListener('click', closeProfile);
-  $('btn-exp-tech-lib')?.addEventListener('click', openTechLibrary);
-  $('btn-exp-equip-lib')?.addEventListener('click', openEquipLibrary);
-  $('btn-exp-intro')?.addEventListener('click', () => openIntro(G.player && G.player.classKey ? G.player.classKey : undefined));
-  $('btn-exp-profile')?.addEventListener('click', openProfile);
-  $('btn-exp-restart')?.addEventListener('click', restartBattle);
-  $('btn-exp-surrender')?.addEventListener('click', askSurrender);
-  $('btn-exp-settings')?.addEventListener('click', openSettings);
-  $('btn-exp-battle-log')?.addEventListener('click', openLiveBattleLog);
-  $('btn-live-log-close')?.addEventListener('click', closeLiveBattleLog);
+  experimentalBattleUi && experimentalBattleUi.bindEvents();
 
   // Dev mode: equip/unequip techniques from the library
   $('tech-lib-slots')?.addEventListener('click', (event) => {
@@ -2126,18 +2015,6 @@ function bindStaticEvents() {
       const dy = event.clientY - lastY;
       mapViewport.scrollTop -= dy;
       lastY = event.clientY;
-    });
-  }
-
-  const experimentalHand = $('exp-battle-hand');
-  if (experimentalHand) {
-    experimentalHand.addEventListener('pointerdown', handleExperimentalHandPointerDown);
-    experimentalHand.addEventListener('pointermove', handleExperimentalHandPointerMove);
-    experimentalHand.addEventListener('pointerup', handleExperimentalHandPointerUp);
-    experimentalHand.addEventListener('pointercancel', resetExperimentalDragState);
-    experimentalHand.addEventListener('pointerleave', (event) => {
-      if (!experimentalDragState) return;
-      if (event.pointerType === 'mouse' && !experimentalDragState.dragging) resetExperimentalDragState();
     });
   }
 
