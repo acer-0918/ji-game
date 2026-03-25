@@ -436,6 +436,70 @@ function updateHuntRhythmPanelForAction(actionKey = null) {
   }
 }
 
+// ── 免费追加攻击面板（火焰流星雨等） ──────────────────────────────────────────
+
+function showFreeFollowUpPanel() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (!pending || pending.count <= 0) return;
+  const panel = $('free-followup-panel');
+  if (!panel) return;
+  panel.style.display = '';
+  $('action-area').style.pointerEvents = 'auto';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = 'none';
+  const title = $('free-followup-title');
+  if (title) title.textContent = `${pending.emoji || '⚔'} ${pending.label} — 免费追加攻击`;
+  syncFreeFollowUpMeta();
+}
+
+function syncFreeFollowUpMeta() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  const meta = $('free-followup-meta');
+  if (!meta || !pending) return;
+  meta.textContent = `剩余 ${pending.count} 次免费攻击 · 每次造成 ${pending.dmgPerHit} 点伤害`;
+}
+
+function hideFreeFollowUpPanel() {
+  const panel = $('free-followup-panel');
+  if (panel) panel.style.display = 'none';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = '';
+}
+
+function freeFollowUpExecuteOne() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (!pending || pending.count <= 0) return;
+  pending.count -= 1;
+  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - pending.dmgPerHit);
+  const done = 3 - pending.count;
+  addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：第 ${done} 次追加，造成 ${pending.dmgPerHit} 点伤害。`);
+  refreshBars();
+  if ((G.enemy.hp || 0) <= 0 || pending.count <= 0) {
+    confirmFreeFollowUp();
+    return;
+  }
+  syncFreeFollowUpMeta();
+}
+
+function confirmFreeFollowUp() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (pending && pending.count < 3) {
+    addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：免费追加结束。`);
+  }
+  G.battle.freeFollowUpPending = null;
+  hideFreeFollowUpPanel();
+  afterFreeFollowUpResolve();
+}
+
+function afterFreeFollowUpResolve() {
+  const deathCtx = battleRuntime.runDeathCheckPhase();
+  if (deathCtx.outcome === BATTLE_OUTCOME.WIN) { endBattle(true); return; }
+  if (deathCtx.outcome === BATTLE_OUTCOME.LOSE) { endBattle(false); return; }
+  nextRound();
+}
+
+// ── 狩猎律动面板 ──────────────────────────────────────────────────────────────
+
 function showHuntRhythmPostHitPanel() {
   const pending = G.battle && G.battle.huntRhythmPending;
   if (!pending) return;
@@ -1464,6 +1528,10 @@ function doResolve() {
   experimentalBattleUi && experimentalBattleUi.triggerHitFeedback(resolveCtx.result);
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
+    if (G.battle && G.battle.freeFollowUpPending && G.battle.freeFollowUpPending.count > 0) {
+      showFreeFollowUpPanel();
+      return;
+    }
     if (G.battle && G.battle.huntRhythmPending) {
       if (hasDelegationProblemRelic()) {
         addLog('log-ab', '🧾 委托代理问题：代理人放弃了狩猎律动的追加出手。');
@@ -1526,6 +1594,8 @@ function endBattle(win) {
   experimentalBattleUi && experimentalBattleUi.resetDragState();
   experimentalBattleUi && experimentalBattleUi.closeLiveBattleLog();
   if (G.battle) G.battle.huntRhythmPending = null;
+  if (G.battle) G.battle.freeFollowUpPending = null;
+  hideFreeFollowUpPanel();
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
 
@@ -1813,6 +1883,8 @@ function bindStaticEvents() {
   $('btn-battle-continue').addEventListener('click', closeBattleOverlay);
   $('btn-relic-skip')?.addEventListener('click', clearRelicChoiceUI);
   $('btn-confirm').addEventListener('click', confirmAction);
+  $('btn-free-followup-exec')?.addEventListener('click', freeFollowUpExecuteOne);
+  $('btn-free-followup-skip')?.addEventListener('click', confirmFreeFollowUp);
   $('btn-hunt-rhythm-add')?.addEventListener('click', huntRhythmAddOne);
   $('btn-hunt-rhythm-confirm')?.addEventListener('click', confirmHuntRhythmExtra);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);

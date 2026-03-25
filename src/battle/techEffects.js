@@ -178,7 +178,7 @@ function applyTachiFollowUp(ctx) {
   }
 }
 
-/** 火焰流星雨：连续3回合后，命中时追加3次 */
+/** 火焰流星雨：累计使用3次后，命中时可免费追加3次 */
 function applyMeteorFollowUp(ctx) {
   if (ctx.side !== 'player') return;
   if (!ctx.attackAction || ctx.attackAction.techId !== 'atk_4_d') return;
@@ -186,12 +186,18 @@ function applyMeteorFollowUp(ctx) {
 
   const tc = getTechCounters();
   if (!tc) return;
-  // streak is incremented in ROUND_END; check previous-round streak
+  // streak incremented in ROUND_END on use; check if reached 3
   if ((tc.meteor_streak || 0) < 3) return;
 
-  const extra = 3;
-  ctx.bonusDamage += extra * (ctx.attackAction.damage || 1);
-  ctx.triggers.push(`火焰流星雨：连续使用满3回合，追加3次攻击，额外造成 ${extra} 点伤害！`);
+  tc.meteor_streak = 0; // reset after trigger
+  const dmgPerHit = ctx.attackAction.damage || 1;
+  G.battle.freeFollowUpPending = {
+    count: 3,
+    dmgPerHit,
+    label: '火焰流星雨',
+    emoji: '☄️',
+  };
+  ctx.triggers.push(`☄️ 火焰流星雨：已累计3次，命中触发——获得3次免费追加攻击！`);
 }
 
 // ─── 引擎注册：ROUND_START 效果 ─────────────────────────────────────────────
@@ -285,32 +291,23 @@ export function registerTechEffects(engine) {
       if (!tc) return;
       const pAction = G.battle.pAction;
 
-      // 连珠箭 streak
+      // 连珠箭 streak（累计，不要求连续回合）
       if (G.techniques && G.techniques[1] === 'atk_1_e') {
         if (pAction === 'attack_1') {
           tc.renzhuJian_streak = (tc.renzhuJian_streak || 0) + 1;
-          pushLog(ctx, 'log-ab', `🏹 连珠箭：连续使用 ${tc.renzhuJian_streak} 回合${tc.renzhuJian_streak >= 5 ? '，下回合消耗归零！' : `（再连续 ${5 - tc.renzhuJian_streak} 回合后归零消耗）。`}`);
-        } else {
-          if ((tc.renzhuJian_streak || 0) > 0) {
-            tc.renzhuJian_streak = 0;
-            pushLog(ctx, 'log-ab', '🏹 连珠箭：本回合未使用，连击计数重置。');
-          }
+          const remain = Math.max(0, 5 - tc.renzhuJian_streak);
+          pushLog(ctx, 'log-ab', `🏹 连珠箭：已累计使用 ${tc.renzhuJian_streak} 次${remain > 0 ? `（再累计 ${remain} 次后消耗归零）` : '，下回合消耗归零！'}。`);
         }
       }
 
-      // 火焰流星雨 streak
+      // 火焰流星雨 streak（累计，不要求连续回合）
       if (G.techniques && G.techniques[4] === 'atk_4_d') {
         if (pAction === 'attack_4') {
           tc.meteor_streak = (tc.meteor_streak || 0) + 1;
           if (tc.meteor_streak < 3) {
-            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：连续使用 ${tc.meteor_streak} 回合（连续满3回合后命中可追加3次）。`);
+            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计使用 ${tc.meteor_streak} 次（累计满3次命中后可追加3次）。`);
           } else {
-            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：连续 ${tc.meteor_streak} 回合，追加攻击已激活！`);
-          }
-        } else {
-          if ((tc.meteor_streak || 0) > 0) {
-            tc.meteor_streak = 0;
-            pushLog(ctx, 'log-ab', '☄️ 火焰流星雨：本回合未使用，连击计数重置。');
+            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计3次，追加攻击已激活，命中即触发！`);
           }
         }
       }
