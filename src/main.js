@@ -718,11 +718,14 @@ function renderBattleRewardUI() {
         title = `战技：${def.name}`;
         const equippedId = G.techniques ? G.techniques[def.slot] : null;
         const equippedDef = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId] : null;
+        const isDefTech = typeof def.slot === 'string' && def.slot.startsWith('d');
+        const slotLabel = getTechniqueCategoryLabel(def);
+        const baseLabel = isDefTech ? '基础防御' : '基础攻击';
         const replaceHint = equippedDef
           ? `将替换：${equippedDef.name} → ${def.name}`
-          : `将装备到攻击${def.slot}类（替换基础攻击）`;
+          : `将装备到${slotLabel}（替换${baseLabel}）`;
         const weightLabel = def.weight === 'heavy' ? '【重】' : def.weight === 'light' ? '【轻】' : '';
-        desc = `类别：${getTechniqueCategoryLabel(def)}${weightLabel} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
+        desc = `类别：${slotLabel}${weightLabel} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
       } else {
         icon = '⚔';
         title = `战技：${item.id}`;
@@ -1945,17 +1948,36 @@ function bindStaticEvents() {
   experimentalBattleUi && experimentalBattleUi.bindEvents();
 
   // Dev mode: equip/unequip techniques from the library
-  $('tech-lib-slots')?.addEventListener('click', (event) => {
-    if (!G.devMode) return;
-    const equipBtn = event.target.closest('button[data-equip-tech]');
-    const unequipBtn = event.target.closest('button[data-unequip-slot]');
-    if (equipBtn) {
-      const techId = equipBtn.dataset.equipTech;
-      if (techId) { equipTechnique(G, techId); renderTechniqueLibrary(); refreshActionLabels(); }
-    } else if (unequipBtn) {
-      const slot = parseInt(unequipBtn.dataset.unequipSlot, 10);
-      if (slot) { unequipTechniqueSlot(G, slot); renderTechniqueLibrary(); refreshActionLabels(); }
-    }
+  // 战技库 tab 切换
+  $('tab-atk-tech')?.addEventListener('click', () => {
+    $('tab-atk-tech').classList.add('active');
+    $('tab-def-tech').classList.remove('active');
+    $('tech-lib-slots-atk').style.display = '';
+    $('tech-lib-slots-def').style.display = 'none';
+  });
+  $('tab-def-tech')?.addEventListener('click', () => {
+    $('tab-def-tech').classList.add('active');
+    $('tab-atk-tech').classList.remove('active');
+    $('tech-lib-slots-def').style.display = '';
+    $('tech-lib-slots-atk').style.display = 'none';
+  });
+  // 战技库 dev 模式装备/卸下（攻击页 + 防御页）
+  ['tech-lib-slots-atk', 'tech-lib-slots-def'].forEach((containerId) => {
+    $(containerId)?.addEventListener('click', (event) => {
+      if (!G.devMode) return;
+      const equipBtn = event.target.closest('button[data-equip-tech]');
+      const unequipBtn = event.target.closest('button[data-unequip-slot]');
+      if (equipBtn) {
+        const techId = equipBtn.dataset.equipTech;
+        if (techId) { equipTechnique(G, techId); renderTechniqueLibrary(); refreshActionLabels(); }
+      } else if (unequipBtn) {
+        const slot = unequipBtn.dataset.unequipSlot;
+        // 防御槽 key 可能是 'd0'/'d1'/'d2'，攻击槽是数字
+        const numSlot = parseInt(slot, 10);
+        const resolvedSlot = isNaN(numSlot) ? slot : numSlot;
+        if (resolvedSlot) { unequipTechniqueSlot(G, resolvedSlot); renderTechniqueLibrary(); refreshActionLabels(); }
+      }
+    });
   });
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);

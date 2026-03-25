@@ -671,8 +671,12 @@
 <div class="overlay" id="ov-tech-lib">
   <div class="overlay-box tech-lib-box">
     <div class="overlay-title">⚔ 战技库</div>
-    <div class="tech-lib-desc-hint">战技替换对应槽位的基础攻击，带有特殊效果。</div>
-    <div class="tech-lib-slots" id="tech-lib-slots"></div>
+    <div class="tech-lib-tabs">
+      <button class="tech-lib-tab active" id="tab-atk-tech">⚔ 攻击战技</button>
+      <button class="tech-lib-tab" id="tab-def-tech">🛡 防御战技</button>
+    </div>
+    <div class="tech-lib-slots" id="tech-lib-slots-atk"></div>
+    <div class="tech-lib-slots" id="tech-lib-slots-def" style="display:none"></div>
     <div class="overlay-btns" style="margin-top:16px">
       <button class="btn btn-outline" id="btn-tech-lib-close">关闭</button>
     </div>

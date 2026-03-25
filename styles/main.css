@@ -1051,6 +1051,17 @@ body {
   text-align: center; font-size: .82em; color: var(--text-lt);
   margin-bottom: 12px; flex-shrink: 0;
 }
+.tech-lib-tabs {
+  display: flex; gap: 8px; margin-bottom: 10px;
+}
+.tech-lib-tab {
+  flex: 1; padding: 6px 0; border: 1.5px solid var(--border);
+  border-radius: var(--r-sm); background: var(--bg2);
+  color: var(--text2); font-size: 0.85rem; cursor: pointer;
+}
+.tech-lib-tab.active {
+  background: var(--accent); color: #fff; border-color: var(--accent);
+}
 .tech-lib-slots {
   flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
 }
