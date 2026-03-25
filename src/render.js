@@ -600,15 +600,24 @@ export function renderShop() {
   });
 }
 
-function setSubCardLabel(btn, costText, nameText, hintText) {
+function setSubCardLabel(btn, costText, nameText, hintText, emoji, artSrc) {
   // Update the child elements of a sub-card without destroying its structure
   if (!btn) return;
   const costEl = btn.querySelector('.sub-card-cost');
   const nameEl = btn.querySelector('.sub-card-name');
   const hintEl = btn.querySelector('.sub-card-hint');
+  const artEl  = btn.querySelector('.sub-card-art');
+  const imgEl  = btn.querySelector('.sub-card-img');
   if (costEl && costText !== undefined) costEl.textContent = costText;
   if (nameEl && nameText !== undefined) nameEl.textContent = nameText;
   if (hintEl && hintText !== undefined) hintEl.textContent = hintText;
+  if (artEl  && emoji   !== undefined) artEl.textContent = emoji;
+  if (imgEl  && artSrc  !== undefined) {
+    imgEl.onload  = () => btn.classList.add('has-art');
+    imgEl.onerror = () => btn.classList.remove('has-art');
+    btn.classList.remove('has-art');
+    imgEl.src = artSrc;
+  }
 }
 
 export function refreshActionLabels() {
@@ -616,7 +625,10 @@ export function refreshActionLabels() {
   ['defense_0', 'defense_1', 'defense_2'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
     const btn = $(['sb-d0', 'sb-d1', 'sb-d2'][idx]);
-    setSubCardLabel(btn, `${action.cost}`, action.name, `防御${action.def}`);
+    const defaultEmojis = ['🛡', '🛡🛡', '🛡🛡🛡'];
+    const emoji = action.emoji || defaultEmojis[idx];
+    const artSrc = action.defTechId ? `assets/cards/tech/${action.defTechId}.png` : '';
+    setSubCardLabel(btn, `${action.cost}`, action.name, `防御${action.def}`, emoji, artSrc);
   });
   ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].forEach((key, idx) => {
     const action = getActionData(key, 'player');

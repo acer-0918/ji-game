@@ -339,7 +339,7 @@ export const TECH_DEFS = {
     type: 'defense',
     name: '塔盾',
     emoji: '🏰🛡',
-    acquiredDesc: '灌注涌出它非喵',
+    acquiredDesc: '灌注涌出它非喵，没有任何特殊效果，只是提醒你这件事。',
     desc: '很神秘的一个盾，被燃烧器炙烤的黢黑。',
   },
   defense_2_c: {
