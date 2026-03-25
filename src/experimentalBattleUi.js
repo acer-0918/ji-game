@@ -370,7 +370,7 @@ export function createExperimentalBattleUi({
       fan.className = 'exp-card-fan';
       group.cards.forEach((card, idx) => {
         const btn = document.createElement('button');
-        const fanSpread = group.cards.length >= 5 ? 18 : group.cards.length >= 3 ? 14 : 0;
+        const fanSpread = group.cards.length >= 6 ? 32 : group.cards.length >= 4 ? 22 : group.cards.length >= 2 ? 14 : 0;
         btn.type = 'button';
         btn.className = `exp-hand-card${groupFocused ? ' group-focused' : ''}${card.selected ? ' selected' : ''}${card.blockedByRound ? ' blocked' : ''}`;
         btn.dataset.action = card.key;

@@ -470,9 +470,20 @@ function freeFollowUpExecuteOne() {
   const pending = G.battle && G.battle.freeFollowUpPending;
   if (!pending || pending.count <= 0) return;
   pending.count -= 1;
-  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - pending.dmgPerHit);
+  let dmg = pending.dmgPerHit;
+  const extraLogs = [];
+  // 重甲破击：追加攻击也是重战技，同样触发
+  if (G.abilities && G.abilities.heavyTechBoost && pending.techId) {
+    const def = TECH_DEFS[pending.techId];
+    if (def && def.weight === 'heavy') {
+      dmg += 1;
+      extraLogs.push('重甲破击 +1');
+    }
+  }
+  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - dmg);
   const done = 3 - pending.count;
-  addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：第 ${done} 次追加，造成 ${pending.dmgPerHit} 点伤害。`);
+  const extraStr = extraLogs.length ? `（${extraLogs.join('·')}）` : '';
+  addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：第 ${done} 次追加，造成 ${dmg} 点伤害${extraStr}。`);
   refreshBars();
   if ((G.enemy.hp || 0) <= 0 || pending.count <= 0) {
     confirmFreeFollowUp();

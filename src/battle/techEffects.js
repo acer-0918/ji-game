@@ -189,13 +189,15 @@ function applyMeteorFollowUp(ctx) {
   // streak incremented in ROUND_END on use; check if reached 3
   if ((tc.meteor_streak || 0) < 3) return;
 
-  tc.meteor_streak = 0; // reset after trigger
+  tc.meteor_streak = 0;
+  tc.meteor_triggered_this_round = true; // 告知ROUND_END本回合已触发，不重复计入
   const dmgPerHit = ctx.attackAction.damage || 1;
   G.battle.freeFollowUpPending = {
     count: 3,
     dmgPerHit,
     label: '火焰流星雨',
     emoji: '☄️',
+    techId: ctx.attackAction.techId,
   };
   ctx.triggers.push(`☄️ 火焰流星雨：已累计3次，命中触发——获得3次免费追加攻击！`);
 }
@@ -303,11 +305,16 @@ export function registerTechEffects(engine) {
       // 火焰流星雨 streak（累计，不要求连续回合）
       if (G.techniques && G.techniques[4] === 'atk_4_d') {
         if (pAction === 'attack_4') {
-          tc.meteor_streak = (tc.meteor_streak || 0) + 1;
-          if (tc.meteor_streak < 3) {
-            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计使用 ${tc.meteor_streak} 次（累计满3次命中后可追加3次）。`);
+          if (tc.meteor_triggered_this_round) {
+            // 触发回合不计入下一轮，从0开始
+            tc.meteor_triggered_this_round = false;
           } else {
-            pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计3次，追加攻击已激活，命中即触发！`);
+            tc.meteor_streak = (tc.meteor_streak || 0) + 1;
+            if (tc.meteor_streak < 3) {
+              pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计使用 ${tc.meteor_streak} 次（累计满3次命中后可追加3次）。`);
+            } else {
+              pushLog(ctx, 'log-ab', `☄️ 火焰流星雨：已累计3次，追加攻击已激活，命中即触发！`);
+            }
           }
         }
       }

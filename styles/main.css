@@ -1188,6 +1188,22 @@ body.experimental-battle-ui #screen-battle.active .action-area {
   display: none;
 }
 
+/* 追加面板在实验UI模式下浮动到手牌区上方 */
+body.experimental-battle-ui #screen-battle.active #hunt-rhythm-panel,
+body.experimental-battle-ui #screen-battle.active #free-followup-panel {
+  position: fixed;
+  bottom: 220px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  background: var(--card-bg, #fff);
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  padding: 16px 20px;
+  min-width: 260px;
+  pointer-events: auto;
+}
+
 .exp-battle-header {
   display: flex;
   justify-content: space-between;
@@ -1660,7 +1676,11 @@ body.experimental-battle-ui #screen-battle.active .action-area {
 }
 
 .exp-card-fan .exp-hand-card + .exp-hand-card {
-  margin-left: -64px;
+  margin-left: -60px;
+}
+
+.exp-card-group[data-group="attack"] .exp-card-fan .exp-hand-card + .exp-hand-card {
+  margin-left: -50px;
 }
 
 .exp-hand-card {
