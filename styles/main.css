@@ -1662,6 +1662,7 @@ body.experimental-battle-ui #screen-battle.active #free-followup-panel {
 
 .exp-card-group {
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 0;
   flex-shrink: 0;
@@ -1671,12 +1672,30 @@ body.experimental-battle-ui #screen-battle.active #free-followup-panel {
 }
 
 .exp-card-group + .exp-card-group {
-  margin-left: -18px;
+  margin-left: 22px;
+}
+
+/* 攻击区和防御区之间距离稍大 */
+.exp-card-group[data-group="defense"] + .exp-card-group[data-group="attack"] {
+  margin-left: 28px;
 }
 
 .exp-card-group-title {
-  display: none;
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  color: rgba(120,90,180,0.45);
+  text-transform: none;
+  margin-bottom: 6px;
+  user-select: none;
+  pointer-events: none;
 }
+
+.exp-card-group[data-group="attack"] .exp-card-group-title { color: rgba(200,60,80,0.4); }
+.exp-card-group[data-group="defense"] .exp-card-group-title { color: rgba(40,120,200,0.4); }
+.exp-card-group[data-group="charge"] .exp-card-group-title { color: rgba(130,80,200,0.4); }
+.exp-card-group[data-group="special"] .exp-card-group-title { color: rgba(200,140,20,0.4); }
 
 .exp-card-fan {
   display: flex;
@@ -1686,12 +1705,34 @@ body.experimental-battle-ui #screen-battle.active #free-followup-panel {
   overflow: visible;
 }
 
+/* 防御区：适度叠压 */
 .exp-card-fan .exp-hand-card + .exp-hand-card {
-  margin-left: -60px;
+  margin-left: -52px;
 }
 
-.exp-card-group[data-group="attack"] .exp-card-fan .exp-hand-card + .exp-hand-card {
-  margin-left: -50px;
+/* 攻击区两排容器 */
+.exp-attack-rows {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+}
+
+/* 上排（攻5-7）叠在下排上方，负 margin 产生竖向重叠 */
+.exp-attack-row-top {
+  position: relative;
+  z-index: 2;
+  margin-bottom: -52px;
+}
+
+.exp-attack-row-bottom {
+  position: relative;
+  z-index: 1;
+}
+
+/* 攻击区排内卡片水平叠压 */
+.exp-attack-row .exp-hand-card + .exp-hand-card {
+  margin-left: -48px;
 }
 
 .exp-hand-card {
