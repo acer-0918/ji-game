@@ -110,7 +110,7 @@ export function registerDefaultRoundStartEffects(engine) {
       const merged = [...new Set([...(G.battle.roundDisabledActions || []), ...picked])];
       G.battle.roundDisabledActions = merged;
       G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + 2);
-      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合禁用 4 个行动（${picked.join('、')}），并获得 2 Ji。`);
+      pushLog(ctx, 'log-ab', `🔕 沉默是金：本回合禁用 ${disableCount} 个行动（${picked.join('、')}），并获得 2 Ji。`);
     },
   });
 
