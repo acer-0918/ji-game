@@ -37,6 +37,19 @@ export function registerDefaultCombatEffects(engine) {
     },
   });
 
+  // 存储 pActionData / eActionData 到 G.battle，供 techEffects 等使用
+  engine.registerEffect({
+    effectId: 'system.store_action_data',
+    phase: PHASES.ACTION_COMPARE,
+    actorScope: ACTOR_SCOPE.SYSTEM,
+    order: COMBAT_ORDER.RESOLVE_SELECTED_ACTIONS + 1,
+    condition: (ctx) => !!(G.battle && ctx.pChosen && ctx.eChosen),
+    apply: (ctx) => {
+      G.battle.pActionData = ctx.pChosen;
+      G.battle.eActionData = ctx.eChosen;
+    },
+  });
+
   engine.registerEffect({
     effectId: 'system.hit_check',
     phase: PHASES.HIT_CHECK,
@@ -58,6 +71,18 @@ export function registerDefaultCombatEffects(engine) {
       const hasHit = (ctx.hitCheck.playerHits || 0) > 0 || (ctx.hitCheck.enemyHits || 0) > 0;
       const cls = hasHit ? 'log-dmg' : 'log-blk';
       ctx.hitCheck.msgs.forEach((msg) => pushLog(ctx, cls, msg));
+    },
+  });
+
+  // 存储 lastRoundEnemyHit 到 G.battle，供 techEffects（小圆盾、聚合）使用
+  engine.registerEffect({
+    effectId: 'system.store_enemy_hit',
+    phase: PHASES.HIT_CHECK,
+    actorScope: ACTOR_SCOPE.SYSTEM,
+    order: 9001,
+    condition: (ctx) => !!(G.battle && ctx.hitCheck),
+    apply: (ctx) => {
+      G.battle.lastRoundEnemyHit = (ctx.hitCheck.enemyHits || 0) > 0;
     },
   });
 

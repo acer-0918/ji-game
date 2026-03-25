@@ -260,11 +260,114 @@ export const TECH_DEFS = {
     emoji: '🫙💥',
     desc: '【壶大炮】命中时使敌人的Ji数在下回合开始时-3（至多归零）。',
   },
+
+  // ──────────── 防御0 ────────────
+  defense_0_b: {
+    id: 'defense_0_b',
+    slot: 'd0',
+    type: 'defense',
+    name: '小圆盾',
+    emoji: '🔵🛡',
+    costOverride: 2,
+    defOverride: 4,
+    desc: '消耗 2 Ji，防御等级 4。防御成功时，减少敌方 2 倍其出招 Ji 消耗的 Ji（最少归零）。',
+  },
+  defense_0_c: {
+    id: 'defense_0_c',
+    slot: 'd0',
+    type: 'defense',
+    name: '冷静',
+    emoji: '🧘🛡',
+    defOverride: 1,
+    desc: '防御等级 1。下回合额外附带防御等级 +1。',
+  },
+  defense_0_d: {
+    id: 'defense_0_d',
+    slot: 'd0',
+    type: 'defense',
+    name: '丰矿',
+    emoji: '⛏🛡',
+    defOverride: 6,
+    desc: '防御等级 6。下回合防御等级 -3（最低为 0）。',
+  },
+
+  // ──────────── 防御1 ────────────
+  defense_1_a: {
+    id: 'defense_1_a',
+    slot: 'd1',
+    type: 'defense',
+    name: '聚合',
+    emoji: '✨🛡',
+    costOverride: 3,
+    defOverride: 0,
+    desc: '消耗 3 Ji，本回合获得"无敌"（免疫所有伤害）。若本回合被攻击，下一次【太刀】追加概率变为 100%。',
+  },
+  defense_1_c: {
+    id: 'defense_1_c',
+    slot: 'd1',
+    type: 'defense',
+    name: '黄金盾',
+    emoji: '🥇🛡',
+    costOverride: 0,
+    defOverride: 5,
+    useLimitPerBattle: 6,
+    desc: '不消耗 Ji，防御等级 5。每场战斗限使用 6 次。',
+  },
+  defense_1_d: {
+    id: 'defense_1_d',
+    slot: 'd1',
+    type: 'defense',
+    name: '粥还得熬多久',
+    emoji: '🍚🛡',
+    desc: '复制上回合的防御等级并 +3。',
+  },
+
+  // ──────────── 防御2 ────────────
+  defense_2_a: {
+    id: 'defense_2_a',
+    slot: 'd2',
+    type: 'defense',
+    name: '绘画大盾',
+    emoji: '🎨🛡',
+    costOverride: 4,
+    defOverride: 6,
+    desc: '消耗 4 Ji，防御等级 6。使用时回复 1 点生命。',
+  },
+  defense_2_b: {
+    id: 'defense_2_b',
+    slot: 'd2',
+    type: 'defense',
+    name: '塔盾',
+    emoji: '🏰🛡',
+    acquiredDesc: '灌注涌出它非喵',
+    desc: '很神秘的一个盾，被燃烧器炙烤的黢黑。',
+  },
+  defense_2_c: {
+    id: 'defense_2_c',
+    slot: 'd2',
+    type: 'defense',
+    name: '塔斯订购...是的',
+    emoji: '📦🛡',
+    defOverride: 6,
+    desc: '防御等级 6。若下回合敌方攻击合法，则敌方必定攻击。',
+  },
+  defense_2_d: {
+    id: 'defense_2_d',
+    slot: 'd2',
+    type: 'defense',
+    name: '波尔',
+    emoji: '🎯🛡',
+    desc: '本场战斗中使用后，你的【掷骰】必定获得 +3 Ji。',
+  },
 };
 
 export function getTechniqueCategoryLabel(defOrId) {
   const def = typeof defOrId === 'string' ? TECH_DEFS[defOrId] : defOrId;
-  if (!def || !Number.isFinite(Number(def.slot))) return '未分类';
+  if (!def) return '未分类';
+  if (def.slot === 'd0') return '防御0类';
+  if (def.slot === 'd1') return '防御1类';
+  if (def.slot === 'd2') return '防御2类';
+  if (!Number.isFinite(Number(def.slot))) return '未分类';
   return `攻击${Math.floor(Number(def.slot))}类`;
 }
 
@@ -275,7 +378,7 @@ export function getTechDefsForSlot(slot) {
 
 /** 初始化战技状态（所有槽位为 null，表示使用基础攻击） */
 export function createTechniquesState() {
-  return { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null };
+  return { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null, d0: null, d1: null, d2: null };
 }
 
 /** 初始化战斗内战技计数器 */
@@ -293,6 +396,14 @@ export function createTechCounters() {
     pot_cannon_pending: 0,
     // 冰霜新星：敌方下回合攻击锁定
     frost_nova_lock: false,
+    // 防御战技计数器
+    goldenShield_used: 0,
+    lastPlayerDefLevel: 0,
+    defPenalty_next: 0,
+    calmBonus_next: 0,
+    bore_active: false,
+    tachiGuaranteedNext: false,
+    taDun_shown: false,
   };
 }
 
