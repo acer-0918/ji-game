@@ -153,20 +153,20 @@
       <div class="exp-battle-middle">
         <div class="exp-reveal-lane">
           <div class="played-slot">
-            <div class="played-label enemy-lbl">敌方亮牌</div>
-            <div class="reveal-card facedown exp-reveal-card" id="exp-enemy-card">
-              <div class="ac-emoji">🂠</div>
-              <div class="ac-name">???</div>
-              <div class="ac-sub"></div>
-            </div>
-          </div>
-          <div class="exp-vs-mark">VS</div>
-          <div class="played-slot">
             <div class="played-label player-lbl">我方亮牌</div>
             <div class="reveal-card exp-reveal-card" id="exp-player-card">
               <div class="ac-emoji" id="exp-pc-emoji">　</div>
               <div class="ac-name" id="exp-pc-main">—</div>
               <div class="ac-sub" id="exp-pc-sub"></div>
+            </div>
+          </div>
+          <div class="exp-vs-mark">VS</div>
+          <div class="played-slot">
+            <div class="played-label enemy-lbl">敌方亮牌</div>
+            <div class="reveal-card facedown exp-reveal-card" id="exp-enemy-card">
+              <div class="ac-emoji">🂠</div>
+              <div class="ac-name">???</div>
+              <div class="ac-sub"></div>
             </div>
           </div>
         </div>
@@ -469,14 +469,6 @@
       </button>
     </div>
 
-    <div class="hunt-rhythm-panel" id="hunt-rhythm-panel" style="display:none">
-      <div class="hunt-rhythm-title">🏹 命中！狩猎律动</div>
-      <div class="hunt-rhythm-meta" id="hunt-rhythm-meta">已追加 0 次 · 剩余 Ji：0</div>
-      <div class="hunt-rhythm-btns">
-        <button class="btn-confirm" id="btn-hunt-rhythm-add">再追加一次</button>
-        <button class="btn btn-outline" id="btn-hunt-rhythm-confirm">完成</button>
-      </div>
-    </div>
 
     <!-- 确认行 -->
     <div class="confirm-row">
@@ -493,6 +485,26 @@
     </div>
 
   </div><!-- /action-area -->
+
+  <!-- 免费追加攻击面板（在action-area外，两种UI均可见） -->
+  <div class="free-followup-panel" id="free-followup-panel" style="display:none">
+    <div class="hunt-rhythm-title" id="free-followup-title">☄️ 免费追加攻击</div>
+    <div class="hunt-rhythm-meta" id="free-followup-meta">剩余 0 次免费攻击</div>
+    <div class="hunt-rhythm-btns">
+      <button class="btn-confirm" id="btn-free-followup-exec">发动追加攻击</button>
+      <button class="btn btn-outline" id="btn-free-followup-skip">放弃剩余</button>
+    </div>
+  </div>
+
+  <!-- 狩猎律动面板（在action-area外，两种UI均可见） -->
+  <div class="hunt-rhythm-panel" id="hunt-rhythm-panel" style="display:none">
+    <div class="hunt-rhythm-title">🏹 命中！狩猎律动</div>
+    <div class="hunt-rhythm-meta" id="hunt-rhythm-meta">已追加 0 次 · 剩余 Ji：0</div>
+    <div class="hunt-rhythm-btns">
+      <button class="btn-confirm" id="btn-hunt-rhythm-add">再追加一次</button>
+      <button class="btn btn-outline" id="btn-hunt-rhythm-confirm">完成</button>
+    </div>
+  </div>
 
 </div><!-- /screen-battle -->
 
@@ -659,8 +671,12 @@
 <div class="overlay" id="ov-tech-lib">
   <div class="overlay-box tech-lib-box">
     <div class="overlay-title">⚔ 战技库</div>
-    <div class="tech-lib-desc-hint">战技替换对应槽位的基础攻击，带有特殊效果。</div>
-    <div class="tech-lib-slots" id="tech-lib-slots"></div>
+    <div class="tech-lib-tabs">
+      <button class="tech-lib-tab active" id="tab-atk-tech">⚔ 攻击战技</button>
+      <button class="tech-lib-tab" id="tab-def-tech">🛡 防御战技</button>
+    </div>
+    <div class="tech-lib-slots" id="tech-lib-slots-atk"></div>
+    <div class="tech-lib-slots" id="tech-lib-slots-def" style="display:none"></div>
     <div class="overlay-btns" style="margin-top:16px">
       <button class="btn btn-outline" id="btn-tech-lib-close">关闭</button>
     </div>

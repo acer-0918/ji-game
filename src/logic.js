@@ -152,6 +152,43 @@ export function getActionData(key, side='player', actorOverride=null) {
     if (key === 'defense_2') {
       base.cost += countActiveTag(G, 'equi_tag_ng_a_3');
     }
+    // 防御战技覆盖
+    const defSlotMap = { defense_0: 'd0', defense_1: 'd1', defense_2: 'd2' };
+    const defSlot = defSlotMap[key];
+    const defTechId = defSlot && G.techniques && G.techniques[defSlot];
+    if (defTechId) {
+      const defTech = TECH_DEFS[defTechId];
+      if (defTech) {
+        base.defTechId = defTech.id;
+        base.name = defTech.name;
+        base.emoji = defTech.emoji;
+        if (defTech.costOverride !== undefined) base.cost = defTech.costOverride;
+        if (defTech.defOverride !== undefined) base.def = defTech.defOverride;
+        if (defTech.id === 'defense_1_c') {
+          const tc = G.battle && G.battle.techCounters;
+          const used = tc ? (tc.goldenShield_used || 0) : 0;
+          if (used >= (defTech.useLimitPerBattle || 6)) {
+            base.cost = 999;
+            base.disabled = true;
+          }
+        }
+        if (defTech.id === 'defense_1_d') {
+          const tc = G.battle && G.battle.techCounters;
+          const lastDef = tc ? (tc.lastPlayerDefLevel || 0) : 0;
+          base.def = lastDef + 3;
+        }
+        if (defTech.id === 'defense_1_a') {
+          base.isInvincible = true;
+        }
+      }
+    }
+    // 丰矿惩罚（下回合 -3，对所有防御生效）
+    const tcPenalty = G.battle && G.battle.techCounters;
+    const penalty = tcPenalty ? (tcPenalty.defPenalty_next || 0) : 0;
+    if (penalty > 0) base.def = Math.max(0, base.def - penalty);
+    // 冷静奖励（下回合 +1，对所有防御生效）
+    const calmBonus = tcPenalty ? (tcPenalty.calmBonus_next || 0) : 0;
+    if (calmBonus > 0) base.def += calmBonus;
   }
   if (side === 'player' && base.type === 'attack') {
     base.atk += getAttackLevelTagModifier(G);

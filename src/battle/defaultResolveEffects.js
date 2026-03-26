@@ -14,6 +14,26 @@ function pushLog(ctx, cls, text) {
 }
 
 export function registerDefaultResolveEffects(engine) {
+  // 聚合（defense_1_a）：无敌时免疫所有来自敌方的伤害
+  engine.registerEffect({
+    effectId: 'player.invincible_nullify_damage',
+    phase: PHASES.DAMAGE_RESOLVE,
+    actorScope: ACTOR_SCOPE.PLAYER,
+    order: DAMAGE_ORDER.RELIC_POSSIBLE_REUNION_CHARGE - 1,
+    condition: (ctx) => !!(
+      ctx.result &&
+      G.battle &&
+      G.battle.pActionData &&
+      G.battle.pActionData.isInvincible
+    ),
+    apply: (ctx) => {
+      if ((ctx.result.pdmg || 0) > 0) {
+        ctx.result.pdmg = 0;
+        pushLog(ctx, 'log-ab', `✨ 聚合：无敌状态，本回合免疫所有来自敌方的伤害！`);
+      }
+    },
+  });
+
   engine.registerEffect({
     effectId: 'system.apply_hp_change',
     phase: PHASES.APPLY_DAMAGE,

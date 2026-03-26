@@ -245,6 +245,12 @@ function getBlockedActions(ctx) {
     ATTACK_KEYS.forEach(k => blocked.push(k));
   }
 
+  // 塔斯订购（defense_2_c）：本回合敌方必须攻击，封堵所有非攻击动作
+  if (G.battle && G.battle.enemyMustAttackNextRound) {
+    G.battle.enemyMustAttackNextRound = false; // 消耗后清除
+    blocked.push('defense_0', 'defense_1', 'defense_2', 'ji', 'orb_random');
+  }
+
   if (ctx) {
     // nsyc 暴露（厄介必中）→ 防御完全无用，全部封堵
     if (ctx.nsycExposed) {

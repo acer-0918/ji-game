@@ -444,6 +444,81 @@ function updateHuntRhythmPanelForAction(actionKey = null) {
   }
 }
 
+// ── 免费追加攻击面板（火焰流星雨等） ──────────────────────────────────────────
+
+function showFreeFollowUpPanel() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (!pending || pending.count <= 0) return;
+  const panel = $('free-followup-panel');
+  if (!panel) return;
+  panel.style.display = '';
+  $('action-area').style.pointerEvents = 'auto';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = 'none';
+  const title = $('free-followup-title');
+  if (title) title.textContent = `${pending.emoji || '⚔'} ${pending.label} — 免费追加攻击`;
+  syncFreeFollowUpMeta();
+}
+
+function syncFreeFollowUpMeta() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  const meta = $('free-followup-meta');
+  if (!meta || !pending) return;
+  meta.textContent = `剩余 ${pending.count} 次免费攻击 · 每次造成 ${pending.dmgPerHit} 点伤害`;
+}
+
+function hideFreeFollowUpPanel() {
+  const panel = $('free-followup-panel');
+  if (panel) panel.style.display = 'none';
+  const confirmRow = document.querySelector('.confirm-row');
+  if (confirmRow) confirmRow.style.display = '';
+}
+
+function freeFollowUpExecuteOne() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (!pending || pending.count <= 0) return;
+  pending.count -= 1;
+  let dmg = pending.dmgPerHit;
+  const extraLogs = [];
+  // 重甲破击：追加攻击也是重战技，同样触发
+  if (G.abilities && G.abilities.heavyTechBoost && pending.techId) {
+    const def = TECH_DEFS[pending.techId];
+    if (def && def.weight === 'heavy') {
+      dmg += 1;
+      extraLogs.push('重甲破击 +1');
+    }
+  }
+  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - dmg);
+  const done = 3 - pending.count;
+  const extraStr = extraLogs.length ? `（${extraLogs.join('·')}）` : '';
+  addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：第 ${done} 次追加，造成 ${dmg} 点伤害${extraStr}。`);
+  refreshBars();
+  if ((G.enemy.hp || 0) <= 0 || pending.count <= 0) {
+    confirmFreeFollowUp();
+    return;
+  }
+  syncFreeFollowUpMeta();
+}
+
+function confirmFreeFollowUp() {
+  const pending = G.battle && G.battle.freeFollowUpPending;
+  if (pending && pending.count < 3) {
+    addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：免费追加结束。`);
+  }
+  G.battle.freeFollowUpPending = null;
+  hideFreeFollowUpPanel();
+  afterFreeFollowUpResolve();
+}
+
+function afterFreeFollowUpResolve() {
+  const deathCtx = battleRuntime.runDeathCheckPhase();
+  if (deathCtx.outcome === BATTLE_OUTCOME.WIN) { endBattle(true); return; }
+  if (deathCtx.outcome === BATTLE_OUTCOME.LOSE) { endBattle(false); return; }
+  nextRound();
+}
+
+// ── 狩猎律动面板 ──────────────────────────────────────────────────────────────
+
 function showHuntRhythmPostHitPanel() {
   const pending = G.battle && G.battle.huntRhythmPending;
   if (!pending) return;
@@ -651,11 +726,14 @@ function renderBattleRewardUI() {
         title = `战技：${def.name}`;
         const equippedId = G.techniques ? G.techniques[def.slot] : null;
         const equippedDef = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId] : null;
+        const isDefTech = typeof def.slot === 'string' && def.slot.startsWith('d');
+        const slotLabel = getTechniqueCategoryLabel(def);
+        const baseLabel = isDefTech ? '基础防御' : '基础攻击';
         const replaceHint = equippedDef
           ? `将替换：${equippedDef.name} → ${def.name}`
-          : `将装备到攻击${def.slot}类（替换基础攻击）`;
+          : `将装备到${slotLabel}（替换${baseLabel}）`;
         const weightLabel = def.weight === 'heavy' ? '【重】' : def.weight === 'light' ? '【轻】' : '';
-        desc = `类别：${getTechniqueCategoryLabel(def)}${weightLabel} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
+        desc = `类别：${slotLabel}${weightLabel} · ${replaceHint}${def.desc ? ` · ${def.desc}` : ''}`;
       } else {
         icon = '⚔';
         title = `战技：${item.id}`;
@@ -2107,6 +2185,10 @@ function doResolve() {
   experimentalBattleUi && experimentalBattleUi.triggerHitFeedback(resolveCtx.result);
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
+    if (G.battle && G.battle.freeFollowUpPending && G.battle.freeFollowUpPending.count > 0) {
+      showFreeFollowUpPanel();
+      return;
+    }
     if (G.battle && G.battle.huntRhythmPending) {
       if (hasDelegationProblemRelic()) {
         addLog('log-ab', '🧾 委托代理问题：代理人放弃了狩猎律动的追加出手。');
@@ -2169,6 +2251,8 @@ function endBattle(win) {
   experimentalBattleUi && experimentalBattleUi.resetDragState();
   experimentalBattleUi && experimentalBattleUi.closeLiveBattleLog();
   if (G.battle) G.battle.huntRhythmPending = null;
+  if (G.battle) G.battle.freeFollowUpPending = null;
+  hideFreeFollowUpPanel();
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
 
@@ -2456,6 +2540,8 @@ function bindStaticEvents() {
   $('btn-battle-continue').addEventListener('click', closeBattleOverlay);
   $('btn-relic-skip')?.addEventListener('click', clearRelicChoiceUI);
   $('btn-confirm').addEventListener('click', confirmAction);
+  $('btn-free-followup-exec')?.addEventListener('click', freeFollowUpExecuteOne);
+  $('btn-free-followup-skip')?.addEventListener('click', confirmFreeFollowUp);
   $('btn-hunt-rhythm-add')?.addEventListener('click', huntRhythmAddOne);
   $('btn-hunt-rhythm-confirm')?.addEventListener('click', confirmHuntRhythmExtra);
   $('btn-restart-run-from-gameover').addEventListener('click', restartRun);
@@ -2505,17 +2591,36 @@ function bindStaticEvents() {
   experimentalBattleUi && experimentalBattleUi.bindEvents();
 
   // Dev mode: equip/unequip techniques from the library
-  $('tech-lib-slots')?.addEventListener('click', (event) => {
-    if (!G.devMode) return;
-    const equipBtn = event.target.closest('button[data-equip-tech]');
-    const unequipBtn = event.target.closest('button[data-unequip-slot]');
-    if (equipBtn) {
-      const techId = equipBtn.dataset.equipTech;
-      if (techId) { equipTechnique(G, techId); renderTechniqueLibrary(); refreshActionLabels(); }
-    } else if (unequipBtn) {
-      const slot = parseInt(unequipBtn.dataset.unequipSlot, 10);
-      if (slot) { unequipTechniqueSlot(G, slot); renderTechniqueLibrary(); refreshActionLabels(); }
-    }
+  // 战技库 tab 切换
+  $('tab-atk-tech')?.addEventListener('click', () => {
+    $('tab-atk-tech').classList.add('active');
+    $('tab-def-tech').classList.remove('active');
+    $('tech-lib-slots-atk').style.display = '';
+    $('tech-lib-slots-def').style.display = 'none';
+  });
+  $('tab-def-tech')?.addEventListener('click', () => {
+    $('tab-def-tech').classList.add('active');
+    $('tab-atk-tech').classList.remove('active');
+    $('tech-lib-slots-def').style.display = '';
+    $('tech-lib-slots-atk').style.display = 'none';
+  });
+  // 战技库 dev 模式装备/卸下（攻击页 + 防御页）
+  ['tech-lib-slots-atk', 'tech-lib-slots-def'].forEach((containerId) => {
+    $(containerId)?.addEventListener('click', (event) => {
+      if (!G.devMode) return;
+      const equipBtn = event.target.closest('button[data-equip-tech]');
+      const unequipBtn = event.target.closest('button[data-unequip-slot]');
+      if (equipBtn) {
+        const techId = equipBtn.dataset.equipTech;
+        if (techId) { equipTechnique(G, techId); renderTechniqueLibrary(); refreshActionLabels(); }
+      } else if (unequipBtn) {
+        const slot = unequipBtn.dataset.unequipSlot;
+        // 防御槽 key 可能是 'd0'/'d1'/'d2'，攻击槽是数字
+        const numSlot = parseInt(slot, 10);
+        const resolvedSlot = isNaN(numSlot) ? slot : numSlot;
+        if (resolvedSlot) { unequipTechniqueSlot(G, resolvedSlot); renderTechniqueLibrary(); refreshActionLabels(); }
+      }
+    });
   });
   $('btn-menu-from-gameover')?.addEventListener('click', confirmBackToMenu);
   $('btn-menu-from-victory')?.addEventListener('click', confirmBackToMenu);

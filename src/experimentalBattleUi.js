@@ -356,6 +356,29 @@ export function createExperimentalBattleUi({
             ? 'special'
             : '')
       : '';
+    const groupLabels = { charge: '蓄力', defense: '防御', attack: '攻击', special: '技能' };
+
+    function buildCardBtn(card, idx, totalInRow, fanSpread, groupFocused) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `exp-hand-card${groupFocused ? ' group-focused' : ''}${card.selected ? ' selected' : ''}${card.blockedByRound ? ' blocked' : ''}`;
+      btn.dataset.action = card.key;
+      btn.dataset.group = card.group;
+      btn.dataset.disabled = card.disabled ? 'true' : 'false';
+      btn.dataset.blocked = card.blockedByRound ? 'true' : 'false';
+      const angle = totalInRow <= 1 ? 0 : (-fanSpread / 2) + (fanSpread * idx / Math.max(1, totalInRow - 1));
+      btn.style.setProperty('--exp-angle', `${angle}deg`);
+      btn.style.setProperty('--exp-z', String(6 + idx));
+      btn.disabled = card.disabled;
+      btn.innerHTML = `
+        <span class="exp-card-cost">${card.costText}</span>
+        ${card.blockedByRound ? '<span class="exp-card-disabled-mark">禁</span>' : ''}
+        <div class="exp-card-icon">${card.action.emoji || '•'}</div>
+        <div class="exp-card-name">${card.action.name}</div>
+        <div class="exp-card-hint">${card.hintText || ''}</div>`;
+      return btn;
+    }
+
     groups.forEach((group) => {
       const section = document.createElement('div');
       const groupFocused = !!focusedGroup && focusedGroup === group.key;
@@ -364,34 +387,39 @@ export function createExperimentalBattleUi({
 
       const title = document.createElement('div');
       title.className = 'exp-card-group-title';
+      title.textContent = groupLabels[group.key] || '';
       section.appendChild(title);
 
-      const fan = document.createElement('div');
-      fan.className = 'exp-card-fan';
-      group.cards.forEach((card, idx) => {
-        const btn = document.createElement('button');
-        const fanSpread = group.cards.length >= 5 ? 18 : group.cards.length >= 3 ? 14 : 0;
-        btn.type = 'button';
-        btn.className = `exp-hand-card${groupFocused ? ' group-focused' : ''}${card.selected ? ' selected' : ''}${card.blockedByRound ? ' blocked' : ''}`;
-        btn.dataset.action = card.key;
-        btn.dataset.group = card.group;
-        btn.dataset.disabled = card.disabled ? 'true' : 'false';
-        btn.dataset.blocked = card.blockedByRound ? 'true' : 'false';
-        btn.style.setProperty(
-          '--exp-angle',
-          `${group.cards.length <= 1 ? 0 : (-fanSpread / 2) + (fanSpread * idx / Math.max(1, group.cards.length - 1))}deg`,
-        );
-        btn.style.setProperty('--exp-z', String(6 + idx));
-        btn.disabled = card.disabled;
-        btn.innerHTML = `
-          <span class="exp-card-cost">${card.costText}</span>
-          ${card.blockedByRound ? '<span class="exp-card-disabled-mark">禁</span>' : ''}
-          <div class="exp-card-icon">${card.action.emoji || '•'}</div>
-          <div class="exp-card-name">${card.action.name}</div>
-          <div class="exp-card-hint">${card.hintText || ''}</div>`;
-        fan.appendChild(btn);
-      });
-      section.appendChild(fan);
+      if (group.key === 'attack' && group.cards.length > 4) {
+        // 两排垒放：上排前4张，下排剩余（3张）
+        const topCards = group.cards.slice(0, 4);
+        const bottomCards = group.cards.slice(4);
+        const fanSpread = 16;
+
+        const rows = document.createElement('div');
+        rows.className = 'exp-attack-rows';
+
+        const topFan = document.createElement('div');
+        topFan.className = 'exp-card-fan exp-attack-row exp-attack-row-top';
+        topCards.forEach((card, idx) => topFan.appendChild(buildCardBtn(card, idx, topCards.length, fanSpread, groupFocused)));
+
+        const bottomFan = document.createElement('div');
+        bottomFan.className = 'exp-card-fan exp-attack-row exp-attack-row-bottom';
+        bottomCards.forEach((card, idx) => bottomFan.appendChild(buildCardBtn(card, idx, bottomCards.length, fanSpread, groupFocused)));
+
+        rows.appendChild(topFan);
+        rows.appendChild(bottomFan);
+        section.appendChild(rows);
+      } else {
+        // 普通单排扇形
+        const n = group.cards.length;
+        const fanSpread = n >= 4 ? 22 : n >= 2 ? 14 : 0;
+        const fan = document.createElement('div');
+        fan.className = 'exp-card-fan';
+        group.cards.forEach((card, idx) => fan.appendChild(buildCardBtn(card, idx, n, fanSpread, groupFocused)));
+        section.appendChild(fan);
+      }
+
       wrap.appendChild(section);
     });
   }

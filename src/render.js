@@ -90,8 +90,17 @@ export function getPassiveBadges({ includeResources = true, includeTechniques = 
       const def = id && TECH_DEFS[id];
       if (def) arr.push({
         icon: def.emoji,
-        name: `${def.name}（${slot}）`,
+        name: `${def.name}（攻${slot}）`,
         detail: `类别：${getTechniqueCategoryLabel(def)}\n${def.desc || ''}`,
+      });
+    }
+    for (const [slot, label] of [['d0', '防0'], ['d1', '防1'], ['d2', '防2']]) {
+      const id = G.techniques[slot];
+      const def = id && TECH_DEFS[id];
+      if (def) arr.push({
+        icon: def.emoji,
+        name: `${def.name}（${label}）`,
+        detail: `类别：${getTechniqueCategoryLabel(def)}\n${def.acquiredDesc || def.desc || ''}`,
       });
     }
   }
@@ -551,9 +560,11 @@ export function renderShop() {
       const category = getTechniqueCategoryLabel(def);
       const equippedId = G.techniques ? G.techniques[def.slot] : null;
       const equippedDef = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId] : null;
+      const isDefTech = typeof def.slot === 'string' && def.slot.startsWith('d');
+      const baseLabel = isDefTech ? '基础防御' : '基础攻击';
       const replaceHint = equippedDef
         ? `购买后替换：${equippedDef.name} → ${def.name}`
-        : `购买后装备到攻击${def.slot}类（替换基础攻击）`;
+        : `购买后装备到${getTechniqueCategoryLabel(def)}（替换${baseLabel}）`;
       const shopWeightBadge = def.weight === 'heavy'
         ? '<span class="tech-weight-badge heavy">重</span>'
         : def.weight === 'light'
@@ -589,15 +600,24 @@ export function renderShop() {
   });
 }
 
-function setSubCardLabel(btn, costText, nameText, hintText) {
+function setSubCardLabel(btn, costText, nameText, hintText, emoji, artSrc) {
   // Update the child elements of a sub-card without destroying its structure
   if (!btn) return;
   const costEl = btn.querySelector('.sub-card-cost');
   const nameEl = btn.querySelector('.sub-card-name');
   const hintEl = btn.querySelector('.sub-card-hint');
+  const artEl  = btn.querySelector('.sub-card-art');
+  const imgEl  = btn.querySelector('.sub-card-img');
   if (costEl && costText !== undefined) costEl.textContent = costText;
   if (nameEl && nameText !== undefined) nameEl.textContent = nameText;
   if (hintEl && hintText !== undefined) hintEl.textContent = hintText;
+  if (artEl  && emoji   !== undefined) artEl.textContent = emoji;
+  if (imgEl  && artSrc  !== undefined) {
+    imgEl.onload  = () => btn.classList.add('has-art');
+    imgEl.onerror = () => btn.classList.remove('has-art');
+    btn.classList.remove('has-art');
+    imgEl.src = artSrc;
+  }
 }
 
 export function refreshActionLabels() {
@@ -605,7 +625,10 @@ export function refreshActionLabels() {
   ['defense_0', 'defense_1', 'defense_2'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
     const btn = $(['sb-d0', 'sb-d1', 'sb-d2'][idx]);
-    setSubCardLabel(btn, `${action.cost}`, action.name, `防御${action.def}`);
+    const defaultEmojis = ['🛡', '🛡🛡', '🛡🛡🛡'];
+    const emoji = action.emoji || defaultEmojis[idx];
+    const artSrc = action.defTechId ? `assets/cards/tech/${action.defTechId}.png` : '';
+    setSubCardLabel(btn, `${action.cost}`, action.name, `防御${action.def}`, emoji, artSrc);
   });
   ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].forEach((key, idx) => {
     const action = getActionData(key, 'player');
@@ -888,72 +911,88 @@ export function addLog(cls, text) {
   log.scrollTop = log.scrollHeight;
 }
 
-/** 渲染战技库覆盖层 */
-export function renderTechniqueLibrary() {
-  const container = $('tech-lib-slots');
-  if (!container) return;
-  container.innerHTML = '';
+/** 渲染单个战技槽位 section，返回 DOM 节点 */
+function buildTechLibSection(slotKey, slotLabel, baseName) {
+  const equippedId = G.techniques ? G.techniques[slotKey] : null;
+  const techs = getTechDefsForSlot(slotKey);
 
-  for (let slot = 1; slot <= 7; slot++) {
-    const equippedId = G.techniques ? G.techniques[slot] : null;
-    const techs = getTechDefsForSlot(slot);
+  const section = document.createElement('div');
+  section.className = 'tech-lib-section';
 
-    const section = document.createElement('div');
-    section.className = 'tech-lib-section';
+  const head = document.createElement('div');
+  head.className = 'tech-lib-slot-title';
+  head.textContent = slotLabel;
+  section.appendChild(head);
 
-    const head = document.createElement('div');
-    head.className = 'tech-lib-slot-title';
-    head.textContent = `攻击${slot} 槽位`;
-    section.appendChild(head);
-
-    if (techs.length === 0) {
-      const empty = document.createElement('div');
-      empty.className = 'tag-placeholder';
-      empty.textContent = '（暂无战技）';
-      section.appendChild(empty);
-    }
-
-    techs.forEach((tech) => {
-      const isEquipped = equippedId === tech.id;
-      const card = document.createElement('div');
-      card.className = `tech-lib-card${isEquipped ? ' equipped' : ''}`;
-
-      // Art interface: 标准路径 assets/cards/tech/{id}.png，加载失败自动 fallback 到 emoji
-      const stdArt = `assets/cards/tech/${tech.id}.png`;
-      const artHtml = `<img class="tech-art" src="${stdArt}" alt="${tech.name}"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-        <div class="tech-art-emoji" style="display:none">${tech.emoji}</div>`;
-
-      const devBtn = G.devMode
-        ? `<div class="tech-lib-action">${isEquipped
-            ? `<button class="btn btn-outline tech-dev-btn" data-unequip-slot="${tech.slot}">卸下</button>`
-            : `<button class="btn btn-outline tech-dev-btn" data-equip-tech="${tech.id}">装备</button>`
-          }</div>`
-        : '';
-      const weightBadge = tech.weight === 'heavy'
-        ? '<span class="tech-weight-badge heavy">重</span>'
-        : tech.weight === 'light'
-          ? '<span class="tech-weight-badge light">轻</span>'
-          : '';
-      card.innerHTML = `
-        <div class="tech-art-wrap">${artHtml}
-        </div>
-        <div class="tech-lib-info">
-          <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${tech.name}${isEquipped ? '（已装备）' : ''}${weightBadge}</div>
-          <div class="tech-lib-desc">${tech.desc}</div>
-        </div>${devBtn}`;
-      section.appendChild(card);
-    });
-
-    // Show base attack if nothing equipped
-    const equippedName = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId].name : '基础攻击';
-    const statusDiv = document.createElement('div');
-    statusDiv.className = 'tech-lib-slot-status';
-    statusDiv.textContent = `当前槽位：${equippedName}`;
-    section.appendChild(statusDiv);
-
-    container.appendChild(section);
+  if (techs.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'tag-placeholder';
+    empty.textContent = '（暂无战技）';
+    section.appendChild(empty);
   }
+
+  techs.forEach((tech) => {
+    const isEquipped = equippedId === tech.id;
+    const card = document.createElement('div');
+    card.className = `tech-lib-card${isEquipped ? ' equipped' : ''}`;
+    const stdArt = `assets/cards/tech/${tech.id}.png`;
+    const artHtml = `<img class="tech-art" src="${stdArt}" alt="${tech.name}"
+      onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="tech-art-emoji" style="display:none">${tech.emoji}</div>`;
+    const devBtn = G.devMode
+      ? `<div class="tech-lib-action">${isEquipped
+          ? `<button class="btn btn-outline tech-dev-btn" data-unequip-slot="${tech.slot}">卸下</button>`
+          : `<button class="btn btn-outline tech-dev-btn" data-equip-tech="${tech.id}">装备</button>`
+        }</div>`
+      : '';
+    const weightBadge = tech.weight === 'heavy'
+      ? '<span class="tech-weight-badge heavy">重</span>'
+      : tech.weight === 'light'
+        ? '<span class="tech-weight-badge light">轻</span>'
+        : '';
+    const displayDesc = tech.acquiredDesc && G.techniques && G.techniques[slotKey] === tech.id
+      ? tech.acquiredDesc : tech.desc;
+    card.innerHTML = `
+      <div class="tech-art-wrap">${artHtml}
+      </div>
+      <div class="tech-lib-info">
+        <div class="tech-lib-name">${isEquipped ? '✓ ' : ''}${tech.name}${isEquipped ? '（已装备）' : ''}${weightBadge}</div>
+        <div class="tech-lib-desc">${displayDesc}</div>
+      </div>${devBtn}`;
+    section.appendChild(card);
+  });
+
+  const equippedName = equippedId && TECH_DEFS[equippedId] ? TECH_DEFS[equippedId].name : baseName;
+  const statusDiv = document.createElement('div');
+  statusDiv.className = 'tech-lib-slot-status';
+  statusDiv.textContent = `当前槽位：${equippedName}`;
+  section.appendChild(statusDiv);
+
+  return section;
+}
+
+/** 渲染战技库覆盖层（攻击/防御两页） */
+export function renderTechniqueLibrary() {
+  const atkContainer = $('tech-lib-slots-atk');
+  const defContainer = $('tech-lib-slots-def');
+  if (!atkContainer || !defContainer) return;
+  atkContainer.innerHTML = '';
+  defContainer.innerHTML = '';
+
+  // 攻击页：槽位 1-7
+  for (let slot = 1; slot <= 7; slot++) {
+    atkContainer.appendChild(buildTechLibSection(slot, `攻击${slot} 槽位`, '基础攻击'));
+  }
+
+  // 防御页：槽位 d0/d1/d2
+  const defSlots = [
+    { key: 'd0', label: '防御0 槽位', base: '防（基础 def 3）' },
+    { key: 'd1', label: '防御1 槽位', base: '超防（基础 def 6）' },
+    { key: 'd2', label: '防御2 槽位', base: '无敌防（基础 def 7）' },
+  ];
+  defSlots.forEach(({ key, label, base }) => {
+    defContainer.appendChild(buildTechLibSection(key, label, base));
+  });
 }
 
 export function renderEquipmentLibrary() {
@@ -1006,7 +1045,12 @@ export function getTechBadges() {
   for (let slot = 1; slot <= 7; slot++) {
     const id = G.techniques[slot];
     const def = id && TECH_DEFS[id];
-    if (def) arr.push({ icon: def.emoji, name: `${def.name}（${slot}）` });
+    if (def) arr.push({ icon: def.emoji, name: `${def.name}（攻${slot}）` });
+  }
+  for (const [slot, label] of [['d0', '防0'], ['d1', '防1'], ['d2', '防2']]) {
+    const id = G.techniques[slot];
+    const def = id && TECH_DEFS[id];
+    if (def) arr.push({ icon: def.emoji, name: `${def.name}（${label}）` });
   }
   return arr;
 }
@@ -1041,16 +1085,23 @@ export function renderProfilePanel() {
     }).join('')
     : '<div class="tag-placeholder">当前未装备。</div>';
 
-  const techHtml = Array.from({ length: 7 }).map((_, i) => {
-    const slot = i + 1;
-    const id = G.techniques ? G.techniques[slot] : null;
-    const def = id && TECH_DEFS[id] ? TECH_DEFS[id] : null;
-    if (!def) return `<div class="profile-item">攻击${slot}类：基础攻击</div>`;
-    return `<div class="profile-item">
-      <strong>攻击${slot}类：${def.emoji} ${def.name}</strong>
-      <div>${def.desc}</div>
-    </div>`;
-  }).join('');
+  const techHtml = [
+    ...Array.from({ length: 7 }).map((_, i) => {
+      const slot = i + 1;
+      const id = G.techniques ? G.techniques[slot] : null;
+      const def = id && TECH_DEFS[id] ? TECH_DEFS[id] : null;
+      if (!def) return `<div class="profile-item">攻击${slot}类：基础攻击</div>`;
+      return `<div class="profile-item"><strong>攻击${slot}类：${def.emoji} ${def.name}</strong><div>${def.desc}</div></div>`;
+    }),
+    ...(['d0', 'd1', 'd2']).map((slot, i) => {
+      const id = G.techniques ? G.techniques[slot] : null;
+      const def = id && TECH_DEFS[id] ? TECH_DEFS[id] : null;
+      const baseNames = ['防（基础）', '超防（基础）', '无敌防（基础）'];
+      if (!def) return `<div class="profile-item">防御${i}类：${baseNames[i]}</div>`;
+      const displayDesc = def.acquiredDesc || def.desc;
+      return `<div class="profile-item"><strong>防御${i}类：${def.emoji} ${def.name}</strong><div>${displayDesc}</div></div>`;
+    }),
+  ].join('');
 
   const relicHtml = relics.length > 0
     ? relics.map((item) => `<div class="profile-item"><strong>${item.icon} ${item.name}</strong><div>${item.desc}</div></div>`).join('')
