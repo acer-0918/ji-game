@@ -87,10 +87,18 @@ const BATTLE_TIMINGS = {
   OUTCOME_DELAY_MS: 0,
 };
 const DELEGATION_PROBLEM_REVEAL_DELAY_MS = 800;
+const KEYBOARD_NAV_ACTIVE_CLASS = 'keyboard-nav-active';
 let developerModeEnabled = false;
 let narrowBattleUiEnabled = false;
 let experimentalBattleUiEnabled = false;
 let experimentalBattleUi = null;
+const keyboardNavState = {
+  currentToken: '',
+  currentContext: '',
+  lastTokenByContext: {},
+  syncFrame: 0,
+  observer: null,
+};
 
 function renderExperimentalBattleUi() {
   experimentalBattleUi && experimentalBattleUi.render();
@@ -784,6 +792,7 @@ function choosePowerRelic(key) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
   $(`screen-${id}`).classList.add('active');
+  scheduleKeyboardSelectionSync({ preserve: false });
 }
 
 function hasOpenOverlay() {
@@ -800,6 +809,7 @@ function openOverlay(id) {
   // enterNode() will still early-return because hasOpenOverlay() sees class 'show'.
   el.style.pointerEvents = 'none';
   setTimeout(() => { el.style.pointerEvents = ''; }, 200);
+  scheduleKeyboardSelectionSync({ preserve: false });
 }
 
 function closeOverlay(id) {
@@ -807,6 +817,639 @@ function closeOverlay(id) {
   if (!document.querySelector('.overlay.show')) {
     document.body.style.overflow = '';
   }
+  scheduleKeyboardSelectionSync({ preserve: false });
+}
+
+function isTypingTarget(target) {
+  if (!target) return false;
+  const tagName = target.tagName;
+  return tagName === 'INPUT' || tagName === 'TEXTAREA' || target.isContentEditable;
+}
+
+function isBattleSelectionKeyboardMode() {
+  return !!(
+    $('screen-battle') &&
+    $('screen-battle').classList.contains('active') &&
+    !getTopVisibleOverlay() &&
+    G.battle &&
+    G.battle.phase === 'select'
+  );
+}
+
+function getTopVisibleOverlay() {
+  const overlays = [...document.querySelectorAll('.overlay.show')];
+  return overlays.length > 0 ? overlays[overlays.length - 1] : null;
+}
+
+function getKeyboardContextId() {
+  const overlay = getTopVisibleOverlay();
+  if (overlay) return overlay.id;
+  const activeScreen = document.querySelector('.screen.active');
+  if (!activeScreen) return '';
+  if (activeScreen.id === 'screen-battle' && isBattleSelectionKeyboardMode()) return '';
+  return activeScreen.id;
+}
+
+function isElementVisible(el) {
+  if (!el || !el.isConnected) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  return el.getClientRects().length > 0;
+}
+
+function isKeyboardSelectable(el) {
+  if (!isElementVisible(el)) return false;
+  if (typeof el.disabled === 'boolean' && el.disabled) return false;
+  if (el.getAttribute('aria-disabled') === 'true') return false;
+  return true;
+}
+
+function getKeyboardToken(el) {
+  if (!el) return '';
+  if (el.dataset.roomId) return `room:${el.dataset.roomId}`;
+  if (el.dataset.shopBuy) return `shop:${el.dataset.shopBuy}`;
+  if (el.dataset.unlock) return `unlock:${el.dataset.unlock}`;
+  if (el.dataset.eventChoice) return `event-choice:${el.dataset.eventChoice}`;
+  if (el.dataset.eventEquip) return `event-equip:${el.dataset.eventEquip}`;
+  if (el.dataset.eventTech) return `event-tech:${el.dataset.eventTech}`;
+  if (el.dataset.eventRelic) return `event-relic:${el.dataset.eventRelic}`;
+  if (el.dataset.chooseRelic) return `choose-relic:${el.dataset.chooseRelic}`;
+  if (el.dataset.rewardOption) return `reward:${el.dataset.rewardOption}`;
+  if (el.dataset.class) return `class:${el.dataset.class}`;
+  if (el.dataset.devEquipEquip) return `dev-equip:${el.dataset.devEquipEquip}:${el.dataset.devReplaceSlot || ''}`;
+  if (el.dataset.devUnequipEquip) return `dev-unequip:${el.dataset.devUnequipEquip}`;
+  if (el.dataset.equipTech) return `equip-tech:${el.dataset.equipTech}`;
+  if (el.dataset.unequipSlot) return `unequip-slot:${el.dataset.unequipSlot}`;
+  if (el.dataset.slotIndex) return `slot:${el.dataset.slotIndex}`;
+  if (el.id) return `id:${el.id}`;
+  return `text:${String(el.textContent || '').trim().slice(0, 80)}`;
+}
+
+function getKeyboardSelectableElements() {
+  const contextId = getKeyboardContextId();
+  if (!contextId) return [];
+  if (contextId.startsWith('ov-')) {
+    const overlay = $(contextId);
+    if (!overlay) return [];
+    return [...overlay.querySelectorAll('button, .equip-slot.clickable, .map-node.available, .map-node.triggered')]
+      .filter(isKeyboardSelectable);
+  }
+  if (contextId === 'screen-menu') {
+    return [
+      ...document.querySelectorAll('.class-btn[data-class]'),
+      $('btn-start'),
+      $('btn-hard-start'),
+      $('btn-intro'),
+    ].filter(isKeyboardSelectable);
+  }
+  if (contextId === 'screen-map') {
+    return [
+      $('btn-to-menu-map'),
+      $('btn-open-abtree'),
+      ...document.querySelectorAll('.map-node.available, .map-node.triggered'),
+      ...document.querySelectorAll('#map-equip-slots .equip-slot.clickable'),
+    ].filter(isKeyboardSelectable);
+  }
+  if (contextId === 'screen-gameover') {
+    return [
+      $('btn-restart-run-from-gameover'),
+      $('btn-feedback-gameover'),
+      $('btn-menu-from-gameover'),
+    ].filter(isKeyboardSelectable);
+  }
+  if (contextId === 'screen-victory') {
+    return [
+      $('btn-restart-run-from-victory'),
+      $('btn-feedback-victory'),
+      $('btn-menu-from-victory'),
+    ].filter(isKeyboardSelectable);
+  }
+  return [];
+}
+
+function clearKeyboardSelection() {
+  document.querySelectorAll(`.${KEYBOARD_NAV_ACTIVE_CLASS}`).forEach((el) => {
+    el.classList.remove(KEYBOARD_NAV_ACTIVE_CLASS);
+  });
+  keyboardNavState.currentToken = '';
+}
+
+function findKeyboardElementByToken(elements, token) {
+  if (!token) return null;
+  return elements.find((el) => getKeyboardToken(el) === token) || null;
+}
+
+function getFirstKeyboardMatch(elements, selector) {
+  return elements.find((el) => typeof el.matches === 'function' && el.matches(selector)) || null;
+}
+
+function getDefaultKeyboardSelection(contextId, elements) {
+  if (!elements.length) return null;
+  if (contextId === 'screen-menu') {
+    return findKeyboardElementByToken(elements, `class:${selectedClassKey}`) || getFirstKeyboardMatch(elements, '.class-btn[data-class]') || elements[0];
+  }
+  if (contextId === 'screen-map') {
+    return getFirstKeyboardMatch(elements, '.map-node.available, .map-node.triggered') || $('btn-open-abtree') || elements[0];
+  }
+  if (contextId === 'screen-gameover') return $('btn-restart-run-from-gameover') || elements[0];
+  if (contextId === 'screen-victory') return $('btn-restart-run-from-victory') || elements[0];
+  if (contextId === 'ov-abtree') {
+    return getFirstKeyboardMatch(elements, 'button[data-unlock]') || $('btn-abtree-close') || elements[0];
+  }
+  if (contextId === 'ov-shop') {
+    return getFirstKeyboardMatch(elements, 'button[data-shop-buy]') || $('btn-leave-shop') || elements[0];
+  }
+  if (contextId === 'ov-event') {
+    return getFirstKeyboardMatch(elements, 'button[data-event-equip], button[data-event-tech], button[data-event-choice], button[data-event-relic]')
+      || $('btn-event-relic-skip')
+      || $('btn-event-confirm')
+      || elements[0];
+  }
+  if (contextId === 'ov-battle') {
+    return getFirstKeyboardMatch(elements, 'button[data-reward-option], button[data-choose-relic]')
+      || $('btn-battle-continue')
+      || elements[0];
+  }
+  if (contextId === 'ov-surrender') {
+    return $('btn-cancel-surrender') || $('btn-confirm-surrender') || elements[0];
+  }
+  if (contextId === 'ov-settings') {
+    return $('btn-settings-close') || elements[0];
+  }
+  if (contextId === 'ov-intro') return $('btn-intro-close') || elements[0];
+  if (contextId === 'ov-tech-lib') {
+    return getFirstKeyboardMatch(elements, 'button[data-equip-tech], button[data-unequip-slot]') || $('btn-tech-lib-close') || elements[0];
+  }
+  if (contextId === 'ov-equip-lib') {
+    return getFirstKeyboardMatch(elements, 'button[data-dev-equip-equip], button[data-dev-unequip-equip]') || $('btn-equip-lib-close') || elements[0];
+  }
+  if (contextId === 'ov-profile') return $('btn-profile-close') || elements[0];
+  if (contextId === 'ov-live-battle-log') return $('btn-live-log-close') || elements[0];
+  if (contextId === 'ov-camp') return $('btn-camp-confirm') || elements[0];
+  return elements[0];
+}
+
+function applyKeyboardSelection(el, { scroll = true } = {}) {
+  if (!isKeyboardSelectable(el)) return false;
+  const contextId = getKeyboardContextId();
+  const token = getKeyboardToken(el);
+  if (
+    keyboardNavState.currentContext === contextId &&
+    keyboardNavState.currentToken === token &&
+    el.classList.contains(KEYBOARD_NAV_ACTIVE_CLASS)
+  ) {
+    if (scroll) {
+      el.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+      });
+    }
+    return true;
+  }
+  clearKeyboardSelection();
+  el.classList.add(KEYBOARD_NAV_ACTIVE_CLASS);
+  keyboardNavState.currentContext = contextId;
+  keyboardNavState.currentToken = token;
+  if (contextId) keyboardNavState.lastTokenByContext[contextId] = token;
+  if (scroll) {
+    el.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  }
+  return true;
+}
+
+function syncKeyboardSelection({ preserve = true, scroll = false } = {}) {
+  const contextId = getKeyboardContextId();
+  const elements = getKeyboardSelectableElements();
+  if (!contextId || !elements.length) {
+    clearKeyboardSelection();
+    keyboardNavState.currentContext = contextId;
+    return false;
+  }
+  const desiredToken = preserve
+    ? (keyboardNavState.currentContext === contextId
+      ? keyboardNavState.currentToken
+      : keyboardNavState.lastTokenByContext[contextId])
+    : '';
+  const selected = findKeyboardElementByToken(elements, desiredToken) || getDefaultKeyboardSelection(contextId, elements);
+  return !!selected && applyKeyboardSelection(selected, { scroll });
+}
+
+function scheduleKeyboardSelectionSync(options = {}) {
+  if (keyboardNavState.syncFrame) window.cancelAnimationFrame(keyboardNavState.syncFrame);
+  keyboardNavState.syncFrame = window.requestAnimationFrame(() => {
+    keyboardNavState.syncFrame = 0;
+    syncKeyboardSelection(options);
+  });
+}
+
+function getKeyboardElementCenter(el) {
+  const rect = el.getBoundingClientRect();
+  return {
+    x: rect.left + rect.width / 2,
+    y: rect.top + rect.height / 2,
+  };
+}
+
+function getKeyboardElementRect(el) {
+  const rect = el.getBoundingClientRect();
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+    width: rect.width,
+    height: rect.height,
+    centerX: rect.left + rect.width / 2,
+    centerY: rect.top + rect.height / 2,
+  };
+}
+
+function getOrderedKeyboardElements(contextId, elements) {
+  const ordered = [...elements].sort((a, b) => {
+    const ra = a.getBoundingClientRect();
+    const rb = b.getBoundingClientRect();
+    if (Math.abs(ra.top - rb.top) > 10) return ra.top - rb.top;
+    return ra.left - rb.left;
+  });
+  if (contextId === 'screen-map') {
+    const topButtons = [];
+    const settingsBtn = ordered.find((el) => el.id === 'btn-to-menu-map');
+    const treeBtn = ordered.find((el) => el.id === 'btn-open-abtree');
+    if (settingsBtn) topButtons.push(settingsBtn);
+    if (treeBtn) topButtons.push(treeBtn);
+    const roomNodes = ordered.filter((el) => el.matches('.map-node.available, .map-node.triggered'));
+    const equipSlots = ordered.filter((el) => el.matches('#map-equip-slots .equip-slot.clickable'));
+    return [...topButtons, ...roomNodes, ...equipSlots];
+  }
+  if (contextId === 'screen-menu') {
+    const classButtons = ordered.filter((el) => el.matches('.class-btn[data-class]'));
+    const menuButtons = ordered.filter((el) => !el.matches('.class-btn[data-class]'));
+    return [...classButtons, ...menuButtons];
+  }
+  return ordered;
+}
+
+function getKeyboardRowTolerance(contextId) {
+  if (contextId === 'screen-menu') return 56;
+  if (contextId === 'screen-map') return 72;
+  return 40;
+}
+
+function buildKeyboardRows(contextId, elements) {
+  const ordered = getOrderedKeyboardElements(contextId, elements);
+  const tolerance = getKeyboardRowTolerance(contextId);
+  const rows = [];
+  ordered.forEach((el) => {
+    const rect = getKeyboardElementRect(el);
+    const existingRow = rows.find((row) => Math.abs(row.centerY - rect.centerY) <= tolerance);
+    if (existingRow) {
+      existingRow.items.push({ el, rect });
+      const total = existingRow.items.reduce((sum, item) => sum + item.rect.centerY, 0);
+      existingRow.centerY = total / existingRow.items.length;
+    } else {
+      rows.push({
+        centerY: rect.centerY,
+        items: [{ el, rect }],
+      });
+    }
+  });
+  rows.sort((a, b) => a.centerY - b.centerY);
+  rows.forEach((row) => {
+    row.items.sort((a, b) => a.rect.centerX - b.rect.centerX);
+  });
+  return rows;
+}
+
+function findClosestItemByX(items, sourceRect) {
+  if (!items || items.length <= 0) return null;
+  let best = items[0];
+  let bestScore = Infinity;
+  items.forEach((item) => {
+    const dx = Math.abs(item.rect.centerX - sourceRect.centerX);
+    const edgePenalty = Math.abs(item.rect.left - sourceRect.left) * 0.2;
+    const score = dx + edgePenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      best = item;
+    }
+  });
+  return best;
+}
+
+function buildRowsFromElements(elements, tolerance = 40) {
+  const rows = [];
+  elements.forEach((el) => {
+    const rect = getKeyboardElementRect(el);
+    const row = rows.find((item) => Math.abs(item.centerY - rect.centerY) <= tolerance);
+    if (row) {
+      row.items.push({ el, rect });
+      row.centerY = row.items.reduce((sum, item) => sum + item.rect.centerY, 0) / row.items.length;
+    } else {
+      rows.push({
+        centerY: rect.centerY,
+        items: [{ el, rect }],
+      });
+    }
+  });
+  rows.sort((a, b) => a.centerY - b.centerY);
+  rows.forEach((row) => row.items.sort((a, b) => a.rect.centerX - b.rect.centerX));
+  return rows;
+}
+
+function findSpecialMenuDirectionalTarget(elements, current, direction) {
+  const classButtons = [...document.querySelectorAll('#screen-menu .class-btn[data-class]')].filter((el) => elements.includes(el));
+  const menuButtons = [$('btn-start'), $('btn-hard-start'), $('btn-intro')].filter((el) => el && elements.includes(el));
+  if (!classButtons.length && !menuButtons.length) return null;
+  if (current.id === 'btn-start') {
+    if (direction === 'right') return $('btn-hard-start') && elements.includes($('btn-hard-start')) ? $('btn-hard-start') : current;
+    if (direction === 'left') return current;
+  }
+  if (current.id === 'btn-hard-start') {
+    if (direction === 'left') return $('btn-start') && elements.includes($('btn-start')) ? $('btn-start') : current;
+    if (direction === 'right') return $('btn-intro') && elements.includes($('btn-intro')) ? $('btn-intro') : current;
+  }
+  if (current.id === 'btn-intro') {
+    if (direction === 'left') return $('btn-hard-start') && elements.includes($('btn-hard-start')) ? $('btn-hard-start') : current;
+    if (direction === 'right') return current;
+  }
+  const classRows = buildRowsFromElements(classButtons, 56);
+  const menuRow = menuButtons.map((el) => ({ el, rect: getKeyboardElementRect(el) }));
+  const currentMenuIndex = menuRow.findIndex((item) => item.el === current);
+  if (currentMenuIndex >= 0) {
+    if (direction === 'left') return menuRow[currentMenuIndex - 1]?.el || current;
+    if (direction === 'right') return menuRow[currentMenuIndex + 1]?.el || current;
+    if (direction === 'up') {
+      const lastClassRow = classRows[classRows.length - 1];
+      const target = lastClassRow ? findClosestItemByX(lastClassRow.items, menuRow[currentMenuIndex].rect) : null;
+      return target ? target.el : current;
+    }
+    if (direction === 'down') return current;
+  }
+
+  for (let rowIndex = 0; rowIndex < classRows.length; rowIndex++) {
+    const row = classRows[rowIndex];
+    const colIndex = row.items.findIndex((item) => item.el === current);
+    if (colIndex < 0) continue;
+    const currentItem = row.items[colIndex];
+    if (direction === 'left') return row.items[colIndex - 1]?.el || current;
+    if (direction === 'right') return row.items[colIndex + 1]?.el || current;
+    if (direction === 'up') {
+      const upperRow = classRows[rowIndex - 1];
+      const target = upperRow ? findClosestItemByX(upperRow.items, currentItem.rect) : null;
+      return target ? target.el : current;
+    }
+    if (direction === 'down') {
+      const lowerRow = classRows[rowIndex + 1];
+      if (lowerRow) {
+        const target = findClosestItemByX(lowerRow.items, currentItem.rect);
+        return target ? target.el : current;
+      }
+      const target = findClosestItemByX(menuRow, currentItem.rect);
+      return target ? target.el : current;
+    }
+  }
+  return null;
+}
+
+function findSpecialMapDirectionalTarget(elements, current, direction) {
+  const topRow = [$('btn-to-menu-map'), $('btn-open-abtree')]
+    .filter((el) => el && elements.includes(el))
+    .map((el) => ({ el, rect: getKeyboardElementRect(el) }));
+  if (current.id === 'btn-to-menu-map') {
+    if (direction === 'right') return $('btn-open-abtree') && elements.includes($('btn-open-abtree')) ? $('btn-open-abtree') : current;
+    if (direction === 'left') return current;
+  }
+  if (current.id === 'btn-open-abtree') {
+    if (direction === 'left') return $('btn-to-menu-map') && elements.includes($('btn-to-menu-map')) ? $('btn-to-menu-map') : current;
+    if (direction === 'right') return current;
+  }
+  const nodeRows = buildRowsFromElements(
+    elements.filter((el) => el.matches('.map-node.available, .map-node.triggered')),
+    80,
+  );
+  const currentTopIndex = topRow.findIndex((item) => item.el === current);
+  if (currentTopIndex >= 0) {
+    if (direction === 'left') return topRow[currentTopIndex - 1]?.el || current;
+    if (direction === 'right') return topRow[currentTopIndex + 1]?.el || current;
+    if (direction === 'down') {
+      const firstNodeRow = nodeRows[0];
+      const target = firstNodeRow ? findClosestItemByX(firstNodeRow.items, topRow[currentTopIndex].rect) : null;
+      return target ? target.el : current;
+    }
+    if (direction === 'up') return current;
+  }
+
+  for (let rowIndex = 0; rowIndex < nodeRows.length; rowIndex++) {
+    const row = nodeRows[rowIndex];
+    const colIndex = row.items.findIndex((item) => item.el === current);
+    if (colIndex < 0) continue;
+    const currentItem = row.items[colIndex];
+    if (direction === 'left') return row.items[colIndex - 1]?.el || current;
+    if (direction === 'right') return row.items[colIndex + 1]?.el || current;
+    if (direction === 'up') {
+      const upperRow = nodeRows[rowIndex - 1];
+      if (upperRow) {
+        const target = findClosestItemByX(upperRow.items, currentItem.rect);
+        return target ? target.el : current;
+      }
+      const target = findClosestItemByX(topRow, currentItem.rect);
+      return target ? target.el : current;
+    }
+    if (direction === 'down') {
+      const lowerRow = nodeRows[rowIndex + 1];
+      const target = lowerRow ? findClosestItemByX(lowerRow.items, currentItem.rect) : null;
+      return target ? target.el : current;
+    }
+  }
+  return null;
+}
+
+function getLinearKeyboardFallback(elements, current, direction) {
+  if (!elements.length) return null;
+  const ordered = getOrderedKeyboardElements(getKeyboardContextId(), elements);
+  const index = Math.max(0, ordered.indexOf(current));
+  if (direction === 'left' || direction === 'up') {
+    return ordered[(index - 1 + ordered.length) % ordered.length];
+  }
+  return ordered[(index + 1) % ordered.length];
+}
+
+function cycleKeyboardSelection(reverse = false) {
+  const elements = getKeyboardSelectableElements();
+  if (!elements.length) return false;
+  const contextId = getKeyboardContextId();
+  const ordered = getOrderedKeyboardElements(contextId, elements);
+  const current = findKeyboardElementByToken(ordered, keyboardNavState.lastTokenByContext[contextId] || keyboardNavState.currentToken)
+    || getDefaultKeyboardSelection(contextId, ordered);
+  const index = Math.max(0, ordered.indexOf(current));
+  const nextIndex = reverse
+    ? (index - 1 + ordered.length) % ordered.length
+    : (index + 1) % ordered.length;
+  return applyKeyboardSelection(ordered[nextIndex], { scroll: true });
+}
+
+function findDirectionalKeyboardTarget(elements, current, direction) {
+  const contextId = getKeyboardContextId();
+  if (!current || !elements.includes(current)) return getDefaultKeyboardSelection(contextId, elements);
+  if (contextId === 'screen-menu') {
+    const special = findSpecialMenuDirectionalTarget(elements, current, direction);
+    if (special) return special;
+  }
+  if (contextId === 'screen-map') {
+    const special = findSpecialMapDirectionalTarget(elements, current, direction);
+    if (special) return special;
+  }
+  const rows = buildKeyboardRows(contextId, elements);
+  let currentRowIndex = -1;
+  let currentColIndex = -1;
+  rows.some((row, rowIndex) => {
+    const itemIndex = row.items.findIndex((item) => item.el === current);
+    if (itemIndex >= 0) {
+      currentRowIndex = rowIndex;
+      currentColIndex = itemIndex;
+      return true;
+    }
+    return false;
+  });
+  if (currentRowIndex < 0) return getLinearKeyboardFallback(elements, current, direction);
+
+  const currentItem = rows[currentRowIndex].items[currentColIndex];
+  if (!currentItem) return getLinearKeyboardFallback(elements, current, direction);
+
+  if (direction === 'left') {
+    const leftItem = rows[currentRowIndex].items[currentColIndex - 1];
+    return leftItem ? leftItem.el : current;
+  }
+  if (direction === 'right') {
+    const rightItem = rows[currentRowIndex].items[currentColIndex + 1];
+    return rightItem ? rightItem.el : current;
+  }
+
+  const targetRowIndex = direction === 'up' ? currentRowIndex - 1 : currentRowIndex + 1;
+  const targetRow = rows[targetRowIndex];
+  if (!targetRow || !targetRow.items.length) return current;
+
+  const best = findClosestItemByX(targetRow.items, currentItem.rect);
+  return best ? best.el : current;
+}
+
+function moveKeyboardSelection(direction) {
+  const elements = getKeyboardSelectableElements();
+  if (!elements.length) return false;
+  const current = findKeyboardElementByToken(elements, keyboardNavState.lastTokenByContext[getKeyboardContextId()] || keyboardNavState.currentToken)
+    || getDefaultKeyboardSelection(getKeyboardContextId(), elements);
+  const next = findDirectionalKeyboardTarget(elements, current, direction);
+  if (!next) return false;
+  return applyKeyboardSelection(next, { scroll: true });
+}
+
+function activateKeyboardSelection() {
+  const elements = getKeyboardSelectableElements();
+  if (!elements.length) return false;
+  const current = findKeyboardElementByToken(elements, keyboardNavState.lastTokenByContext[getKeyboardContextId()] || keyboardNavState.currentToken)
+    || getDefaultKeyboardSelection(getKeyboardContextId(), elements);
+  if (!current || !isKeyboardSelectable(current)) return false;
+  applyKeyboardSelection(current, { scroll: false });
+  current.click();
+  scheduleKeyboardSelectionSync();
+  return true;
+}
+
+function handleKeyboardEscape() {
+  const overlay = getTopVisibleOverlay();
+  if (!overlay) return false;
+  switch (overlay.id) {
+    case 'ov-abtree':
+      closeAbilityTree();
+      return true;
+    case 'ov-shop':
+      leaveShop();
+      return true;
+    case 'ov-event':
+      if ($('btn-event-confirm') && !$('btn-event-confirm').disabled) {
+        confirmLeaveEvent();
+        return true;
+      }
+      if ($('btn-event-relic-skip') && isKeyboardSelectable($('btn-event-relic-skip'))) {
+        clearEventRelicChoiceUI();
+        return true;
+      }
+      return false;
+    case 'ov-camp':
+      confirmLeaveCamp();
+      return true;
+    case 'ov-surrender':
+      closeSurrender();
+      return true;
+    case 'ov-settings':
+      closeSettings();
+      return true;
+    case 'ov-intro':
+      closeIntro();
+      return true;
+    case 'ov-tech-lib':
+      closeTechLibrary();
+      return true;
+    case 'ov-equip-lib':
+      closeEquipLibrary();
+      return true;
+    case 'ov-profile':
+      closeProfile();
+      return true;
+    case 'ov-live-battle-log':
+      closeOverlay('ov-live-battle-log');
+      return true;
+    case 'ov-battle':
+      closeBattleOverlay();
+      return true;
+    default:
+      return false;
+  }
+}
+
+function getKeyboardDirection(event) {
+  const { key, code } = event;
+  if (key === 'ArrowUp' || key === 'w' || key === 'W' || code === 'KeyW') return 'up';
+  if (key === 'ArrowDown' || key === 's' || key === 'S' || code === 'KeyS') return 'down';
+  if (key === 'ArrowLeft' || key === 'a' || key === 'A' || code === 'KeyA') return 'left';
+  if (key === 'ArrowRight' || key === 'd' || key === 'D' || code === 'KeyD') return 'right';
+  return '';
+}
+
+function resolveKeyboardSelectableFromTarget(target) {
+  if (!target || typeof target.closest !== 'function') return null;
+  const overlay = getTopVisibleOverlay();
+  const overlaySelector = overlay
+    ? `#${overlay.id} button, #${overlay.id} .equip-slot.clickable, #${overlay.id} .map-node.available, #${overlay.id} .map-node.triggered`
+    : 'button, .class-btn[data-class], .map-node.available, .map-node.triggered, .equip-slot.clickable';
+  const el = target.closest(overlaySelector);
+  return isKeyboardSelectable(el) ? el : null;
+}
+
+function bootstrapKeyboardNavigationObserver() {
+  if (keyboardNavState.observer) return;
+  keyboardNavState.observer = new MutationObserver((mutations) => {
+    const shouldSync = mutations.some((mutation) => {
+      if (mutation.type === 'childList') return true;
+      if (!(mutation.target instanceof HTMLElement)) return false;
+      if (mutation.attributeName === 'disabled') return mutation.target.tagName === 'BUTTON';
+      if (mutation.attributeName === 'style') return mutation.target.tagName === 'BUTTON' || mutation.target.classList.contains('equip-slot');
+      if (mutation.attributeName === 'class') {
+        return mutation.target.id.startsWith('screen-') || mutation.target.id.startsWith('ov-');
+      }
+      return false;
+    });
+    if (shouldSync) scheduleKeyboardSelectionSync();
+  });
+  keyboardNavState.observer.observe(document.body, {
+    subtree: true,
+    childList: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'disabled'],
+  });
 }
 
 function openEventRoom(room) {
@@ -2211,60 +2854,93 @@ function bindStaticEvents() {
       if (hardBtn) hardBtn.disabled = false;
     });
   });
+
+  document.addEventListener('click', (event) => {
+    const target = resolveKeyboardSelectableFromTarget(event.target);
+    if (!target) return;
+    applyKeyboardSelection(target, { scroll: false });
+  });
+
 }
 
 // ── 键盘快捷键 ─────────────────────────────────────────────────────────────────
 function handleKeydown(e) {
-  // 只在战斗选牌阶段响应；忽略文本输入等场景
-  if (!$('screen-battle').classList.contains('active')) return;
-  if (!G.battle || G.battle.phase !== 'select') return;
-  if (hasDelegationProblemRelic()) return;
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (isTypingTarget(e.target)) return;
   if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-  const key = e.key;
-
-  // Enter → 确认出牌
-  if (key === 'Enter') {
+  if (e.key === 'Escape' && handleKeyboardEscape()) {
     e.preventDefault();
-    const btn = $('btn-confirm');
-    if (btn && !btn.disabled) confirmAction();
     return;
   }
 
-  // Escape → 关闭子面板（回到主卡选择状态）
-  if (key === 'Escape') {
-    document.querySelectorAll('.sub-panel').forEach((p) => p.classList.remove('show'));
-    document.querySelectorAll('.action-card-btn').forEach((b) => b.classList.remove('sel'));
-    G.ui.mainSel = null;
-    hideHuntRhythmPanel();
-    renderExperimentalBattleUi();
+  const overlayOpen = !!getTopVisibleOverlay();
+  if (
+    $('screen-battle').classList.contains('active')
+    && !overlayOpen
+    && G.battle
+    && G.battle.phase === 'select'
+  ) {
+    if (hasDelegationProblemRelic()) return;
+
+    const key = e.key;
+
+    // Enter → 确认出牌
+    if (key === 'Enter') {
+      e.preventDefault();
+      const btn = $('btn-confirm');
+      if (btn && !btn.disabled) confirmAction();
+      return;
+    }
+
+    // Escape → 关闭子面板（回到主卡选择状态）
+    if (key === 'Escape') {
+      document.querySelectorAll('.sub-panel').forEach((p) => p.classList.remove('show'));
+      document.querySelectorAll('.action-card-btn').forEach((b) => b.classList.remove('sel'));
+      G.ui.mainSel = null;
+      hideHuntRhythmPanel();
+      renderExperimentalBattleUi();
+      return;
+    }
+
+    // 主卡快捷键
+    if (key === 'j' || key === 'J') { e.preventDefault(); mainSelect('ji');  return; }
+    if (key === 'd' || key === 'D') { e.preventDefault(); mainSelect('def'); return; }
+    if (key === 'a' || key === 'A') { e.preventDefault(); mainSelect('atk'); return; }
+    if (key === 's' || key === 'S') { e.preventDefault(); mainSelect('sp');  return; }
+
+    // 数字键 → 选择当前展开面板中的子卡
+    const num = parseInt(key, 10);
+    if (isNaN(num) || num < 1 || num > 7) return;
+    const openPanel = document.querySelector('.sub-panel.show');
+    if (!openPanel) return;
+    e.preventDefault();
+    if (openPanel.id === 'sp-def') {
+      const map = {1:'defense_0', 2:'defense_1', 3:'defense_2'};
+      if (map[num]) subSelect(map[num]);
+    } else if (openPanel.id === 'sp-atk') {
+      subSelect(`attack_${num}`);
+    } else if (openPanel.id === 'sp-special') {
+      const options = ['sb-sp1', 'sb-sp2', 'sb-sp-core', 'sb-sp-dev']
+        .map((id) => $(id))
+        .filter((el) => el && el.style.display !== 'none');
+      const picked = options[num - 1];
+      if (picked) subSelect(picked.dataset.action);
+    }
     return;
   }
 
-  // 主卡快捷键
-  if (key === 'j' || key === 'J') { e.preventDefault(); mainSelect('ji');  return; }
-  if (key === 'd' || key === 'D') { e.preventDefault(); mainSelect('def'); return; }
-  if (key === 'a' || key === 'A') { e.preventDefault(); mainSelect('atk'); return; }
-  if (key === 's' || key === 'S') { e.preventDefault(); mainSelect('sp');  return; }
+  const direction = getKeyboardDirection(e);
+  if (direction) {
+    if (moveKeyboardSelection(direction)) {
+      e.preventDefault();
+    }
+    return;
+  }
 
-  // 数字键 → 选择当前展开面板中的子卡
-  const num = parseInt(key, 10);
-  if (isNaN(num) || num < 1 || num > 7) return;
-  const openPanel = document.querySelector('.sub-panel.show');
-  if (!openPanel) return;
-  e.preventDefault();
-  if (openPanel.id === 'sp-def') {
-    const map = {1:'defense_0', 2:'defense_1', 3:'defense_2'};
-    if (map[num]) subSelect(map[num]);
-  } else if (openPanel.id === 'sp-atk') {
-    subSelect(`attack_${num}`);
-  } else if (openPanel.id === 'sp-special') {
-    const options = ['sb-sp1', 'sb-sp2', 'sb-sp-core', 'sb-sp-dev']
-      .map((id) => $(id))
-      .filter((el) => el && el.style.display !== 'none');
-    const picked = options[num - 1];
-    if (picked) subSelect(picked.dataset.action);
+  if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' || e.key === 'Space' || e.code === 'Space') {
+    if (activateKeyboardSelection()) {
+      e.preventDefault();
+    }
   }
 }
 
@@ -2279,6 +2955,8 @@ function bootstrap() {
   refreshDeveloperModeButton();
   refreshNarrowBattleUiButton();
   refreshExperimentalBattleUiButton();
+  bootstrapKeyboardNavigationObserver();
+  scheduleKeyboardSelectionSync({ preserve: false });
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);

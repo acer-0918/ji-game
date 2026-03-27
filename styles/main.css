@@ -85,6 +85,32 @@ body {
 .btn-ghost:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-l); }
 .btn-ghost.danger:hover { border-color: var(--red); color: var(--red); background: var(--red-l); }
 
+button.keyboard-nav-active,
+.class-btn.keyboard-nav-active,
+.map-node.keyboard-nav-active,
+.equip-slot.clickable.keyboard-nav-active {
+  outline: 3px solid rgba(58,143,208,0.36);
+  outline-offset: 3px;
+}
+
+.btn.keyboard-nav-active,
+.btn-ghost.keyboard-nav-active,
+.btn-outline.keyboard-nav-active,
+.btn-confirm.keyboard-nav-active,
+.btn-unlock.keyboard-nav-active,
+.btn-buy.keyboard-nav-active,
+.frag-badge.keyboard-nav-active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(58,143,208,0.18), 0 0 0 6px rgba(58,143,208,0.08);
+}
+
+.class-btn.keyboard-nav-active,
+.map-node.keyboard-nav-active,
+.equip-slot.clickable.keyboard-nav-active {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px rgba(58,143,208,0.12), 0 10px 24px rgba(58,143,208,0.18);
+}
+
 /* ── Menu ────────────────────────────────────────── */
 .menu-wrap { display: flex; flex-direction: column; align-items: center; padding: 60px 0 80px; }
 .title {
