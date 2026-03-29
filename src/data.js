@@ -110,6 +110,23 @@ export const CLASS_DEFS = {
       {key:'standFirm', icon:'🦴', name:'挺得住', cost:1, desc:'受到伤害时获得的幸运值翻倍。'},
     ],
   },
+  warlock: {
+    key: 'warlock',
+    icon: '👻',
+    name: '咒术师',
+    abilityTreeLinear: false,
+    baseHp: 4,
+    baseJiRate: 2,
+    trait: '诅咒侵蚀 · 汲取流',
+    passiveDesc: '攻击命中时对敌方施加 1 层【诅咒】；使用付费防御（超防/无敌防）时也施加 1 层。累积至 4 层可释放【噬魂】。',
+    spDesc: '💀 噬魂 — 消耗敌方全部诅咒（至少 4 层），造成 层数÷2（向上取整）点伤害并回复 1 HP。',
+    abilityDefs: [
+      {key:'grudge',     icon:'🔗', name:'怨念',   cost:1, desc:'战斗结束时，保留最多 3 层诅咒到下一场战斗。'},
+      {key:'siphon',     icon:'🩸', name:'虹吸',   cost:1, desc:'噬魂额外回复生命：每消耗 4 层诅咒多回复 1 HP。'},
+      {key:'plague',     icon:'☠️', name:'瘟疫',   cost:2, desc:'每回合开始时，若敌方身上有 3 层以上诅咒，敌方失去 1 Ji。'},
+      {key:'soulReturn', icon:'🌀', name:'回魂',   cost:1, desc:'全局仅一次：当你死亡时，若敌方身上有 2 层以上诅咒，消耗全部诅咒并以 1 HP 存活。'},
+    ],
+  },
 };
 
 export const DEFAULT_CLASS_KEY = 'assassin';

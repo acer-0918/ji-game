@@ -152,4 +152,16 @@ export function registerDefaultRoundStartEffects(engine) {
       pushLog(ctx, 'log-ab', `🤬 傻逼被动：本回合累计 ${gain} 层【傻逼】，当前共 ${G.player.shaBiStacks} 层。`);
     },
   });
+
+  engine.registerEffect({
+    effectId: 'player.warlock_plague',
+    phase: PHASES.ROUND_START,
+    actorScope: ACTOR_SCOPE.PLAYER,
+    order: ROUND_START_ORDER.WARLOCK_PLAGUE,
+    condition: () => !!(G.battle && G.player.classKey === 'warlock' && G.abilities.plague && G.enemy && (G.enemy.curseStacks || 0) >= 3),
+    apply: (ctx) => {
+      G.enemy.ji = Math.max(0, G.enemy.ji - 1);
+      pushLog(ctx, 'log-ab', `☠️ 瘟疫：敌方被诅咒侵蚀（${G.enemy.curseStacks}层），失去 1 Ji。`);
+    },
+  });
 }

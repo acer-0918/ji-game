@@ -297,6 +297,7 @@ function getSpecialActionKeysForPlayer() {
   if (!G.player) return keys;
   if (G.player.classKey === 'mage') keys.push('mage_release');
   if (G.player.classKey === 'nsyc') keys.push('ekai');
+  if (G.player.classKey === 'warlock') keys.push('soul_devour');
   if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
   if (G.devMode) keys.push('dev_kill');
   return keys;
@@ -574,6 +575,7 @@ function getPlayerActionKeysForSilence() {
   const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
   if (G.player.classKey === 'mage') keys.push('mage_release');
   if (G.player.classKey === 'nsyc') keys.push('ekai');
+  if (G.player.classKey === 'warlock') keys.push('soul_devour');
   if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
   // 开发者行动不参与沉默禁用
   return keys;
@@ -1995,6 +1997,12 @@ function startBattle(node, keepSnapshot=false) {
   if (G.player.classKey === 'mage' && G.abilities.storm) {
     G.player.lightningOrbs = (G.player.lightningOrbs || 0) + 2;
   }
+  if (G.player.classKey === 'warlock' && G.abilities.grudge && (G.player.carryCurseStacks || 0) > 0 && G.enemy) {
+    const carry = G.player.carryCurseStacks;
+    G.enemy.curseStacks = (G.enemy.curseStacks || 0) + carry;
+    G.player.carryCurseStacks = 0;
+    addLog('log-ab', `🔗 怨念：残余诅咒随你进入战斗，敌方继承 ${carry} 层诅咒。`);
+  }
 
   $('b-enemy-emoji').textContent = G.enemy.emoji || '👹';
   $('b-enemy-name').textContent = G.enemy.name;
@@ -2032,6 +2040,7 @@ function startBattle(node, keepSnapshot=false) {
   if (G.abilities.smallPotion) addLog('log-ab', '🧪 小血瓶触发：战斗开始时回复 1 生命。');
   if (G.player.classKey === 'mage' && G.abilities.storm) addLog('log-ab', '⛈️ 雷暴触发：战斗开始时获得 2 闪电球。');
   if (G.player.classKey === 'nsyc') addLog('log-ab', '🤬 傻逼被动：每回合开始自动累计【傻逼】层数，满4层可释放【厄介】。');
+  if (G.player.classKey === 'warlock') addLog('log-ab', '👻 咒术师出战：攻击命中或付费防御时施加诅咒，满4层可释放【噬魂】。');
   if (G.player.classKey === 'dog') addLog('log-ab', `🐶 小狗出战：当前幸运值 ${G.player.luck || 0}。`);
   if (G.enemy.id === 'jiaxu') {
     addLog('log-ab', '🌫️ 贾诩展开了【无知之幕】：双方 Ji 数量都被隐藏。');
@@ -2089,7 +2098,7 @@ function mainSelect(category) {
   if (category === 'def' && isDefenseForbiddenByRelic()) return;
 
   if (category === 'sp') {
-    const hasClassSpecial = G.player.classKey === 'mage' || G.player.classKey === 'nsyc' || G.player.classKey === 'dog';
+    const hasClassSpecial = G.player.classKey === 'mage' || G.player.classKey === 'nsyc' || G.player.classKey === 'warlock' || G.player.classKey === 'dog';
     const hasCoreSpecial = hasPowerRelic(G, 'deification');
     if (!hasClassSpecial && !hasCoreSpecial && !G.devMode) return;
   }
@@ -2255,6 +2264,10 @@ function endBattle(win) {
   hideFreeFollowUpPanel();
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
+
+  if (G.player.classKey === 'warlock' && G.abilities.grudge && G.enemy && (G.enemy.curseStacks || 0) > 0) {
+    G.player.carryCurseStacks = Math.min(3, G.enemy.curseStacks);
+  }
 
   resetRoomJi();
 

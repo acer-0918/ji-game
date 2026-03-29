@@ -60,6 +60,22 @@ export function getActionData(key, side='player', actorOverride=null) {
     };
   }
 
+  if (side === 'player' && actor.classKey === 'warlock' && key === 'soul_devour') {
+    const stacks = (G.enemy && G.enemy.curseStacks) || 0;
+    return {
+      type: 'soul_devour',
+      cost: 0,
+      stackCost: 4,
+      def: 2,
+      atk: 0,
+      hits: 0,
+      damage: 0,
+      name: '噬魂',
+      emoji: '💀',
+      disabledByOrbs: stacks < 4,
+    };
+  }
+
   if (side === 'player' && key === 'dev_kill') {
     if (!G.devMode) return null;
     return {
@@ -247,6 +263,7 @@ export function getActionSubText(action) {
   if (action.type === 'orb_buff') return '充能完成';
   if (action.type === 'dev_kill') return '开发者行动 | 敌方生命归零';
   if (action.type === 'ekai') return '消耗4层【傻逼】 | 本回合待机 | 下回合必定命中';
+  if (action.type === 'soul_devour') return '消耗全部诅咒（≥4层） | 层数÷2伤害 | 回复HP';
   if (action.type === 'defense') return `防御${action.def} | 耗${action.cost}Ji`;
   if (action.type === 'attack') {
     const costText = action.isMageRelease ? `${action.orbCost}闪电球` : `${action.cost}Ji`;
@@ -261,7 +278,7 @@ export function getActionSubText(action) {
 export function formatSingleAction(action) {
   if (!action) return '—';
   if (action.type === 'ji' || action.type === 'gufu_charge') return `${action.emoji}${action.name}`;
-  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom' || action.type === 'ekai' || action.type === 'dev_kill') return `${action.emoji}${action.name}`;
+  if (action.type === 'fault_orb' || action.type === 'orb_buff' || action.type === 'doom' || action.type === 'ekai' || action.type === 'dev_kill' || action.type === 'soul_devour') return `${action.emoji}${action.name}`;
   if (action.type === 'defense') return `${action.emoji}${action.name}(防${action.def})`;
   if (action.type === 'attack') return `${action.emoji}${action.name}(攻${action.atk}${action.hits > 1 ? ` ×${action.hits}` : ''})`;
   return `${action.emoji}${action.name}`;
@@ -372,6 +389,16 @@ export function resolveAction(side, key) {
     G.battle.ekaiPending = true;
     logs.push('💢 厄介蓄势：本回合待机蓄力，下回合将必定命中敌方！');
     action = { type:'orb_buff', cost:0, def:0, atk:0, name:'厄介·待机', emoji:'💢', hits:0, damage:0 };
+  } else if (base.type === 'soul_devour') {
+    const consumed = (G.enemy && G.enemy.curseStacks) || 0;
+    if (G.enemy) G.enemy.curseStacks = 0;
+    const dmg = Math.ceil(consumed / 2);
+    if (G.enemy) G.enemy.hp = Math.max(0, G.enemy.hp - dmg);
+    let heal = 1;
+    if (G.abilities.siphon) heal += Math.floor(consumed / 4);
+    actor.hp = Math.min(actor.hp + heal, actor.maxHp);
+    logs.push(`💀 噬魂：吞噬 ${consumed} 层诅咒，造成 ${dmg} 点伤害，回复 ${heal} HP。`);
+    action = { type:'orb_buff', cost:0, def:base.def, atk:0, name:'噬魂', emoji:'💀', hits:0, damage:0 };
   } else if (base.type === 'dev_kill') {
     if (side === 'player' && G.enemy) {
       G.enemy.hp = 0;
@@ -398,6 +425,10 @@ export function resolveAction(side, key) {
     if (side === 'player' && actor.classKey === 'mage' && base.type === 'defense') {
       actor.lightningOrbs = (actor.lightningOrbs || 0) + 1;
       logs.push('⚡ 法师被动：本回合使用防御，获得 1 个闪电球。');
+    }
+    if (side === 'player' && actor.classKey === 'warlock' && base.type === 'defense' && (base.cost || 0) > 0 && G.enemy) {
+      G.enemy.curseStacks = (G.enemy.curseStacks || 0) + 1;
+      logs.push(`☠ 诅咒被动：付费防御，对敌方施加1层诅咒（当前${G.enemy.curseStacks}层）。`);
     }
   }
 

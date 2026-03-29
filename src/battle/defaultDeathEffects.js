@@ -34,6 +34,36 @@ export function registerDefaultDeathEffects(engine) {
   });
 
   engine.registerEffect({
+    effectId: 'player.warlock_soul_return',
+    phase: PHASES.DEATH_CHECK,
+    actorScope: ACTOR_SCOPE.PLAYER,
+    order: DEATH_ORDER.WARLOCK_SOUL_RETURN,
+    condition: () => !!(
+      G.battle &&
+      G.player &&
+      G.player.hp <= 0 &&
+      G.player.classKey === 'warlock' &&
+      !G.battle.killedByDestinedFirstSight &&
+      G.abilities.soulReturn &&
+      !G.abilities.soulReturnUsed &&
+      G.enemy &&
+      (G.enemy.curseStacks || 0) >= 2
+    ),
+    apply: (ctx) => {
+      const consumed = G.enemy.curseStacks || 0;
+      G.enemy.curseStacks = 0;
+      G.abilities.soulReturnUsed = true;
+      G.player.hp = 1;
+      if (typeof ctx.refreshBars === 'function') ctx.refreshBars();
+      pushLog(ctx, 'log-ab', `🌀 回魂：撕裂 ${consumed} 层诅咒之力，死里逃生！以 1 HP 存活。`);
+      ctx.outcome = BATTLE_OUTCOME.CONTINUE;
+      ctx.resolved = true;
+      ctx.forceNextRound = true;
+      ctx.stopPhase = true;
+    },
+  });
+
+  engine.registerEffect({
     effectId: 'system.default_death_resolution',
     phase: PHASES.DEATH_CHECK,
     actorScope: ACTOR_SCOPE.SYSTEM,

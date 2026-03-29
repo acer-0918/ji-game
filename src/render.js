@@ -128,6 +128,9 @@ export function getEnemyStateBadges() {
     });
     if (!arr.some((x) => x.name.includes('×'))) arr.push({icon:'🤖', name:'尚未生成任何充能球', detail:'当前还没有任何充能球生成。'});
   }
+  if (G.player && G.player.classKey === 'warlock' && (G.enemy.curseStacks || 0) > 0) {
+    arr.push({icon:'☠', name:`诅咒 ×${G.enemy.curseStacks}`, detail:`敌方身上有 ${G.enemy.curseStacks} 层诅咒。满 4 层可释放【噬魂】。`});
+  }
   return arr;
 }
 
@@ -664,7 +667,7 @@ export function refreshActionLabels() {
     if (specialMain) specialMain.style.display = '';
     if (specialPanel) specialPanel.style.display = '';
     if (sp1) sp1.style.display = 'none';
-    if (sp2) sp2.style.display = '';
+    if (sp2) { sp2.style.display = ''; sp2.dataset.action = 'ekai'; }
     if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
     if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
     const stacks = G.player.shaBiStacks || 0;
@@ -672,6 +675,20 @@ export function refreshActionLabels() {
       ? `傻逼${stacks}层｜核心${Object.values(G.player.coreOrbs || {}).filter((v) => v > 0).length}/5`
       : `傻逼${stacks}层`;
     setSubCardLabel(sp2, `3🤬`, '厄介', `持有${stacks}层`);
+    if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
+    if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
+  } else if (G.player.classKey === 'warlock') {
+    if (specialMain) specialMain.style.display = '';
+    if (specialPanel) specialPanel.style.display = '';
+    if (sp1) sp1.style.display = 'none';
+    if (sp2) { sp2.style.display = ''; sp2.dataset.action = 'soul_devour'; }
+    if (spCore) spCore.style.display = showCoreSpecial ? '' : 'none';
+    if (spDev) spDev.style.display = showDevSpecial ? '' : 'none';
+    const curseStacks = (G.enemy && G.enemy.curseStacks) || 0;
+    if (spHint) spHint.textContent = showCoreSpecial
+      ? `诅咒${curseStacks}层｜核心${Object.values(G.player.coreOrbs || {}).filter((v) => v > 0).length}/5`
+      : `诅咒${curseStacks}层`;
+    setSubCardLabel(sp2, `4☠`, '噬魂', `当前${curseStacks}层`);
     if (showCoreSpecial) setSubCardLabel(spCore, '0', '完美核心', '随机充能球');
     if (showDevSpecial) setSubCardLabel(spDev, 'DEV', '三军听令', '敌方立刻归零');
   } else if (G.player.classKey === 'dog') {
@@ -797,6 +814,13 @@ export function updateSubButtons() {
     specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = true;
     if (sp2Btn) sp2Btn.disabled = !canEkai;
+  } else if (G.player.classKey === 'warlock') {
+    const sd = getActionData('soul_devour', 'player');
+    const canSD = !!sd && !sd.disabledByOrbs && !blocked.has('soul_devour');
+    canAnySpecial = canAnySpecial || canSD;
+    specialMain.disabled = !canAnySpecial;
+    if (sp1Btn) sp1Btn.disabled = true;
+    if (sp2Btn) sp2Btn.disabled = !canSD;
   } else if (G.player.classKey === 'dog') {
     specialMain.disabled = !canAnySpecial;
     if (sp1Btn) sp1Btn.disabled = true;

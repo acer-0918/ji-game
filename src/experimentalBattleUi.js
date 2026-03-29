@@ -279,6 +279,7 @@ export function createExperimentalBattleUi({
     if (action.type === 'defense') return `防御${action.def || 0}`;
     if (action.type === 'attack') return action.def > 0 ? `等级${action.atk}·防${action.def}` : `等级${action.atk}`;
     if (action.type === 'ekai') return `持有${G.player.shaBiStacks || 0}层`;
+    if (action.type === 'soul_devour') return `诅咒${(G.enemy && G.enemy.curseStacks) || 0}层`;
     if (action.type === 'fault_orb') return '随机充能球';
     if (action.type === 'dev_kill') return '敌方立刻归零';
     return '';
@@ -303,6 +304,7 @@ export function createExperimentalBattleUi({
       let costText = key === 'ji' ? 'J' : `${action.cost || 0}`;
       if (action.isMageRelease) costText = `${action.orbCost || 0}⚡`;
       else if (action.type === 'ekai') costText = `${action.stackCost || 4}🤬`;
+      else if (action.type === 'soul_devour') costText = `4☠`;
       else if (action.type === 'dev_kill') costText = 'DEV';
 
       return {
@@ -332,6 +334,7 @@ export function createExperimentalBattleUi({
     const specialKeys = [];
     if (G.player && G.player.classKey === 'mage') specialKeys.push('mage_release');
     if (G.player && G.player.classKey === 'nsyc') specialKeys.push('ekai');
+    if (G.player && G.player.classKey === 'warlock') specialKeys.push('soul_devour');
     if (hasPowerRelic(G, 'deification')) specialKeys.push('perfect_core');
     if (G.devMode) specialKeys.push('dev_kill');
     const specialCards = specialKeys.map((key) => buildCard(key, 'special')).filter(Boolean);

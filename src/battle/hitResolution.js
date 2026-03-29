@@ -173,10 +173,19 @@ function applyDogHardWorkLuckOnHit(ctx) {
   }
 }
 
+function applyWarlockCurseOnHit(ctx) {
+  if (ctx.side !== 'player') return;
+  if (!G.player || G.player.classKey !== 'warlock') return;
+  if (!G.enemy) return;
+  G.enemy.curseStacks = (G.enemy.curseStacks || 0) + 1;
+  ctx.triggers.push(`诅咒——命中敌方，施加1层诅咒（当前${G.enemy.curseStacks}层）`);
+}
+
 HIT_HOOKS.push(applyDefaultDamageEventOnHit);
 HIT_HOOKS.push(applyEnhancedDaggerOnHit);
 HIT_HOOKS.push(applyMageElectrodynamicsOnHit);
 HIT_HOOKS.push(applyDogHardWorkLuckOnHit);
+HIT_HOOKS.push(applyWarlockCurseOnHit);
 DAMAGE_EVENT_HOOKS.push(applyDefaultDamagePoint);
 DAMAGE_EVENT_HOOKS.push(applyActionDamageBonus);
 DAMAGE_TOTAL_HOOKS.push(applyFireBladeBonus);

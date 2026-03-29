@@ -13,7 +13,7 @@ import {
 export let G = {};
 
 function createAbilityState(classKey) {
-  const abilityState = {savedByBladeUsed:false};
+  const abilityState = {savedByBladeUsed:false, soulReturnUsed:false};
   getAbilityDefsForClass(classKey).forEach((ab) => {
     abilityState[ab.key] = false;
   });
@@ -44,6 +44,7 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
       shaBiStacks: 0,
       jiSpentTotal: 0,
       luck: 0,
+      carryCurseStacks: 0,
       fragments: 0,
       gold: 75,
     },
