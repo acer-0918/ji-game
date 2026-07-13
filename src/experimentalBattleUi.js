@@ -5,6 +5,13 @@ import { getPassiveBadges, getPlayerBattleValueBadges, getEnemyBattleValueBadges
 import { G, isJiHiddenBattle } from './state.js';
 
 const $ = (id) => document.getElementById(id);
+const assetUrl = (path) => new URL(path, document.baseURI).href;
+
+const PLAYER_SPRITE_PROFILES = {
+  assassin: assetUrl('assets/sprites/runner-assassin.png'),
+  mage: assetUrl('assets/sprites/runner-mage.png'),
+};
+const ENEMY_RUNNER_SPRITE = assetUrl('assets/sprites/runner-enemy.png');
 
 export function createExperimentalBattleUi({
   isEnabled,
@@ -22,6 +29,159 @@ export function createExperimentalBattleUi({
   openSettings,
 }) {
   let dragState = null;
+  let audioContext = null;
+  let lastCountdownSecond = null;
+
+  function getAudioContext() {
+    if (audioContext) return audioContext;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+    audioContext = new AudioContextClass();
+    return audioContext;
+  }
+
+  function playTone({ from, to = from, duration = 0.1, type = 'square', gain = 0.045, delay = 0 }) {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    const start = ctx.currentTime + delay;
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(from, start);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, to), start + duration);
+    amp.gain.setValueAtTime(0.0001, start);
+    amp.gain.exponentialRampToValueAtTime(gain, start + 0.008);
+    amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(amp).connect(ctx.destination);
+    osc.start(start);
+    osc.stop(start + duration + 0.02);
+  }
+
+  function playNoise(duration = 0.12, gain = 0.05) {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const frameCount = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < frameCount; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / frameCount);
+    const source = ctx.createBufferSource();
+    const filter = ctx.createBiquadFilter();
+    const amp = ctx.createGain();
+    filter.type = 'bandpass';
+    filter.frequency.value = 760;
+    filter.Q.value = 0.7;
+    amp.gain.value = gain;
+    source.buffer = buffer;
+    source.connect(filter).connect(amp).connect(ctx.destination);
+    source.start();
+  }
+
+  function playSound(kind, intensity = 1) {
+    const power = Math.max(0.7, Math.min(2, Number(intensity) || 1));
+    if (kind === 'attack') {
+      playTone({ from: 520 * power, to: 92, duration: 0.13, type: 'sawtooth', gain: 0.04 });
+      playTone({ from: 920, to: 260, duration: 0.07, type: 'square', gain: 0.022, delay: 0.025 });
+    } else if (kind === 'hit') {
+      playNoise(0.13, 0.045 * power);
+      playTone({ from: 120, to: 46, duration: 0.16, type: 'square', gain: 0.055 * power });
+    } else if (kind === 'guard') {
+      playTone({ from: 240, to: 720, duration: 0.18, type: 'triangle', gain: 0.04 });
+      playTone({ from: 580, to: 430, duration: 0.24, type: 'sine', gain: 0.025, delay: 0.03 });
+    } else if (kind === 'charge') {
+      [0, 0.055, 0.11].forEach((delay, index) => playTone({
+        from: 260 + index * 120,
+        to: 420 + index * 160,
+        duration: 0.12,
+        type: 'sine',
+        gain: 0.032,
+        delay,
+      }));
+    } else if (kind === 'combo') {
+      [0, 0.045, 0.09].forEach((delay, index) => playTone({
+        from: 620 + index * 180,
+        to: 760 + index * 220,
+        duration: 0.09,
+        type: 'square',
+        gain: 0.028,
+        delay,
+      }));
+    } else if (kind === 'tick') {
+      playTone({ from: 760, to: 640, duration: 0.065, type: 'square', gain: 0.024 });
+    } else if (kind === 'timeout') {
+      playTone({ from: 240, to: 110, duration: 0.28, type: 'sawtooth', gain: 0.045 });
+    } else if (kind === 'card') {
+      playTone({ from: 330, to: 460, duration: 0.055, type: 'triangle', gain: 0.018 });
+    }
+  }
+
+  function restartClass(el, className, duration = 420) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+    window.setTimeout(() => el.classList.remove(className), duration);
+  }
+
+  function addFxElement(className, styleMap = {}, text = '') {
+    const layer = $('exp-fx-layer');
+    if (!layer) return null;
+    const el = document.createElement('i');
+    el.className = className;
+    el.textContent = text;
+    Object.entries(styleMap).forEach(([key, value]) => el.style.setProperty(key, value));
+    layer.appendChild(el);
+    window.setTimeout(() => el.remove(), 900);
+    return el;
+  }
+
+  function spawnImpact(targetSide, damage) {
+    const isEnemy = targetSide === 'enemy';
+    const arena = $('exp-runner-arena');
+    const target = $(isEnemy ? 'exp-enemy-portrait' : 'exp-player-portrait');
+    const arenaRect = arena ? arena.getBoundingClientRect() : null;
+    const targetRect = target ? target.getBoundingClientRect() : null;
+    const x = arenaRect && targetRect
+      ? ((targetRect.left + targetRect.width / 2 - arenaRect.left) / arenaRect.width) * 100
+      : 50;
+    const y = arenaRect && targetRect
+      ? ((targetRect.top + targetRect.height / 2 - arenaRect.top) / arenaRect.height) * 100
+      : (isEnemy ? 28 : 72);
+    const strength = Math.max(1, Number(damage) || 1);
+    addFxElement('exp-fx-slash', { '--fx-x': `${x}%`, '--fx-y': `${y}%`, '--fx-rot': isEnemy ? '-28deg' : '152deg' });
+    addFxElement('exp-fx-ring', { '--fx-x': `${x}%`, '--fx-y': `${y}%`, '--fx-scale': String(1 + strength * 0.12) });
+    const count = Math.min(34, 13 + strength * 5);
+    for (let i = 0; i < count; i += 1) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.28;
+      const distance = 42 + Math.random() * (58 + strength * 8);
+      addFxElement('exp-fx-pixel', {
+        '--fx-x': `${x}%`,
+        '--fx-y': `${y}%`,
+        '--fx-dx': `${Math.cos(angle) * distance}px`,
+        '--fx-dy': `${Math.sin(angle) * distance}px`,
+        '--fx-delay': `${Math.random() * 70}ms`,
+        '--fx-color': isEnemy ? (i % 3 === 0 ? '#fff4b8' : '#ff3f72') : (i % 3 === 0 ? '#efffff' : '#39d9ff'),
+      });
+    }
+    addFxElement(`exp-damage-pop ${isEnemy ? 'enemy' : 'player'}`, {
+      '--fx-x': `${x + (isEnemy ? 12 : -12)}%`,
+      '--fx-y': `${y}%`,
+    }, `-${strength}`);
+    restartClass(arena, strength >= 2 ? 'impact-heavy' : 'impact', 430);
+    playSound('hit', 0.85 + strength * 0.22);
+  }
+
+  function spawnGuard(side) {
+    const portrait = $(side === 'player' ? 'exp-player-portrait' : 'exp-enemy-portrait');
+    restartClass(portrait, 'guarding', 620);
+    playSound('guard');
+  }
+
+  function spawnCharge(side) {
+    const portrait = $(side === 'player' ? 'exp-player-portrait' : 'exp-enemy-portrait');
+    restartClass(portrait, 'charging', 720);
+    playSound('charge');
+  }
 
   function isActive() {
     return !!(isEnabled() && $('screen-battle') && $('screen-battle').classList.contains('active'));
@@ -55,27 +215,93 @@ export function createExperimentalBattleUi({
 
   function pulseFeedback(targetId, className, duration = 360) {
     const el = $(targetId);
-    if (!el) return;
-    el.classList.remove(className);
-    void el.offsetWidth;
-    el.classList.add(className);
-    window.setTimeout(() => el.classList.remove(className), duration);
+    restartClass(el, className, duration);
   }
 
   function triggerAttackFeedback() {
     if (!isActive() || !G.battle || !G.battle.cardsRevealed) return;
     const playerAction = getActionData(G.battle.pAction, 'player');
     const enemyAction = getActionData(G.battle.eAction, 'enemy');
-    if (playerAction && playerAction.type === 'attack') pulseFeedback('exp-player-portrait', 'attack-left', 320);
-    if (enemyAction && enemyAction.type === 'attack') pulseFeedback('exp-enemy-portrait', 'attack-right', 320);
+    if (playerAction && playerAction.type === 'attack') {
+      pulseFeedback('exp-player-portrait', 'attack-up', 440);
+      playSound('attack', Math.max(1, Number(playerAction.atk || 1) / 3));
+    } else if (playerAction && playerAction.type === 'defense') {
+      spawnGuard('player');
+    } else if (playerAction && playerAction.type === 'ji') {
+      spawnCharge('player');
+    } else if (playerAction) {
+      pulseFeedback('exp-player-portrait', 'casting', 620);
+      playSound('charge');
+    }
+    if (enemyAction && enemyAction.type === 'attack') {
+      pulseFeedback('exp-enemy-portrait', 'attack-down', 440);
+      playSound('attack', Math.max(1, Number(enemyAction.atk || 1) / 3));
+    } else if (enemyAction && enemyAction.type === 'defense') {
+      spawnGuard('enemy');
+    } else if (enemyAction && (enemyAction.type === 'ji' || enemyAction.type === 'gufu_charge')) {
+      spawnCharge('enemy');
+    } else if (enemyAction) {
+      pulseFeedback('exp-enemy-portrait', 'casting', 620);
+    }
     pulseFeedback('exp-player-card', 'card-pulse', 320);
     pulseFeedback('exp-enemy-card', 'card-pulse', 320);
   }
 
   function triggerHitFeedback(result) {
     if (!isActive() || !result) return;
-    if (Number(result.pdmg || 0) > 0) pulseFeedback('exp-player-portrait', 'taking-hit', 420);
-    if (Number(result.edmg || 0) > 0) pulseFeedback('exp-enemy-portrait', 'taking-hit', 420);
+    const playerDamage = Number(result.pdmg || 0);
+    const enemyDamage = Number(result.edmg || 0);
+    if (playerDamage > 0) {
+      pulseFeedback('exp-player-portrait', 'taking-hit', 520);
+      spawnImpact('player', playerDamage);
+    }
+    if (enemyDamage > 0) {
+      pulseFeedback('exp-enemy-portrait', 'taking-hit', 520);
+      spawnImpact('enemy', enemyDamage);
+    }
+    if (playerDamage <= 0 && enemyDamage <= 0) {
+      restartClass($('exp-runner-arena'), 'clash', 360);
+      playSound('guard');
+    }
+  }
+
+  function setTimer(remainingMs, durationMs = 5000) {
+    const clock = $('exp-turn-clock');
+    const value = $('exp-timer-value');
+    const fill = $('exp-timer-track-fill');
+    if (!clock || !value || !fill) return;
+    const safeDuration = Math.max(1, Number(durationMs) || 5000);
+    const remaining = Math.max(0, Math.min(safeDuration, Number(remainingMs) || 0));
+    const ratio = remaining / safeDuration;
+    value.textContent = (remaining / 1000).toFixed(1);
+    fill.style.transform = `scaleX(${ratio})`;
+    clock.style.setProperty('--timer-ratio', String(ratio));
+    clock.classList.toggle('danger', remaining > 0 && remaining <= 2000);
+    clock.classList.toggle('expired', remaining <= 0);
+    const wholeSecond = Math.ceil(remaining / 1000);
+    if (wholeSecond !== lastCountdownSecond && wholeSecond > 0 && wholeSecond <= 2) playSound('tick');
+    lastCountdownSecond = wholeSecond;
+  }
+
+  function resetTimerFeedback(durationMs = 5000) {
+    lastCountdownSecond = null;
+    setTimer(durationMs, durationMs);
+  }
+
+  function triggerTimeoutFeedback() {
+    restartClass($('exp-turn-clock'), 'timeout', 480);
+    playSound('timeout');
+  }
+
+  function triggerComboFeedback(streak, bonus = 0) {
+    const meter = $('exp-combo-meter');
+    const value = $('exp-combo-value');
+    const hint = $('exp-combo-hint');
+    if (value) value.textContent = `×${Math.max(0, streak || 0)}`;
+    if (hint) hint.textContent = bonus > 0 ? `极速奖励 +${bonus} Ji` : '连击预热！下一次获得奖励';
+    restartClass(meter, 'combo-pop', 680);
+    restartClass($('exp-runner-arena'), 'combo-flash', 520);
+    playSound('combo');
   }
 
   function resetDragState() {
@@ -393,35 +619,12 @@ export function createExperimentalBattleUi({
       title.textContent = groupLabels[group.key] || '';
       section.appendChild(title);
 
-      if (group.key === 'attack' && group.cards.length > 4) {
-        // 两排垒放：上排前4张，下排剩余（3张）
-        const topCards = group.cards.slice(0, 4);
-        const bottomCards = group.cards.slice(4);
-        const fanSpread = 16;
-
-        const rows = document.createElement('div');
-        rows.className = 'exp-attack-rows';
-
-        const topFan = document.createElement('div');
-        topFan.className = 'exp-card-fan exp-attack-row exp-attack-row-top';
-        topCards.forEach((card, idx) => topFan.appendChild(buildCardBtn(card, idx, topCards.length, fanSpread, groupFocused)));
-
-        const bottomFan = document.createElement('div');
-        bottomFan.className = 'exp-card-fan exp-attack-row exp-attack-row-bottom';
-        bottomCards.forEach((card, idx) => bottomFan.appendChild(buildCardBtn(card, idx, bottomCards.length, fanSpread, groupFocused)));
-
-        rows.appendChild(topFan);
-        rows.appendChild(bottomFan);
-        section.appendChild(rows);
-      } else {
-        // 普通单排扇形
-        const n = group.cards.length;
-        const fanSpread = n >= 4 ? 22 : n >= 2 ? 14 : 0;
-        const fan = document.createElement('div');
-        fan.className = 'exp-card-fan';
-        group.cards.forEach((card, idx) => fan.appendChild(buildCardBtn(card, idx, n, fanSpread, groupFocused)));
-        section.appendChild(fan);
-      }
+      const n = group.cards.length;
+      const fanSpread = n >= 6 ? 16 : n >= 4 ? 12 : n >= 2 ? 8 : 0;
+      const fan = document.createElement('div');
+      fan.className = 'exp-card-fan';
+      group.cards.forEach((card, idx) => fan.appendChild(buildCardBtn(card, idx, n, fanSpread, groupFocused)));
+      section.appendChild(fan);
 
       wrap.appendChild(section);
     });
@@ -451,6 +654,30 @@ export function createExperimentalBattleUi({
     if (playerEmoji) playerEmoji.textContent = G.player.classIcon || '🗡️';
     const enemyEmoji = $('exp-enemy-portrait-emoji');
     if (enemyEmoji) enemyEmoji.textContent = G.enemy ? (G.enemy.emoji || '👹') : '👹';
+
+    const playerSprite = $('exp-player-sprite');
+    const playerPortrait = $('exp-player-portrait');
+    const playerSpritePath = PLAYER_SPRITE_PROFILES[G.player.classKey] || '';
+    if (playerSprite && playerPortrait) {
+      playerSprite.style.setProperty('--runner-sprite', playerSpritePath ? `url("${playerSpritePath}")` : 'none');
+      playerPortrait.classList.toggle('sprite-loaded', !!playerSpritePath);
+      playerPortrait.dataset.spriteProfile = playerSpritePath ? G.player.classKey : 'fallback';
+    }
+    const enemySprite = $('exp-enemy-sprite');
+    const enemyPortrait = $('exp-enemy-portrait');
+    if (enemySprite && enemyPortrait) {
+      enemySprite.style.setProperty('--runner-sprite', `url("${ENEMY_RUNNER_SPRITE}")`);
+      enemyPortrait.classList.add('sprite-loaded');
+      enemyPortrait.dataset.enemyKind = G.enemy && G.enemy.id ? G.enemy.id : 'enemy';
+    }
+
+    const comboValue = $('exp-combo-value');
+    const comboHint = $('exp-combo-hint');
+    const comboStreak = Math.max(0, Number(G.battle.fastTurnStreak || 0));
+    if (comboValue) comboValue.textContent = `×${comboStreak}`;
+    if (comboHint && !comboHint.closest('.combo-pop')) {
+      comboHint.textContent = comboStreak > 0 ? '保持 1 秒内出牌继续叠加' : '1 秒内出牌可叠加';
+    }
 
     renderChipRow('exp-player-icon-row', getPassiveBadges({ includeResources: true, includeTechniques: false }), {
       iconOnly: true,
@@ -498,6 +725,10 @@ export function createExperimentalBattleUi({
 
     const experimentalHand = $('exp-battle-hand');
     if (experimentalHand) {
+      experimentalHand.addEventListener('pointerdown', () => {
+        getAudioContext();
+        playSound('card');
+      }, { passive: true });
       experimentalHand.addEventListener('pointerdown', handleHandPointerDown);
       experimentalHand.addEventListener('pointermove', handleHandPointerMove);
       experimentalHand.addEventListener('pointerup', handleHandPointerUp);
@@ -518,6 +749,10 @@ export function createExperimentalBattleUi({
     resetDragState,
     syncLogPanels,
     triggerAttackFeedback,
+    triggerComboFeedback,
     triggerHitFeedback,
+    triggerTimeoutFeedback,
+    resetTimerFeedback,
+    setTimer,
   };
 }
