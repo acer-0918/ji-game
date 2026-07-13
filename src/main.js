@@ -1501,7 +1501,7 @@ function bootstrapKeyboardNavigationObserver() {
     });
     if (shouldSync) scheduleKeyboardSelectionSync();
   });
-  keyboardNavState.observer.observe(document.body, {
+  keyboardNavState.observer.observe(document.documentElement, {
     subtree: true,
     childList: true,
     attributes: true,
@@ -3045,8 +3045,41 @@ function bootstrap() {
   refreshDeveloperModeButton();
   refreshNarrowBattleUiButton();
   refreshExperimentalBattleUiButton();
-  bootstrapKeyboardNavigationObserver();
+  if (!new URLSearchParams(window.location.search).has('preview')) {
+    bootstrapKeyboardNavigationObserver();
+  }
   scheduleKeyboardSelectionSync({ preserve: false });
+  launchPreviewBattleFromQuery();
+}
+
+function launchPreviewBattleFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('preview')) return;
+
+  const requestedClass = params.get('preview');
+  const classKey = requestedClass && CLASS_DEFS[requestedClass] ? requestedClass : 'assassin';
+  selectedClassKey = classKey;
+  document.body.classList.add('battle-preview-mode');
+  document.querySelectorAll('.class-btn[data-class]').forEach((btn) => {
+    btn.classList.toggle('sel', btn.dataset.class === classKey);
+  });
+
+  initGame(classKey, false);
+  applyDeveloperModeToGameState();
+  updateHardBadge(false);
+
+  const previewRoomId = (G.map.availableRoomIds || []).find((roomId) => {
+    const room = getRoomById(G.map, roomId);
+    return room && ['battle', 'elite', 'boss'].includes(room.type);
+  });
+
+  if (previewRoomId) {
+    enterNode(previewRoomId);
+    return;
+  }
+
+  showScreen('map');
+  renderMap();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
