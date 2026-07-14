@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ji // Neon Chase 战斗预览</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #eefbff;
+      --muted: #8fa9b7;
+      --cyan: #5cf6ff;
+      --pink: #ff4fb8;
+      --panel: rgba(8, 16, 31, 0.92);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { min-height: 100%; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(92, 246, 255, 0.16), transparent 30rem),
+        radial-gradient(circle at 90% 10%, rgba(255, 79, 184, 0.14), transparent 26rem),
+        #050914;
+    }
+
+    .preview-shell {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(92, 246, 255, 0.22);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: 0 16px 46px rgba(0, 0, 0, 0.34);
+    }
+
+    .brand { min-width: 210px; }
+    .brand b { display: block; color: var(--cyan); letter-spacing: 0.14em; }
+    .brand span { color: var(--muted); font-size: 12px; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    button, a {
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid rgba(143, 169, 183, 0.3);
+      border-radius: 10px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.055);
+      font: inherit;
+      font-weight: 700;
+      text-decoration: none;
+      cursor: pointer;
+      transition: 150ms ease;
+    }
+
+    button:hover, a:hover { border-color: var(--cyan); transform: translateY(-1px); }
+    button.active { color: #041014; border-color: var(--cyan); background: var(--cyan); }
+
+    .tips {
+      margin-left: auto;
+      max-width: 470px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+      text-align: right;
+    }
+
+    .game-frame {
+      display: block;
+      width: 100%;
+      height: calc(100vh - 104px);
+      min-height: 680px;
+      border: 1px solid rgba(92, 246, 255, 0.24);
+      border-radius: 18px;
+      background: #060b17;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.46);
+    }
+
+    .file-warning {
+      display: none;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      border: 1px solid #ffbf52;
+      border-radius: 12px;
+      color: #ffe4ad;
+      background: rgba(95, 55, 0, 0.46);
+    }
+
+    .file-warning code { color: white; }
+
+    @media (max-width: 820px) {
+      .preview-shell { padding: 8px; }
+      .preview-bar { align-items: flex-start; flex-direction: column; }
+      .brand { min-width: 0; }
+      .tips { margin-left: 0; text-align: left; }
+      .game-frame { height: calc(100vh - 190px); min-height: 620px; border-radius: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="preview-shell">
+    <div class="file-warning" id="file-warning">
+      此项目使用 JavaScript Modules，请在仓库目录运行 <code>python -m http.server 8765</code>，然后访问
+      <code>http://localhost:8765/preview.html</code>。
+    </div>
+
+    <header class="preview-bar">
+      <div class="brand">
+        <b>JI // NEON CHASE</b>
+        <span>可交互战斗原型</span>
+      </div>
+
+      <div class="controls" aria-label="预览控制">
+        <button type="button" class="active" data-class="assassin">刺客</button>
+        <button type="button" data-class="mage">法师</button>
+        <button type="button" id="restart">重新开始</button>
+        <a id="fullscreen" href="./index.html?preview=assassin" target="_blank" rel="noopener">独立窗口</a>
+      </div>
+
+      <div class="tips">
+        5 秒内选择卡牌并确认；1 秒内连续出牌可叠加 RUSH COMBO。快捷键：J 蓄力、D 防御、A 攻击、S 技能、Enter 确认。
+      </div>
+    </header>
+
+    <iframe
+      class="game-frame"
+      id="game-frame"
+      title="Ji 游戏战斗预览"
+      src="./index.html?preview=assassin"
+      allow="autoplay"
+    ></iframe>
+  </main>
+
+  <script>
+    const frame = document.getElementById('game-frame');
+    const fullscreen = document.getElementById('fullscreen');
+    const classButtons = [...document.querySelectorAll('[data-class]')];
+    let selectedClass = 'assassin';
+
+    function loadPreview(classKey) {
+      selectedClass = classKey;
+      const previewUrl = `./index.html?preview=${encodeURIComponent(classKey)}`;
+      frame.src = previewUrl;
+      fullscreen.href = previewUrl;
+      classButtons.forEach((button) => button.classList.toggle('active', button.dataset.class === classKey));
+    }
+
+    classButtons.forEach((button) => {
+      button.addEventListener('click', () => loadPreview(button.dataset.class));
+    });
+
+    document.getElementById('restart').addEventListener('click', () => loadPreview(selectedClass));
+
+    if (window.location.protocol === 'file:') {
+      document.getElementById('file-warning').style.display = 'block';
+      frame.removeAttribute('src');
+    }
+  </script>
+</body>
+</html>

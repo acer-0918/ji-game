@@ -8,7 +8,7 @@ import { registerTechEffects } from './battle/techEffects.js';
 import { registerEquipmentEffects } from './equipment/effects.js';
 import { createBattleEngine } from './battle/engine.js';
 import { createBattleRuntime } from './battle/runtime.js';
-import { CLASS_DEFS, getAbilityDefsForClass } from './data.js';
+import { CLASS_DEFS, MAX_JI_DISPLAY, getAbilityDefsForClass } from './data.js';
 import { createExperimentalBattleUi } from './experimentalBattleUi.js';
 import { POWER_RELIC_DEFS, getPowerRelicDef, hasPowerRelic } from './powerRelics/index.js';
 import { getActionData } from './logic.js';
@@ -84,14 +84,18 @@ const FEEDBACK_URL = 'https://v.wjx.cn/vm/hhxTGwR.aspx#';
 const BATTLE_TIMINGS = {
   REVEAL_DELAY_MS: 120,
   RESOLVE_DELAY_MS: 180,
-  OUTCOME_DELAY_MS: 0,
+  OUTCOME_DELAY_MS: 620,
 };
+const TURN_TIMER_MS = 5000;
+const FAST_TURN_WINDOW_MS = 1000;
 const DELEGATION_PROBLEM_REVEAL_DELAY_MS = 800;
 const KEYBOARD_NAV_ACTIVE_CLASS = 'keyboard-nav-active';
 let developerModeEnabled = false;
 let narrowBattleUiEnabled = false;
 let experimentalBattleUiEnabled = false;
 let experimentalBattleUi = null;
+let roundTimerHandle = null;
+let roundTimerDeadline = 0;
 const keyboardNavState = {
   currentToken: '',
   currentContext: '',
@@ -145,9 +149,10 @@ try {
   narrowBattleUiEnabled = false;
 }
 try {
-  experimentalBattleUiEnabled = window.localStorage.getItem(EXPERIMENTAL_BATTLE_UI_LS_KEY) === '1';
+  const savedBattleUi = window.localStorage.getItem(EXPERIMENTAL_BATTLE_UI_LS_KEY);
+  experimentalBattleUiEnabled = savedBattleUi !== '0';
 } catch (_) {
-  experimentalBattleUiEnabled = false;
+  experimentalBattleUiEnabled = true;
 }
 
 function persistDeveloperMode() {
@@ -203,7 +208,7 @@ function applyExperimentalBattleUiClass() {
 function refreshExperimentalBattleUiButton() {
   const btn = $('btn-toggle-experimental-battle-ui');
   if (!btn) return;
-  btn.textContent = `实验性战斗界面：${experimentalBattleUiEnabled ? '开启' : '关闭'}`;
+  btn.textContent = `动态跑酷战斗界面：${experimentalBattleUiEnabled ? '开启' : '关闭'}`;
 }
 
 experimentalBattleUi = createExperimentalBattleUi({
@@ -221,6 +226,53 @@ experimentalBattleUi = createExperimentalBattleUi({
   askSurrender,
   openSettings,
 });
+
+function stopRoundTimer({ freezeAtZero = false } = {}) {
+  if (roundTimerHandle) {
+    window.clearInterval(roundTimerHandle);
+    roundTimerHandle = null;
+  }
+  roundTimerDeadline = 0;
+  if (freezeAtZero) experimentalBattleUi && experimentalBattleUi.setTimer(0, TURN_TIMER_MS);
+}
+
+function getTimedFallbackActionKey() {
+  if (G.ui && G.ui.actionKey && canUsePlayerActionKey(G.ui.actionKey)) return G.ui.actionKey;
+  const candidates = [
+    ...getSpecialActionKeysForPlayer(),
+    'attack_7', 'attack_6', 'attack_5', 'attack_4', 'attack_3', 'attack_2', 'attack_1',
+    'ji',
+    'defense_2', 'defense_1', 'defense_0',
+  ];
+  return candidates.find((key) => canUsePlayerActionKey(key)) || 'ji';
+}
+
+function startRoundTimer() {
+  stopRoundTimer();
+  if (!experimentalBattleUiEnabled || !G.battle || G.battle.phase !== 'select') return;
+  const startedAt = Date.now();
+  G.battle.roundStartedAt = startedAt;
+  roundTimerDeadline = startedAt + TURN_TIMER_MS;
+  experimentalBattleUi && experimentalBattleUi.resetTimerFeedback(TURN_TIMER_MS);
+
+  const update = () => {
+    if (!G.battle || G.battle.phase !== 'select') {
+      stopRoundTimer();
+      return;
+    }
+    const remaining = Math.max(0, roundTimerDeadline - Date.now());
+    experimentalBattleUi && experimentalBattleUi.setTimer(remaining, TURN_TIMER_MS);
+    if (remaining > 0) return;
+    stopRoundTimer({ freezeAtZero: true });
+    experimentalBattleUi && experimentalBattleUi.triggerTimeoutFeedback();
+    const fallbackAction = getTimedFallbackActionKey();
+    addLog('log-ab', `⏱ 时间到：自动打出【${(getActionData(fallbackAction, 'player') || {}).name || '蓄力'}】。`);
+    confirmAction({ forceActionKey: fallbackAction, autoTimed: true });
+  };
+
+  update();
+  roundTimerHandle = window.setInterval(update, 50);
+}
 
 function applyDeveloperModeToGameState() {
   G.devMode = developerModeEnabled;
@@ -253,6 +305,8 @@ function toggleExperimentalBattleUi() {
   if ($('screen-battle').classList.contains('active') && G.enemy) {
     renderExperimentalBattleUi();
     refreshBars();
+    if (experimentalBattleUiEnabled && G.battle && G.battle.phase === 'select') startRoundTimer();
+    else if (!experimentalBattleUiEnabled) stopRoundTimer();
   }
 }
 
@@ -794,6 +848,7 @@ function choosePowerRelic(key) {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach((screen) => screen.classList.remove('active'));
   $(`screen-${id}`).classList.add('active');
+  window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
   scheduleKeyboardSelectionSync({ preserve: false });
 }
 
@@ -1446,7 +1501,7 @@ function bootstrapKeyboardNavigationObserver() {
     });
     if (shouldSync) scheduleKeyboardSelectionSync();
   });
-  keyboardNavState.observer.observe(document.body, {
+  keyboardNavState.observer.observe(document.documentElement, {
     subtree: true,
     childList: true,
     attributes: true,
@@ -1956,6 +2011,7 @@ function restartBattle() {
 }
 
 function startBattle(node, keepSnapshot=false) {
+  stopRoundTimer();
   G.currentNode = node;
   G.pendingBattleReward = null;
   clearBattleRewardUI();
@@ -1987,6 +2043,9 @@ function startBattle(node, keepSnapshot=false) {
     reunionDamageBonus:0,
     killedByDestinedFirstSight:false,
     cardsRevealed:false,
+    fastTurnStreak:0,
+    roundStartedAt:Date.now(),
+    lastTurnElapsedMs:null,
     equipment:createBattleEquipmentState(),
   };
   G.ui = {mainSel:null, actionKey:null};
@@ -2064,6 +2123,7 @@ function startBattle(node, keepSnapshot=false) {
   applyDelegationProblemUiLock();
   runAfter(0, maybeAutoSubmitDelegationProblemAction);
   showScreen('battle');
+  startRoundTimer();
 }
 
 function mainSelect(category) {
@@ -2151,11 +2211,26 @@ function confirmAction(options = {}) {
   const forceActionKey = options.forceActionKey || null;
   const ignoreRoundBlock = !!options.ignoreRoundBlock;
   const autoSubmitted = !!options.autoSubmitted;
+  const autoTimed = !!options.autoTimed;
   const actionKey = forceActionKey || G.ui.actionKey;
   if (!actionKey || !G.battle || G.battle.phase !== 'select') return;
   if (hasDelegationProblemRelic() && !autoSubmitted) return;
   if (!canUsePlayerActionKey(actionKey, { ignoreRoundDisabled: ignoreRoundBlock })) return;
   if (!ignoreRoundBlock && isActionBlockedForRound(actionKey)) return;
+  stopRoundTimer();
+  const elapsedMs = Math.max(0, Date.now() - Number(G.battle.roundStartedAt || Date.now()));
+  const fastTurn = !autoTimed && elapsedMs <= FAST_TURN_WINDOW_MS;
+  G.battle.lastTurnElapsedMs = elapsedMs;
+  G.battle.fastTurnStreak = fastTurn ? Number(G.battle.fastTurnStreak || 0) + 1 : 0;
+  let comboJiBonus = 0;
+  if (fastTurn && G.battle.fastTurnStreak >= 2) {
+    comboJiBonus = 1;
+    G.player.ji = Math.min(MAX_JI_DISPLAY, Number(G.player.ji || 0) + comboJiBonus);
+    addLog('log-ab', `⚡ RUSH COMBO ×${G.battle.fastTurnStreak}：极速出牌，奖励 +${comboJiBonus} Ji！`);
+  } else if (fastTurn) {
+    addLog('log-ab', '⚡ RUSH COMBO 预热：下一回合继续在 1 秒内出牌可获得 +1 Ji。');
+  }
+  if (fastTurn) experimentalBattleUi && experimentalBattleUi.triggerComboFeedback(G.battle.fastTurnStreak, comboJiBonus);
   G.ui.actionKey = actionKey;
   G.battle.pAction = actionKey;
   G.battle.eAction = aiDecide(G.enemy);
@@ -2246,9 +2321,11 @@ function nextRound() {
   refreshBars();
   applyDelegationProblemUiLock();
   runAfter(0, maybeAutoSubmitDelegationProblemAction);
+  startRoundTimer();
 }
 
 function endBattle(win) {
+  stopRoundTimer();
   const box = $('ov-battle-box');
   const title = $('ov-battle-title');
   const body = $('ov-battle-body');
@@ -2968,8 +3045,41 @@ function bootstrap() {
   refreshDeveloperModeButton();
   refreshNarrowBattleUiButton();
   refreshExperimentalBattleUiButton();
-  bootstrapKeyboardNavigationObserver();
+  if (!new URLSearchParams(window.location.search).has('preview')) {
+    bootstrapKeyboardNavigationObserver();
+  }
   scheduleKeyboardSelectionSync({ preserve: false });
+  launchPreviewBattleFromQuery();
+}
+
+function launchPreviewBattleFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has('preview')) return;
+
+  const requestedClass = params.get('preview');
+  const classKey = requestedClass && CLASS_DEFS[requestedClass] ? requestedClass : 'assassin';
+  selectedClassKey = classKey;
+  document.body.classList.add('battle-preview-mode');
+  document.querySelectorAll('.class-btn[data-class]').forEach((btn) => {
+    btn.classList.toggle('sel', btn.dataset.class === classKey);
+  });
+
+  initGame(classKey, false);
+  applyDeveloperModeToGameState();
+  updateHardBadge(false);
+
+  const previewRoomId = (G.map.availableRoomIds || []).find((roomId) => {
+    const room = getRoomById(G.map, roomId);
+    return room && ['battle', 'elite', 'boss'].includes(room.type);
+  });
+
+  if (previewRoomId) {
+    enterNode(previewRoomId);
+    return;
+  }
+
+  showScreen('map');
+  renderMap();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrap);
