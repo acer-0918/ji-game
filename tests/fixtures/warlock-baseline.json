@@ -1,0 +1,247 @@
+{
+  "baselineCommit": "9382650ce4a624407a82b4377c24a6b853352934",
+  "capture": "Original Chrome headless browser. Warlock vs its first map opponent with enemy HP raised to 10 to observe three consecutive turns. Only the opponent HP was injected.",
+  "initial": {
+    "player": {
+      "classKey": "warlock",
+      "classIcon": "👻",
+      "name": "咒术师",
+      "hp": 4,
+      "maxHp": 4,
+      "ji": 0,
+      "baseJiRate": 2,
+      "lightningOrbs": 0,
+      "shaBiStacks": 0,
+      "jiSpentTotal": 0,
+      "luck": 0,
+      "carryCurseStacks": 0,
+      "fragments": 0,
+      "gold": 75,
+      "coreOrbs": {
+        "plasma": 0,
+        "frost": 0,
+        "lightning": 0,
+        "dark": 0,
+        "glass": 0
+      },
+      "coreOverloadTriggered": false
+    },
+    "abilities": {
+      "savedByBladeUsed": false,
+      "soulReturnUsed": false,
+      "grudge": false,
+      "siphon": false,
+      "plague": false,
+      "soulReturn": false
+    },
+    "powerRelics": {
+      "lever": false,
+      "silenceGold": false,
+      "destinedFirstSight": false,
+      "possibleReunion": false,
+      "deification": false,
+      "delegationProblem": false
+    },
+    "shop": {
+      "enhancedDagger": false,
+      "enhancedIceBlade": false,
+      "enhancedBlade": false
+    },
+    "equipment": {
+      "slots": [
+        null,
+        null
+      ],
+      "records": {
+        "equi_1": {
+          "removedFromPool": false
+        },
+        "equi_2": {
+          "removedFromPool": false
+        },
+        "equi_3": {
+          "removedFromPool": false
+        },
+        "equi_4": {
+          "removedFromPool": false
+        },
+        "equi_5": {
+          "removedFromPool": false
+        },
+        "equi_6": {
+          "removedFromPool": false
+        },
+        "equi_7": {
+          "removedFromPool": false
+        },
+        "equi_8": {
+          "removedFromPool": false
+        }
+      },
+      "shopOfferIds": []
+    },
+    "activeMapRoomId": "room_1_a",
+    "runWon": false,
+    "currentNode": {
+      "id": "room_1_a",
+      "floor": 1,
+      "index": 0,
+      "type": "battle",
+      "label": "普通战斗",
+      "payload": {
+        "enemy": {
+          "id": "mob_1_f1",
+          "name": "小怪A",
+          "emoji": "👹",
+          "hp": 3,
+          "maxHp": 3,
+          "ji": 0,
+          "jiRate": 1
+        },
+        "rewardSpec": {
+          "kind": "mob",
+          "goldBase": 13,
+          "goldScale": 0,
+          "pickCount": 1,
+          "pickPool": [
+            "fragment",
+            "technique"
+          ]
+        }
+      },
+      "connections": [
+        "room_2_a"
+      ],
+      "parents": [],
+      "cleared": false,
+      "visited": true
+    },
+    "enemy": {
+      "id": "mob_1_f1",
+      "name": "小怪A",
+      "emoji": "👹",
+      "hp": 10,
+      "maxHp": 10,
+      "ji": 0,
+      "jiRate": 1
+    },
+    "battle": {
+      "round": 1,
+      "phase": "select",
+      "pAction": null,
+      "eAction": null,
+      "lastPlayerAction": null,
+      "lastEnemyAction": null,
+      "popcornPending": false,
+      "ekaiPending": false,
+      "roundDisabledActions": [],
+      "reunionDamageBonus": 0,
+      "killedByDestinedFirstSight": false,
+      "cardsRevealed": false,
+      "equipment": {
+        "barrierReady": false,
+        "barrierActive": false,
+        "usedDefense": false,
+        "tookDamage": false,
+        "haoYi": 0,
+        "huntRhythmPlannedExtraCount": 0
+      },
+      "techCounters": {}
+    },
+    "ui": {
+      "mainSel": null,
+      "actionKey": null
+    },
+    "roomFlags": {
+      "playerDamagedInBattle": false
+    },
+    "techniques": {
+      "1": null,
+      "2": null,
+      "3": null,
+      "4": null,
+      "5": null,
+      "6": null,
+      "7": null,
+      "d0": null,
+      "d1": null,
+      "d2": null
+    },
+    "pendingPowerRelicOptions": [],
+    "pendingEventRelicOptions": [],
+    "pendingEventRelicSelectedKey": null,
+    "pendingEventRelicSelectedKeys": [],
+    "pendingEventEquipmentChoiceKey": null,
+    "hardMode": false,
+    "devMode": false
+  },
+  "turns": [
+    {
+      "actions": [
+        "ji",
+        "ji"
+      ],
+      "expected": {
+        "round": 2,
+        "phase": "select",
+        "playerHp": 4,
+        "playerJi": 2,
+        "enemyHp": 10,
+        "enemyJi": 1,
+        "curseStacks": 0,
+        "playerAction": "ji",
+        "enemyAction": "ji",
+        "logs": [
+          "玩家: ⚡蓄力  |  敌方: ⚡蓄力",
+          "双方都没有发动攻击，本回合无直接伤害。",
+          "▶ 回合 2"
+        ]
+      }
+    },
+    {
+      "actions": [
+        "attack_1",
+        "attack_1"
+      ],
+      "expected": {
+        "round": 3,
+        "phase": "select",
+        "playerHp": 4,
+        "playerJi": 1,
+        "enemyHp": 10,
+        "enemyJi": 0,
+        "curseStacks": 0,
+        "playerAction": "attack_1",
+        "enemyAction": "attack_1",
+        "logs": [
+          "玩家: ⚔攻击1(攻1)  |  敌方: ⚔攻击1(攻1)",
+          "双方互攻：总攻击相同（1），双方均未命中。",
+          "▶ 回合 3"
+        ]
+      }
+    },
+    {
+      "actions": [
+        "defense_1",
+        "ji"
+      ],
+      "expected": {
+        "round": 4,
+        "phase": "select",
+        "playerHp": 4,
+        "playerJi": 0,
+        "enemyHp": 10,
+        "enemyJi": 1,
+        "curseStacks": 1,
+        "playerAction": "defense_1",
+        "enemyAction": "ji",
+        "logs": [
+          "玩家: 🛡🛡超防(防6)  |  敌方: ⚡蓄力",
+          "☠ 诅咒被动：付费防御，对敌方施加1层诅咒（当前1层）。",
+          "双方都没有发动攻击，本回合无直接伤害。",
+          "▶ 回合 4"
+        ]
+      }
+    }
+  ]
+}

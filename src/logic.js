@@ -3,6 +3,7 @@ import { clone, randomChoice } from './utils.js';
 import {
   G,
   allOrbsGenerated,
+  battleRandom,
   ensureFaultRobotState,
   ensurePlayerCoreState,
   getDogLuckChance,
@@ -102,8 +103,8 @@ export function getActionData(key, side='player', actorOverride=null) {
     return {type:'gufu_charge', cost:0, def:0, atk:0, hits:0, damage:0, name:'野性之心', emoji:'👑⚡', gain:actor.chargeValue || 1};
   }
 
+  if (!Object.hasOwn(BASE_ACTIONS, key)) return null;
   const base = clone(BASE_ACTIONS[key]);
-  if (!base) return null;
   if (base.type === 'ji') {
     base.gain = side === 'player' ? getPlayerJiRate() : getEnemyStandardChargeGain(actor);
   }
@@ -341,7 +342,7 @@ export function resolveAction(side, key) {
     actor.ji += base.gain;
     if (side === 'player' && actor.classKey === 'dog') {
       const chance = getDogLuckChance() / 2;
-      if (Math.random() * 100 < chance) {
+      if (battleRandom() * 100 < chance) {
         actor.ji *= 2;
         logs.push(`🐶 幸运蓄力：判定半幸运值 ${chance}%，Ji 翻倍至 ${actor.ji}。`);
       } else {
@@ -362,7 +363,7 @@ export function resolveAction(side, key) {
       if (getCoreOverloadTriggered(actor, side)) logs.push('☠️ 过载终焉已发动过，本局战斗中不会再次触发。');
       else logs.push('☠️ 五类充能球已全部出现！过载终焉将于本回合结算后发动。');
     } else {
-      const orbKey = randomChoice(ORB_KEYS);
+      const orbKey = randomChoice(ORB_KEYS, battleRandom);
       orbStore[orbKey] = (orbStore[orbKey] || 0) + 1;
       const count = orbStore[orbKey];
       const meta = ORB_META[orbKey];

@@ -5,15 +5,11 @@ export function createBattleRuntime({
   engine,
   addLog,
   refreshBars,
-  getPlayerActionKeysForSilence,
-  sampleDistinctKeys,
 } = {}) {
   function runRoundStartPhase() {
     const ctx = {
       addLog,
       refreshBars,
-      getPlayerActionKeysForSilence,
-      sampleDistinctKeys,
       battleEnded:false,
       forceNextRound:false,
       resolved:false,

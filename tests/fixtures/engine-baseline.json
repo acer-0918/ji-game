@@ -1,0 +1,465 @@
+{
+  "baselineCommit": "9382650ce4a624407a82b4377c24a6b853352934",
+  "randomSample": 0.1,
+  "cases": [
+    {
+      "name": "equal attack and defense block",
+      "setup": {
+        "player": {
+          "ji": 3
+        }
+      },
+      "actions": [
+        "attack_3",
+        "defense_0"
+      ],
+      "expected": {
+        "state": {
+          "round": 2,
+          "playerHp": 4,
+          "playerJi": 0,
+          "enemyHp": 10,
+          "enemyJi": 0,
+          "curseStacks": 0,
+          "soulReturnUsed": false,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 0,
+          "edmg": 0,
+          "msgs": [
+            "玩家攻击等级 3 未高于敌方防御 3，本次未命中。"
+          ],
+          "triggers": []
+        },
+        "outcome": "CONTINUE",
+        "logs": [
+          "玩家: ⚔攻击3(攻3)  |  敌方: 🛡防(防3)",
+          "玩家攻击等级 3 未高于敌方防御 3，本次未命中。"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_END/tech.defense_invincible_and_roundshield",
+          "ROUND_END/tech.defense_tech_round_end",
+          "ROUND_END/tech.round_end_counters",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_START/player.equipment_round_setup",
+          "ROUND_START/system.clear_round_disabled_actions",
+          "ROUND_START/tech.defense_tech_round_start",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "higher attack wins and both pay Ji",
+      "setup": {
+        "player": {
+          "ji": 3
+        },
+        "enemy": {
+          "ji": 1
+        }
+      },
+      "actions": [
+        "attack_3",
+        "attack_1"
+      ],
+      "expected": {
+        "state": {
+          "round": 2,
+          "playerHp": 4,
+          "playerJi": 0,
+          "enemyHp": 9,
+          "enemyJi": 0,
+          "curseStacks": 1,
+          "soulReturnUsed": false,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 0,
+          "edmg": 1,
+          "msgs": [
+            "双方互攻：玩家总攻击 3 高于敌方 1，玩家命中。"
+          ],
+          "triggers": [
+            "诅咒——命中敌方，施加1层诅咒（当前1层）"
+          ]
+        },
+        "outcome": "CONTINUE",
+        "logs": [
+          "玩家: ⚔攻击3(攻3)  |  敌方: ⚔攻击1(攻1)",
+          "双方互攻：玩家总攻击 3 高于敌方 1，玩家命中。",
+          "✨ 诅咒——命中敌方，施加1层诅咒（当前1层）",
+          "敌方受到 1 点伤害！"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "ON_HIT/system.log_on_hit_triggers",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_END/tech.defense_invincible_and_roundshield",
+          "ROUND_END/tech.defense_tech_round_end",
+          "ROUND_END/tech.round_end_counters",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_START/player.equipment_round_setup",
+          "ROUND_START/system.clear_round_disabled_actions",
+          "ROUND_START/tech.defense_tech_round_start",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "technique and relic modify damage before HP application",
+      "setup": {
+        "player": {
+          "ji": 7
+        },
+        "enemy": {
+          "ji": 1
+        },
+        "powerRelics": {
+          "possibleReunion": true
+        },
+        "techniques": {
+          "7": "atk_7_b"
+        },
+        "equipment": {
+          "slots": [
+            "equi_2",
+            null,
+            null
+          ]
+        }
+      },
+      "actions": [
+        "attack_7",
+        "defense_1"
+      ],
+      "expected": {
+        "state": {
+          "round": 2,
+          "playerHp": 4,
+          "playerJi": 0,
+          "enemyHp": 6,
+          "enemyJi": 0,
+          "curseStacks": 1,
+          "soulReturnUsed": false,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 0,
+          "edmg": 4,
+          "msgs": [
+            "玩家攻击等级 7 突破敌方防御 6，命中。"
+          ],
+          "triggers": [
+            "诅咒——命中敌方，施加1层诅咒（当前1层）",
+            "大炮（7）（30%概率触发）：命中后伤害 +1"
+          ]
+        },
+        "outcome": "CONTINUE",
+        "logs": [
+          "玩家: 💣💥大炮（7）(攻7)  |  敌方: 🛡🛡超防(防6)",
+          "玩家攻击等级 7 突破敌方防御 6，命中。",
+          "✨ 诅咒——命中敌方，施加1层诅咒（当前1层）",
+          "✨ 大炮（7）（30%概率触发）：命中后伤害 +1",
+          "🕊️ 可能的重逢：敌方使用了超防，本战斗你的伤害加成提升至 +1。",
+          "🕊️ 可能的重逢：本回合额外造成 1 点伤害。",
+          "🛡️ 霸王血铠：本回合造成伤害额外 +1。",
+          "敌方受到 4 点伤害！"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "ON_HIT/system.log_on_hit_triggers",
+          "DAMAGE_RESOLVE/player.relic_possible_reunion_charge",
+          "DAMAGE_RESOLVE/player.relic_possible_reunion_bonus_damage",
+          "DAMAGE_RESOLVE/player.equipment_blood_armor",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_END/tech.defense_invincible_and_roundshield",
+          "ROUND_END/tech.defense_tech_round_end",
+          "ROUND_END/tech.round_end_counters",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_START/player.equipment_round_setup",
+          "ROUND_START/system.clear_round_disabled_actions",
+          "ROUND_START/tech.defense_tech_round_start",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "warlock revival happens before ordinary death",
+      "setup": {
+        "player": {
+          "hp": 1
+        },
+        "enemy": {
+          "ji": 1,
+          "curseStacks": 2
+        },
+        "abilities": {
+          "soulReturn": true
+        }
+      },
+      "actions": [
+        "ji",
+        "attack_1"
+      ],
+      "expected": {
+        "state": {
+          "round": 2,
+          "playerHp": 1,
+          "playerJi": 2,
+          "enemyHp": 10,
+          "enemyJi": 0,
+          "curseStacks": 0,
+          "soulReturnUsed": true,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 1,
+          "edmg": 0,
+          "msgs": [
+            "敌方攻击等级 1 突破玩家防御 0，命中。"
+          ],
+          "triggers": []
+        },
+        "outcome": "CONTINUE",
+        "logs": [
+          "玩家: ⚡蓄力  |  敌方: ⚔攻击1(攻1)",
+          "敌方攻击等级 1 突破玩家防御 0，命中。",
+          "玩家受到 1 点伤害！",
+          "🌀 回魂：撕裂 2 层诅咒之力，死里逃生！以 1 HP 存活。"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "TAKE_DAMAGE/player.on_damaged_common",
+          "DEATH_CHECK/player.warlock_soul_return",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_START/player.equipment_round_setup",
+          "ROUND_START/system.clear_round_disabled_actions",
+          "ROUND_START/tech.defense_tech_round_start",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "destined first sight blocks a normally available revival",
+      "setup": {
+        "player": {
+          "hp": 1
+        },
+        "enemy": {
+          "ji": 1,
+          "curseStacks": 2
+        },
+        "abilities": {
+          "soulReturn": true
+        },
+        "powerRelics": {
+          "destinedFirstSight": true
+        }
+      },
+      "actions": [
+        "ji",
+        "attack_1"
+      ],
+      "expected": {
+        "state": {
+          "round": 1,
+          "playerHp": 0,
+          "playerJi": 2,
+          "enemyHp": 10,
+          "enemyJi": 0,
+          "curseStacks": 2,
+          "soulReturnUsed": false,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 1,
+          "edmg": 0,
+          "msgs": [
+            "敌方攻击等级 1 突破玩家防御 0，命中。"
+          ],
+          "triggers": []
+        },
+        "outcome": "LOSE",
+        "logs": [
+          "玩家: ⚡蓄力  |  敌方: ⚔攻击1(攻1)",
+          "敌方攻击等级 1 突破玩家防御 0，命中。",
+          "玩家受到 1 点伤害！",
+          "📕 既定的初见：你受到了伤害，立刻死亡。"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "TAKE_DAMAGE/player.relic_destined_first_sight",
+          "TAKE_DAMAGE/player.on_damaged_common",
+          "DEATH_CHECK/system.default_death_resolution",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "both reach zero on the same turn",
+      "setup": {
+        "player": {
+          "hp": 1,
+          "maxHp": 1
+        },
+        "enemy": {
+          "hp": 2,
+          "ji": 4,
+          "curseStacks": 4
+        }
+      },
+      "actions": [
+        "soul_devour",
+        "attack_4"
+      ],
+      "expected": {
+        "state": {
+          "round": 1,
+          "playerHp": 0,
+          "playerJi": 0,
+          "enemyHp": 0,
+          "enemyJi": 0,
+          "curseStacks": 0,
+          "soulReturnUsed": false,
+          "pendingHunt": null
+        },
+        "damage": {
+          "pdmg": 1,
+          "edmg": 0,
+          "msgs": [
+            "敌方攻击等级 4 突破玩家防御 2，命中。"
+          ],
+          "triggers": []
+        },
+        "outcome": "LOSE",
+        "logs": [
+          "玩家: 💀噬魂  |  敌方: ⚔⚔攻击4(攻4)",
+          "💀 噬魂：吞噬 4 层诅咒，造成 2 点伤害，回复 1 HP。",
+          "敌方攻击等级 4 突破玩家防御 2，命中。",
+          "玩家受到 1 点伤害！"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "TAKE_DAMAGE/player.on_damaged_common",
+          "DEATH_CHECK/system.default_death_resolution",
+          "DEATH_CHECK/system.default_death_resolution"
+        ]
+      }
+    },
+    {
+      "name": "hunt rhythm is offered after a qualifying hit",
+      "setup": {
+        "player": {
+          "ji": 3
+        },
+        "equipment": {
+          "slots": [
+            "equi_1",
+            null,
+            null
+          ]
+        }
+      },
+      "actions": [
+        "attack_1",
+        "ji"
+      ],
+      "pending": true,
+      "expected": {
+        "state": {
+          "round": 1,
+          "playerHp": 4,
+          "playerJi": 2,
+          "enemyHp": 9,
+          "enemyJi": 1,
+          "curseStacks": 1,
+          "soulReturnUsed": false,
+          "pendingHunt": {
+            "maxExtra": 2,
+            "cost": 1,
+            "basePerCast": 1,
+            "extraCount": 0
+          }
+        },
+        "damage": {
+          "pdmg": 0,
+          "edmg": 1,
+          "msgs": [
+            "玩家攻击等级 1 突破敌方防御 0，命中。"
+          ],
+          "triggers": [
+            "诅咒——命中敌方，施加1层诅咒（当前1层）"
+          ]
+        },
+        "outcome": "CONTINUE",
+        "logs": [
+          "玩家: ⚔攻击1(攻1)  |  敌方: ⚡蓄力",
+          "玩家攻击等级 1 突破敌方防御 0，命中。",
+          "✨ 诅咒——命中敌方，施加1层诅咒（当前1层）",
+          "敌方受到 1 点伤害！"
+        ],
+        "phases": [
+          "ACTION_COMPARE/system.resolve_selected_actions",
+          "ACTION_COMPARE/system.store_action_data",
+          "HIT_CHECK/system.hit_check",
+          "HIT_CHECK/system.log_hit_check_messages",
+          "HIT_CHECK/system.store_enemy_hit",
+          "ON_HIT/system.on_hit_damage",
+          "ON_HIT/system.log_on_hit_triggers",
+          "DAMAGE_RESOLVE/player.equipment_hunt_rhythm",
+          "APPLY_DAMAGE/system.apply_hp_change",
+          "APPLY_DAMAGE/system.log_applied_damage",
+          "DEATH_CHECK/system.default_death_resolution",
+          "ROUND_END/tech.defense_invincible_and_roundshield",
+          "ROUND_END/tech.defense_tech_round_end",
+          "ROUND_END/tech.round_end_counters"
+        ]
+      }
+    }
+  ]
+}

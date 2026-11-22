@@ -9,7 +9,7 @@ import {
   registerDamageTotalHook,
 } from '../logic.js';
 import { recordBossObservedTag } from '../ai.js';
-import { G } from '../state.js';
+import { G, battleRandom } from '../state.js';
 import { TECH_DEFS } from '../battleTechniques.js';
 function pushLog(ctx, cls, text) {
   if (typeof ctx.addLog === 'function') ctx.addLog(cls, text);
@@ -140,7 +140,7 @@ function applyProbDamageBonus(ctx) {
   const prob = PROB_MAP[ctx.attackAction.techId];
   if (!prob) return;
 
-  if (Math.random() < prob) {
+  if (battleRandom() < prob) {
     ctx.bonusDamage += 1;
     const pct = Math.round(prob * 100);
     ctx.triggers.push(`${ctx.attackAction.name}（${pct}%概率触发）：命中后伤害 +1`);
@@ -172,7 +172,7 @@ function applyTachiFollowUp(ctx) {
 
   let followUps = 0;
   const prob = guaranteed ? 1.0 : 0.2;
-  while (Math.random() < prob) {
+  while (battleRandom() < prob) {
     followUps += 1;
     if (followUps > 20) break; // safety cap
   }
@@ -327,7 +327,7 @@ export function registerTechEffects(engine) {
       // 掷骰：本回合使用后，掷骰（on use）；波尔激活时必得 +3
       if (G.techniques && G.techniques[6] === 'atk_6_d' && pAction === 'attack_6') {
         const isBore = !!(tc.bore_active);
-        const roll = isBore ? 3 : Math.ceil(Math.random() * 6);
+        const roll = isBore ? 3 : Math.ceil(battleRandom() * 6);
         tc.dice_pending = (tc.dice_pending || 0) + roll;
         pushLog(ctx, 'log-ab', `🎲 掷骰：本回合掷出 ${roll}${isBore ? '（波尔：必得 +3）' : ''}，下回合开始时将获得 +${roll} Ji。`);
       }

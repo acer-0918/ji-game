@@ -6,7 +6,7 @@ import {
   TARGET,
   toResultFromPackets,
 } from './damagePipeline.js';
-import { G, allOrbsGenerated, allPlayerCoreOrbsGenerated, getDogLuckChance } from '../state.js';
+import { G, allOrbsGenerated, allPlayerCoreOrbsGenerated, battleRandom, getDogLuckChance } from '../state.js';
 import { hasPowerRelic } from '../powerRelics/index.js';
 
 function pushLog(ctx, cls, text) {
@@ -135,7 +135,7 @@ export function registerDefaultResolveEffects(engine) {
       pushLog(ctx, 'log-ab', `🐶 小狗被动：受伤后幸运值 +${gain}（当前 ${p.luck}）。`);
 
       const chance = getDogLuckChance();
-      if (Math.random() * 100 < chance) {
+      if (battleRandom() * 100 < chance) {
         const before = p.hp;
         p.hp = Math.min(p.maxHp, p.hp + 1);
         if (p.hp > before) pushLog(ctx, 'log-ab', `🍀 幸运回复触发（${chance}%）：回复 1 点生命。`);

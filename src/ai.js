@@ -1,4 +1,4 @@
-import { G } from './state.js';
+import { G, battleRandom } from './state.js';
 import { allOrbsGenerated, orbCount, orbUniqueCount, ensureFaultRobotState } from './state.js';
 import { getActionData, getMaxAffordableAttack } from './logic.js';
 import { randomChoice } from './utils.js';
@@ -217,7 +217,7 @@ function pickWeightedAction(weights, side = 'enemy', fallback = 'ji', blockedAct
     if (!action || action.cost > actor.ji || weight <= 0) return;
     for (let i = 0; i < Math.round(weight); i++) pool.push(key);
   });
-  if (pool.length) return randomChoice(pool);
+  if (pool.length) return randomChoice(pool, () => battleRandom('policy'));
 
   const candidateOrder = [
     fallback, 'ji', 'defense_0', 'attack_1', 'defense_1',
@@ -365,7 +365,7 @@ function aiElite(enemy) {
   const blockedActions = getBlockedActions(ctx);
   // 第一次进入时随机决定性格，战斗期间不变
   if (!enemy.aiPersonality) {
-    enemy.aiPersonality = Math.random() < 0.5 ? 'aggressive' : 'conservative';
+    enemy.aiPersonality = battleRandom('policy') < 0.5 ? 'aggressive' : 'conservative';
   }
   return enemy.aiPersonality === 'aggressive'
     ? aiEliteAggressive(ctx, blockedActions)

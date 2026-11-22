@@ -1,13 +1,8 @@
-import { aiDecide } from './ai.js';
+import { canUsePlayerAction, isPlayerActionBlocked } from './battle/actions.js';
 import { BATTLE_OUTCOME } from './battle/constants.js';
-import { registerDefaultCombatEffects } from './battle/defaultCombatEffects.js';
-import { registerDefaultDeathEffects } from './battle/defaultDeathEffects.js';
-import { registerDefaultRoundStartEffects } from './battle/defaultRoundStartEffects.js';
-import { registerDefaultResolveEffects } from './battle/defaultResolveEffects.js';
-import { registerTechEffects } from './battle/techEffects.js';
-import { registerEquipmentEffects } from './equipment/effects.js';
-import { createBattleEngine } from './battle/engine.js';
-import { createBattleRuntime } from './battle/runtime.js';
+import { createBattleController, startBattleRecording } from './battle/core.js';
+import { getPendingChoice } from './battle/followUps.js';
+import { initializeBattle } from './battle/setup.js';
 import { CLASS_DEFS, getAbilityDefsForClass } from './data.js';
 import { createExperimentalBattleUi } from './experimentalBattleUi.js';
 import { POWER_RELIC_DEFS, getPowerRelicDef, hasPowerRelic } from './powerRelics/index.js';
@@ -27,7 +22,7 @@ import {
   renderTechniqueLibrary,
   resetRoundUI as renderResetRoundUI,
 } from './render.js';
-import { G, initGame, resetRoomJi, ensureFaultRobotState, restoreFromBattleSnapshot } from './state.js';
+import { G, initGame, resetRoomJi, restoreFromBattleSnapshot } from './state.js';
 import { equipTechnique, TECH_DEFS, getTechniqueCategoryLabel, unequipTechniqueSlot } from './battleTechniques.js';
 import { clone, randomChoice } from './utils.js';
 import { getEquipmentDef } from './equipment/defs.js';
@@ -35,9 +30,7 @@ import { getEquipmentCardArtPath } from './equipment/art.js';
 import {
   applyOnWinEquipmentRewards,
   applyPostBattleTagModifiers,
-  clampPlayerJiByEquipment,
   clearEquipmentShopOffers,
-  createBattleEquipmentState,
   equipEquipment,
   getEquipmentIdInSlot,
   getEquipmentTagText,
@@ -119,20 +112,7 @@ function addLog(cls, text) {
   experimentalBattleUi && experimentalBattleUi.syncLogPanels();
 }
 
-const battleEngine = createBattleEngine();
-registerDefaultCombatEffects(battleEngine);
-registerDefaultRoundStartEffects(battleEngine);
-registerDefaultResolveEffects(battleEngine);
-registerDefaultDeathEffects(battleEngine);
-registerTechEffects(battleEngine);
-registerEquipmentEffects(battleEngine);
-const battleRuntime = createBattleRuntime({
-  engine: battleEngine,
-  addLog,
-  refreshBars,
-  getPlayerActionKeysForSilence,
-  sampleDistinctKeys,
-});
+const battle = createBattleController({ addLog, refreshBars });
 
 try {
   developerModeEnabled = window.localStorage.getItem(DEV_MODE_LS_KEY) === '1';
@@ -274,10 +254,6 @@ function previewExperimentalActionKey(key) {
   renderExperimentalBattleUi();
 }
 
-function getRoundBlockedSet() {
-  return new Set((G.battle && G.battle.roundDisabledActions) || []);
-}
-
 function isDefenseForbiddenByRelic() {
   return hasPowerRelic(G, 'possibleReunion');
 }
@@ -287,30 +263,7 @@ function hasDelegationProblemRelic() {
 }
 
 function isActionBlockedForRound(key) {
-  // 开发者行动不受沉默是金影响
-  if (key === 'dev_kill') return false;
-  return getRoundBlockedSet().has(key);
-}
-
-function getSpecialActionKeysForPlayer() {
-  const keys = [];
-  if (!G.player) return keys;
-  if (G.player.classKey === 'mage') keys.push('mage_release');
-  if (G.player.classKey === 'nsyc') keys.push('ekai');
-  if (G.player.classKey === 'warlock') keys.push('soul_devour');
-  if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
-  if (G.devMode) keys.push('dev_kill');
-  return keys;
-}
-
-function canUsePlayerActionKey(key, { ignoreRoundDisabled = false } = {}) {
-  if (!key || !G.player) return false;
-  if (!ignoreRoundDisabled && isActionBlockedForRound(key)) return false;
-  if (isDefenseForbiddenByRelic() && String(key).startsWith('defense_')) return false;
-  const action = getActionData(key, 'player');
-  if (!action || action.disabledByOrbs) return false;
-  const cost = Number(action.cost || 0);
-  return cost <= Number(G.player.ji || 0);
+  return isPlayerActionBlocked(G, key);
 }
 
 function applyDelegationProblemUiLock() {
@@ -319,40 +272,6 @@ function applyDelegationProblemUiLock() {
   const confirmBtn = $('btn-confirm');
   if (area) area.style.pointerEvents = 'none';
   if (confirmBtn) confirmBtn.disabled = true;
-}
-
-function getDelegationProblemActionKey() {
-  if (!G.player) return null;
-  const pickHighest = (keys) => {
-    const sorted = [...keys].sort((a, b) => {
-      const aLv = parseInt(String(a).split('_').pop(), 10) || 0;
-      const bLv = parseInt(String(b).split('_').pop(), 10) || 0;
-      return bLv - aLv;
-    });
-    return sorted[0] || null;
-  };
-  const pickRandom = (keys) => randomChoice(keys);
-  const isFeasible = (key) => canUsePlayerActionKey(key, { ignoreRoundDisabled: true });
-
-  const feasibleRegions = [];
-  if (isFeasible('ji')) {
-    feasibleRegions.push({ regionKey: 'ji', actionKeys: ['ji'], picker: pickRandom });
-  }
-  const defenseKeys = ['defense_0', 'defense_1', 'defense_2'].filter(isFeasible);
-  if (defenseKeys.length > 0) {
-    feasibleRegions.push({ regionKey: 'def', actionKeys: defenseKeys, picker: pickHighest });
-  }
-  const attackKeys = ['attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'].filter(isFeasible);
-  if (attackKeys.length > 0) {
-    feasibleRegions.push({ regionKey: 'atk', actionKeys: attackKeys, picker: pickHighest });
-  }
-  const specialKeys = getSpecialActionKeysForPlayer().filter(isFeasible);
-  if (specialKeys.length > 0) {
-    feasibleRegions.push({ regionKey: 'sp', actionKeys: specialKeys, picker: pickRandom });
-  }
-  if (feasibleRegions.length <= 0) return null;
-  const pickedRegion = randomChoice(feasibleRegions);
-  return pickedRegion.picker(pickedRegion.actionKeys);
 }
 
 function syncPlayerPreviewForAction(key) {
@@ -401,7 +320,7 @@ function syncPlayerPreviewForAction(key) {
 function maybeAutoSubmitDelegationProblemAction() {
   if (!hasDelegationProblemRelic() || !G.battle || G.battle.phase !== 'select') return;
   applyDelegationProblemUiLock();
-  const key = getDelegationProblemActionKey();
+  const key = battle.chooseDelegatedAction(G);
   if (!key) {
     addLog('log-ab', '🧾 委托代理问题：代理人没找到可执行的行动，本回合选择蓄力。');
     confirmAction({ forceActionKey: 'ji', ignoreRoundBlock: true, autoSubmitted: true });
@@ -478,21 +397,7 @@ function hideFreeFollowUpPanel() {
 function freeFollowUpExecuteOne() {
   const pending = G.battle && G.battle.freeFollowUpPending;
   if (!pending || pending.count <= 0) return;
-  pending.count -= 1;
-  let dmg = pending.dmgPerHit;
-  const extraLogs = [];
-  // 重甲破击：追加攻击也是重战技，同样触发
-  if (G.abilities && G.abilities.heavyTechBoost && pending.techId) {
-    const def = TECH_DEFS[pending.techId];
-    if (def && def.weight === 'heavy') {
-      dmg += 1;
-      extraLogs.push('重甲破击 +1');
-    }
-  }
-  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - dmg);
-  const done = 3 - pending.count;
-  const extraStr = extraLogs.length ? `（${extraLogs.join('·')}）` : '';
-  addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：第 ${done} 次追加，造成 ${dmg} 点伤害${extraStr}。`);
+  battle.applyFollowUp(G, 'free', 'hit');
   refreshBars();
   if ((G.enemy.hp || 0) <= 0 || pending.count <= 0) {
     confirmFreeFollowUp();
@@ -502,20 +407,9 @@ function freeFollowUpExecuteOne() {
 }
 
 function confirmFreeFollowUp() {
-  const pending = G.battle && G.battle.freeFollowUpPending;
-  if (pending && pending.count < 3) {
-    addLog('log-ab', `${pending.emoji || '⚔'} ${pending.label}：免费追加结束。`);
-  }
-  G.battle.freeFollowUpPending = null;
+  battle.applyFollowUp(G, 'free', 'finish');
   hideFreeFollowUpPanel();
-  afterFreeFollowUpResolve();
-}
-
-function afterFreeFollowUpResolve() {
-  const deathCtx = battleRuntime.runDeathCheckPhase();
-  if (deathCtx.outcome === BATTLE_OUTCOME.WIN) { endBattle(true); return; }
-  if (deathCtx.outcome === BATTLE_OUTCOME.LOSE) { endBattle(false); return; }
-  nextRound();
+  finishResolvedTurn();
 }
 
 // ── 狩猎律动面板 ──────────────────────────────────────────────────────────────
@@ -525,7 +419,7 @@ function showHuntRhythmPostHitPanel() {
   if (!pending) return;
   const panel = $('hunt-rhythm-panel');
   if (!panel) return;
-  pending.extraCount = 0;
+  battle.prepareHuntRhythm(G);
   panel.style.display = '';
   $('action-area').style.pointerEvents = 'auto';
   const confirmRow = document.querySelector('.confirm-row');
@@ -534,13 +428,7 @@ function showHuntRhythmPostHitPanel() {
 }
 
 function huntRhythmAddOne() {
-  const pending = G.battle && G.battle.huntRhythmPending;
-  if (!pending || G.player.ji < pending.cost) return;
-  G.player.ji = clampPlayerJiByEquipment(G, G.player.ji - pending.cost);
-  const dmg = pending.basePerCast;
-  G.enemy.hp = Math.max(0, (G.enemy.hp || 0) - dmg);
-  pending.extraCount = (pending.extraCount || 0) + 1;
-  addLog('log-ab', `🏹 狩猎律动：第 ${pending.extraCount} 次追加，造成 ${dmg} 伤害。`);
+  if (!battle.applyFollowUp(G, 'hunt', 'hit').applied) return;
   refreshBars();
   syncHuntRhythmMeta();
   // 敌方已死亡则直接结束
@@ -548,18 +436,13 @@ function huntRhythmAddOne() {
 }
 
 function confirmHuntRhythmExtra() {
-  const pending = G.battle && G.battle.huntRhythmPending;
-  if (!pending) return;
-  if (pending.extraCount > 0) {
-    addLog('log-ab', `🏹 狩猎律动：共追加 ${pending.extraCount} 次。`);
-  }
-  G.battle.huntRhythmPending = null;
+  if (!battle.applyFollowUp(G, 'hunt', 'finish').applied) return;
   hideHuntRhythmPanel();
-  afterHuntRhythmResolve();
+  finishResolvedTurn();
 }
 
-function afterHuntRhythmResolve() {
-  const deathCtx = battleRuntime.runDeathCheckPhase();
+function finishResolvedTurn() {
+  const deathCtx = battle.checkDeath(G);
   if (deathCtx.outcome === BATTLE_OUTCOME.WIN) {
     endBattle(true);
     return;
@@ -569,16 +452,6 @@ function afterHuntRhythmResolve() {
     return;
   }
   nextRound();
-}
-
-function getPlayerActionKeysForSilence() {
-  const keys = ['ji', 'defense_0', 'defense_1', 'defense_2', 'attack_1', 'attack_2', 'attack_3', 'attack_4', 'attack_5', 'attack_6', 'attack_7'];
-  if (G.player.classKey === 'mage') keys.push('mage_release');
-  if (G.player.classKey === 'nsyc') keys.push('ekai');
-  if (G.player.classKey === 'warlock') keys.push('soul_devour');
-  if (hasPowerRelic(G, 'deification')) keys.push('perfect_core');
-  // 开发者行动不参与沉默禁用
-  return keys;
 }
 
 function sampleDistinctKeys(pool, count) {
@@ -1956,52 +1829,10 @@ function restartBattle() {
 }
 
 function startBattle(node, keepSnapshot=false) {
-  G.currentNode = node;
-  G.pendingBattleReward = null;
   clearBattleRewardUI();
-  let tigerTriggered = false;
-  if (!keepSnapshot && G.abilities.tigerTank && node.type === 'boss') {
-    G.player.maxHp += 3;
-    G.player.hp += 3;
-    tigerTriggered = true;
-  }
-  if (!keepSnapshot) {
-    G.battleEntrySnapshot = clone(G);
-  }
-
-  G.enemy = clone(node.payload.enemy);
-  ensureFaultRobotState(G.enemy);
-  resetRoomJi();
-  G.enemy.ji = 0;
-  G.roomFlags.playerDamagedInBattle = false;
-  G.battle = {
-    round:1,
-    phase:'select',
-    pAction:null,
-    eAction:null,
-    lastPlayerAction:null,
-    lastEnemyAction:null,
-    popcornPending:false,
-    ekaiPending:false,
-    roundDisabledActions:[],
-    reunionDamageBonus:0,
-    killedByDestinedFirstSight:false,
-    cardsRevealed:false,
-    equipment:createBattleEquipmentState(),
-  };
-  G.ui = {mainSel:null, actionKey:null};
-
-  if (G.abilities.smallPotion && G.player.hp < G.player.maxHp) {
-    G.player.hp += 1;
-  }
-  if (G.player.classKey === 'mage' && G.abilities.storm) {
-    G.player.lightningOrbs = (G.player.lightningOrbs || 0) + 2;
-  }
-  if (G.player.classKey === 'warlock' && G.abilities.grudge && (G.player.carryCurseStacks || 0) > 0 && G.enemy) {
-    const carry = G.player.carryCurseStacks;
-    G.enemy.curseStacks = (G.enemy.curseStacks || 0) + carry;
-    G.player.carryCurseStacks = 0;
-    addLog('log-ab', `🔗 怨念：残余诅咒随你进入战斗，敌方继承 ${carry} 层诅咒。`);
+  const { tigerTriggered, carriedCurse } = initializeBattle(G, node, { keepSnapshot, rememberEntry: true });
+  if (carriedCurse > 0) {
+    addLog('log-ab', `🔗 怨念：残余诅咒随你进入战斗，敌方继承 ${carriedCurse} 层诅咒。`);
   }
 
   $('b-enemy-emoji').textContent = G.enemy.emoji || '👹';
@@ -2052,6 +1883,7 @@ function startBattle(node, keepSnapshot=false) {
   if (G.hardMode) {
     addLog('log-ab', '⚡ 困难模式：此 Boss 拥有更强的战场感知能力，会根据你的职业与战斗风格动态调整策略。');
   }
+  startBattleRecording(G);
   applyRoundStartEffects();
   updateHardBadge(G.hardMode);
 
@@ -2152,15 +1984,10 @@ function confirmAction(options = {}) {
   const ignoreRoundBlock = !!options.ignoreRoundBlock;
   const autoSubmitted = !!options.autoSubmitted;
   const actionKey = forceActionKey || G.ui.actionKey;
-  if (!actionKey || !G.battle || G.battle.phase !== 'select') return;
+  if (!actionKey || !G.battle || G.battle.phase !== 'select' || G.battle.outcome) return;
   if (hasDelegationProblemRelic() && !autoSubmitted) return;
-  if (!canUsePlayerActionKey(actionKey, { ignoreRoundDisabled: ignoreRoundBlock })) return;
-  if (!ignoreRoundBlock && isActionBlockedForRound(actionKey)) return;
-  G.ui.actionKey = actionKey;
-  G.battle.pAction = actionKey;
-  G.battle.eAction = aiDecide(G.enemy);
-  G.battle.phase = 'reveal';
-  G.battle.cardsRevealed = false;
+  if (!canUsePlayerAction(G, actionKey, { ignoreRoundDisabled: ignoreRoundBlock })) return;
+  battle.selectActions(G, actionKey);
   hideHuntRhythmPanel();
   experimentalBattleUi && experimentalBattleUi.resetDragState();
   $('action-area').style.pointerEvents = 'none';
@@ -2185,20 +2012,19 @@ function doReveal() {
 }
 
 function doResolve() {
-  const resolveCtx = battleRuntime.runResolvePhase();
+  const resolveCtx = battle.resolveActions(G);
   if (!resolveCtx.result) return;
 
-  G.battle.lastPlayerAction = G.battle.pAction;
-  G.battle.lastEnemyAction = G.battle.eAction;
   refreshBars();
   experimentalBattleUi && experimentalBattleUi.triggerHitFeedback(resolveCtx.result);
 
   runAfter(BATTLE_TIMINGS.OUTCOME_DELAY_MS, () => {
-    if (G.battle && G.battle.freeFollowUpPending && G.battle.freeFollowUpPending.count > 0) {
+    const pending = G.battle && getPendingChoice(G);
+    if (pending === 'free') {
       showFreeFollowUpPanel();
       return;
     }
-    if (G.battle && G.battle.huntRhythmPending) {
+    if (pending === 'hunt') {
       if (hasDelegationProblemRelic()) {
         addLog('log-ab', '🧾 委托代理问题：代理人放弃了狩猎律动的追加出手。');
         confirmHuntRhythmExtra();
@@ -2207,22 +2033,13 @@ function doResolve() {
       showHuntRhythmPostHitPanel();
       return;
     }
-    const deathCtx = battleRuntime.runDeathCheckPhase();
-    if (deathCtx.outcome === BATTLE_OUTCOME.WIN) {
-      endBattle(true);
-      return;
-    }
-    if (deathCtx.outcome === BATTLE_OUTCOME.LOSE) {
-      endBattle(false);
-      return;
-    }
-    nextRound();
+    finishResolvedTurn();
   });
 }
 
 function applyRoundStartEffects() {
   if (!G.battle) return false;
-  const phaseCtx = battleRuntime.runRoundStartPhase();
+  const phaseCtx = battle.startRound(G);
   if (phaseCtx.outcome === BATTLE_OUTCOME.WIN) {
     endBattle(true);
     return true;
@@ -2236,8 +2053,7 @@ function applyRoundStartEffects() {
 }
 
 function nextRound() {
-  G.battle.round += 1;
-  G.battle.phase = 'select';
+  battle.advanceRound(G);
   $('round-num').textContent = String(G.battle.round);
   addLog('rnd', `▶ 回合 ${G.battle.round}`);
   if (applyRoundStartEffects()) return;
@@ -2264,10 +2080,6 @@ function endBattle(win) {
   hideFreeFollowUpPanel();
   G.pendingPowerRelicOptions = [];
   G.pendingBattleReward = null;
-
-  if (G.player.classKey === 'warlock' && G.abilities.grudge && G.enemy && (G.enemy.curseStacks || 0) > 0) {
-    G.player.carryCurseStacks = Math.min(3, G.enemy.curseStacks);
-  }
 
   resetRoomJi();
 

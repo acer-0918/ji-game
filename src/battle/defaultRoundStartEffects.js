@@ -1,6 +1,6 @@
 import { PHASES, ACTOR_SCOPE, BATTLE_OUTCOME } from './constants.js';
 import { ROUND_START_ORDER } from './order.js';
-import { G } from '../state.js';
+import { G, battleRandom } from '../state.js';
 import { clampPlayerJiByEquipment, hasEquippedEquipment } from '../equipment/runtime.js';
 import { getSilenceGoldActionKeys, hasPowerRelic } from '../powerRelics/index.js';
 
@@ -16,7 +16,7 @@ function sampleDistinctKeysLocal(pool, count) {
   const bag = [...pool];
   const out = [];
   while (bag.length && out.length < count) {
-    const idx = Math.floor(Math.random() * bag.length);
+    const idx = Math.floor(battleRandom() * bag.length);
     out.push(bag[idx]);
     bag.splice(idx, 1);
   }
@@ -55,7 +55,7 @@ export function registerDefaultRoundStartEffects(engine) {
     order: ROUND_START_ORDER.RELIC_LEVER,
     condition: () => !!(G.battle && hasPowerRelic(G, 'lever')),
     apply: (ctx) => {
-      if (Math.random() < 0.5) {
+      if (battleRandom() < 0.5) {
         G.player.ji = clampPlayerJiByEquipment(G, G.player.ji * 2);
         pushLog(ctx, 'log-ab', `🪜 杠杆：本回合开始，Ji 翻倍至 ${G.player.ji}。`);
       } else {
@@ -84,9 +84,7 @@ export function registerDefaultRoundStartEffects(engine) {
     order: ROUND_START_ORDER.RELIC_SILENCE_GOLD,
     condition: () => !!(G.battle && hasPowerRelic(G, 'silenceGold')),
     apply: (ctx) => {
-      const actionKeys = typeof ctx.getPlayerActionKeysForSilence === 'function'
-        ? ctx.getPlayerActionKeysForSilence()
-        : getSilenceActionKeysFromState();
+      const actionKeys = getSilenceActionKeysFromState();
       if (actionKeys.length <= 0) return;
 
       const alreadyDisabled = new Set((G.battle.roundDisabledActions || []).filter(Boolean));
@@ -104,9 +102,7 @@ export function registerDefaultRoundStartEffects(engine) {
       }
 
       const disableCount = Math.min(4, candidates.length);
-      const picked = typeof ctx.sampleDistinctKeys === 'function'
-        ? ctx.sampleDistinctKeys(candidates, disableCount)
-        : sampleDistinctKeysLocal(candidates, disableCount);
+      const picked = sampleDistinctKeysLocal(candidates, disableCount);
       const merged = [...new Set([...(G.battle.roundDisabledActions || []), ...picked])];
       G.battle.roundDisabledActions = merged;
       G.player.ji = clampPlayerJiByEquipment(G, G.player.ji + 2);

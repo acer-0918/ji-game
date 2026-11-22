@@ -1,4 +1,4 @@
-import { G } from '../state.js';
+import { G, battleRandom } from '../state.js';
 import { clampPlayerJiByEquipment } from '../equipment/runtime.js';
 
 function isAttackAction(action) {
@@ -165,7 +165,7 @@ function applyDogHardWorkLuckOnHit(ctx) {
   if (ctx.side !== 'player') return;
   if (!G.player || G.player.classKey !== 'dog') return;
   if (!G.abilities.hardWorkLuck) return;
-  if (Math.random() < 0.7) {
+  if (battleRandom() < 0.7) {
     G.player.luck = Math.max(0, (G.player.luck || 0) + 1);
     ctx.triggers.push('七分打拼——触发成功（70%），幸运值 +1');
   } else {

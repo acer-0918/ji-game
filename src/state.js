@@ -3,6 +3,7 @@ import { POWER_RELIC_DEFS } from './powerRelics/index.js';
 import { clone } from './utils.js';
 import { createTechniquesState, createTechCounters } from './battleTechniques.js';
 import { createMapState } from './map/runtime.js';
+import { nextBattleRandom } from './battle/random.js';
 import {
   createEquipmentState,
   getDefenseTagBonus,
@@ -29,9 +30,12 @@ function createPowerRelicState() {
 }
 
 export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
+  G = createGameState(classKey, createMapState({ hardMode }));
+}
+
+export function createGameState(classKey = DEFAULT_CLASS_KEY, map = null) {
   const cls = CLASS_DEFS[classKey] || CLASS_DEFS[DEFAULT_CLASS_KEY];
-  const map = createMapState({ hardMode });
-  G = {
+  const game = {
     player: {
       classKey: cls.key,
       classIcon: cls.icon,
@@ -71,7 +75,23 @@ export function initGame(classKey = DEFAULT_CLASS_KEY, hardMode = false) {
     hardMode: false,
     devMode: false,
   };
-  G.player.luck = cls.key === 'dog' ? 30 : 0;
+  game.player.luck = cls.key === 'dog' ? 30 : 0;
+  return game;
+}
+
+// The existing effects read G. Scope it to one state for each synchronous operation.
+export function withGameState(game, operation) {
+  const previous = G;
+  G = game;
+  try {
+    return operation();
+  } finally {
+    G = previous;
+  }
+}
+
+export function battleRandom(stream = 'rules') {
+  return nextBattleRandom(G.battle?.random, stream);
 }
 
 export function ensureFaultRobotState(enemy) {
@@ -128,7 +148,7 @@ export function getDogLuckValue() {
   if (!G.player || G.player.classKey !== 'dog') return 0;
   let luck = Number(G.player.luck || 0);
   if (G.abilities && G.abilities.openMind) {
-    luck = Math.floor(Math.random() * 101);
+    luck = Math.floor(battleRandom() * 101);
     G.player.luck = luck;
   }
   return Math.max(0, luck);

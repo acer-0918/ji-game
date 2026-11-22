@@ -20,6 +20,7 @@ export function getSilenceGoldActionKeys(game) {
   const classKey = game && game.player ? game.player.classKey : '';
   if (classKey === 'mage') keys.push('mage_release');
   if (classKey === 'nsyc') keys.push('ekai');
+  if (classKey === 'warlock') keys.push('soul_devour');
   if (hasPowerRelic(game, 'deification')) keys.push('perfect_core');
   return keys;
 }

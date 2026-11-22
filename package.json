@@ -1,0 +1,8 @@
+{
+  "name": "ji-game",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

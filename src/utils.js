@@ -6,6 +6,6 @@ export function clamp(v, lo, hi) {
   return Math.max(lo, Math.min(hi, v));
 }
 
-export function randomChoice(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
+export function randomChoice(arr, random = Math.random) {
+  return arr[Math.floor(random() * arr.length)];
 }
